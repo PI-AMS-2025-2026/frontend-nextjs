@@ -1,0 +1,12 @@
+.modal-custom {
+  width: 1132px;
+  height: 707px;
+  max-width: 1132px;
+  max-height: 707px;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  overflow: hidden;
+  align-self: center;
+}

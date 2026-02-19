@@ -1,0 +1,45 @@
+<div class="mb-3">
+  <label *ngIf="label" [for]="id" class="form-label">{{ label }}</label>
+
+  <input
+    [type]="type"
+    class="form-control {{ class }}"
+    [id]="id"
+    [name]="name"
+    [placeholder]="placeholder"
+    [disabled]="disabled"
+    [required]="required"
+    [readonly]="readonly"
+    [autocomplete]="autocomplete"
+    [value]="value"
+    (input)="onInput($event)"
+    (focus)="onFocus()"
+    (blur)="onBlur()"
+    [ngClass]="{
+      'is-focused': focused,
+      'is-filled': value
+    }"
+  />
+
+  <div class="invalid-feedback d-block">
+    <ng-container>
+      <div *ngIf="control.errors?.['required']">Campo obrigatório.</div>
+      <div *ngIf="control.errors?.['email']">E-mail inválido.</div>
+      <div *ngIf="control.errors?.['minlength']">
+        Mínimo de {{ control.errors?.['minlength'].requiredLength }} caracteres.
+      </div>
+      <div *ngIf="control.errors?.['maxlength']">
+        Máximo de {{ control.errors?.['maxlength'].requiredLength }} caracteres.
+      </div>
+      <div *ngIf="control.errors?.['pattern']">
+        Apenas números são permitidos.
+      </div>
+      <div *ngIf="control.errors?.['min']">
+        Valor mínimo é {{ control.errors?.['min']?.min }}.
+      </div>
+      <div *ngIf="control.errors?.['max']">
+        Valor máximo é {{ control.errors?.['max']?.max }}.
+      </div>
+    </ng-container>
+  </div>
+</div>

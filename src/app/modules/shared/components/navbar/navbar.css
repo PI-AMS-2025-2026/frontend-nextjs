@@ -1,0 +1,10 @@
+.nav-link:hover {
+    text-decoration: none !important;
+}
+
+.active {
+    background-color: black
+}
+.sidebar{
+    overflow-y: auto;
+}

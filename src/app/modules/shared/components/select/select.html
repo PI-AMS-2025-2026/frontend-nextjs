@@ -1,0 +1,14 @@
+<select
+  class="form-select"
+  [value]="selectedItem"
+  (change)="onSelectionChange($event)"
+>
+  <option [value]="''">{{ placeholder }}</option>
+  <option
+    *ngFor="let item of itens; let i = index"
+    [value]="getItemValue(item, i)"
+    [selected]="isSelected(item, i)"
+  >
+    {{ getItemLabel(item) }}
+  </option>
+</select>

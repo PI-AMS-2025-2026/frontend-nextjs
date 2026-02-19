@@ -1,0 +1,114 @@
+<section class="pt-5">
+  <div class="d-flex justify-content-between align-items-center">
+    <SectionTitle>Cursos</SectionTitle>
+
+    <div class="d-flex justify-content-end align-items-center gap-2">
+      <div class="input-group">
+        <input
+          type="text"
+          class="form-control"
+          placeholder="Pesquisar..."
+          [(ngModel)]="searchTerm"
+        />
+      </div>
+      <app-button
+        variant="primary"
+        size="md"
+        (buttonClick)="[modal.open(), (isEditing = false)]"
+      >
+        <i class="bi bi-plus fs-6"></i>
+        Adicionar
+      </app-button>
+    </div>
+  </div>
+  <Card class="p-0 px-4">
+    <app-table [columns]="columns">
+      @for (course of filteredCourses; track $index) {
+      <tr>
+        <td>{{ course.id }}</td>
+        <td>{{ course.name }}</td>
+        <td>{{ course.description }}</td>
+        <td>{{ course.periodicity?.description }}</td>
+        <td>{{ course.modality?.name }}</td>
+    
+        <td>
+          <button
+            class="btn btn-outline-secondary btn-sm m-1"
+            (click)="[modal.open(), edit(course)]"
+          >
+            <i class="bi bi-pencil"></i>
+          </button>
+          <button
+            class="btn btn-outline-danger btn-sm m-1"
+            (click)="delete(course)"
+          >
+            <i class="bi bi-trash"></i>
+          </button>
+        </td>
+      </tr>
+      }
+    </app-table>
+
+    <!-- Paginação + Botão adicionar -->
+
+    <app-modal-generic
+      #modal
+      title="Adicionar Curso"
+      actionText="Salvar"
+      actionText2="Cancelar"
+      (confirmed)="save()"
+      [canCloseOnAction]="formGroupCourse.valid"
+      (cancelled)="reset()"
+    >
+      <form [formGroup]="formGroupCourse">
+        <app-input
+          type="text"
+          label="Nome"
+          placeholder="Digite o nome"
+          formControlName="name"
+          [control]="formGroupCourse.get('name')"
+        />
+        <app-input
+          type="text"
+          label="Descrição"
+          placeholder="Digite a descrição"
+          formControlName="description"
+          [control]="formGroupCourse.get('description')"
+        />
+         <div class="row mt-3">
+        <div class="col-md-6">
+          <app-select-entity
+            label="Modalidade"
+            placeholder="Selecione uma modalidade"
+            [items]="modalities"
+            formControlName="modalityId"
+            valueField="id"
+            textField="name"
+            [control]="formGroupCourse.get('modalityId')"
+          ></app-select-entity>
+        </div>
+        <div class="col-md-6">
+          <app-select-entity
+            label="Periodicidade"
+            placeholder="Selecione a periodicidade"
+            [items]="periodicities"
+            formControlName="periodicityId"
+            valueField="id"
+            textField="description"
+            [control]="formGroupCourse.get('periodicityId')"
+          ></app-select-entity>
+        </div>
+      </div>
+      </form>
+    </app-modal-generic>
+  </Card>
+  <div class="d-flex align-items-center justify-content-between mt-5 mb-3">
+    <div class="flex-grow-1 d-flex justify-content-end">
+      <app-pagination
+        [totalPages]="pageSize"
+        [currentPage]="page"
+        (pageChange)="collectionSize = courses.length"
+      ></app-pagination>
+    </div>
+  </div>
+</section>
