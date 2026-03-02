@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { AccessLevelProps } from '../../../../interfaces/AccessLevelProps';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { AccessLevelService } from '../../../../services/access-level/access-level-service';
+import { MatIconModule } from '@angular/material/icon';
 
 @Component({
   selector: 'app-access-level',

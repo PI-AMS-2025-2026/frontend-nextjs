@@ -10,19 +10,45 @@ export class ButtonComponent {
   @Input() variant: 'primary' | 'secondary' | 'outline' = 'primary';
   @Input() size: 'sm' | 'md' | 'lg' = 'md';
   @Input() disabled = false;
-  @Output() buttonClick = new EventEmitter<Event>();
   @Input() type: 'button' | 'submit' | 'reset' = 'button';
+  @Output() buttonClick = new EventEmitter<Event>();
 
   get buttonClasses(): string {
-    const baseClass = 'btn d-flex align-items-center gap-1';
-    const variantClass =
-      this.variant === 'outline' ? 'btn-outline-primary' : `btn-${this.variant}`;
-    const sizeClass =
-      this.size === 'sm' ? 'btn-sm' : this.size === 'lg' ? 'btn-lg' : '';
-    return [baseClass, variantClass, sizeClass].filter(Boolean).join(' ');
+    const baseClass =
+      'inline-flex items-center gap-2 font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2';
+
+    const variantClasses = {
+      primary:
+        'bg-primary text-white hover:bg-primary/80 focus:ring-blue-500',
+      secondary:
+        'bg-gray-600 text-white hover:bg-gray-700 focus:ring-gray-500',
+      outline:
+        'border border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-blue-500'
+    };
+
+    const sizeClasses = {
+      sm: 'px-3 py-1.5 text-sm',
+      md: 'px-4 py-2 text-base',
+      lg: 'px-6 py-3 text-lg'
+    };
+
+    const disabledClass = this.disabled
+      ? 'opacity-50 cursor-not-allowed pointer-events-none'
+      : '';
+
+    return [
+      baseClass,
+      variantClasses[this.variant],
+      sizeClasses[this.size],
+      disabledClass
+    ]
+      .filter(Boolean)
+      .join(' ');
   }
 
   onClick(event: Event) {
-    this.buttonClick.emit(event);
+    if (!this.disabled) {
+      this.buttonClick.emit(event);
+    }
   }
 }

@@ -1,7 +1,6 @@
 import { moduleMetadata, type Meta, type StoryObj } from '@storybook/angular';
 import { AccessLevelPage } from './access-level';
 import { CommonModule } from '@angular/common';
-import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { SharedModule } from '../../../shared/shared-module';
 import { AccessLevelService } from '../../../../services/access-level/access-level-service';
 import { HttpClientModule } from '@angular/common/http';
@@ -14,7 +13,6 @@ const meta: Meta<AccessLevelPage> = {
      moduleMetadata({
       imports: [
         CommonModule,
-        NgbModule,
         SharedModule,
         HttpClientModule
       ],

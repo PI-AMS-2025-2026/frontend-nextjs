@@ -1,7 +1,6 @@
 import { moduleMetadata, Meta, StoryObj } from '@storybook/angular';
 
 import { CommonModule } from '@angular/common';
-import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { SharedModule } from '../../../shared/shared-module';
 import { HttpClientModule } from '@angular/common/http';
 import { CourseService } from '../../../../services/course/course-service';
@@ -16,7 +15,6 @@ const meta: Meta<CoursesPage> = {
     moduleMetadata({
       imports: [
         CommonModule,
-        NgbModule,
         SharedModule,
         HttpClientModule
       ],

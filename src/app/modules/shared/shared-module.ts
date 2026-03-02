@@ -5,7 +5,6 @@ import { Pagination } from './components/pagination/pagination';
 import { Radios } from './components/radios/radios';
 import { RouterModule } from '@angular/router';
 import { NavbarComponent } from './components/navbar/navbar';
-import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { ButtonComponent } from './components/button/button';
 import { InputComponent } from './components/input/input';
 import { Login } from './pages/login/login';
@@ -18,6 +17,7 @@ import { SectionTitleComponent } from './components/section-title/section-title'
 import { HeaderComponent } from './components/header/header';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { SelectEntityComponent } from './components/select-entity/select-entity';
+import { MatIconModule } from '@angular/material/icon';
 
 @NgModule({
   declarations: [
@@ -40,9 +40,9 @@ import { SelectEntityComponent } from './components/select-entity/select-entity'
   imports: [
     CommonModule,
     RouterModule,
-    NgbModule,
     ReactiveFormsModule,
     FormsModule,
+    MatIconModule
   ],
   exports: [
     ModalComponent,
@@ -60,6 +60,7 @@ import { SelectEntityComponent } from './components/select-entity/select-entity'
     SectionTitleComponent,
     HeaderComponent,
     SelectEntityComponent,
+    MatIconModule
   ],
 })
 export class SharedModule {}

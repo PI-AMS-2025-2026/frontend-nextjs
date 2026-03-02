@@ -1,14 +1,13 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { CommonModule } from '@angular/common';
 import { Table } from './table';
-import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 
 const meta: Meta<Table> = {
     title: 'Shared/Components/Table',
     component: Table,
     decorators: [
         moduleMetadata({
-           imports: [CommonModule, NgbModule],
+           imports: [CommonModule],
             declarations: [Table],
         }),
     ],

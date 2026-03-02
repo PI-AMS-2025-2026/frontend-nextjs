@@ -1,6 +1,4 @@
 import { Component, EventEmitter, Input, Output, TemplateRef, ViewChild } from '@angular/core';
-import { NgbModal, NgbModule } from '@ng-bootstrap/ng-bootstrap';
-
 
 @Component({
   selector: 'app-modal-generic',
@@ -20,20 +18,22 @@ export class ModalComponent {
 
   @ViewChild('content', { static: true }) content!: TemplateRef<any>;
 
-  constructor(public modalService: NgbModal) { }
+  constructor() { }
 
   open() {
-    this.modalService.open(this.content, { centered: true });
+    // Modal functionality removed
   }
 
   onAction() {
     this.actionFunction();
     this.confirmed.emit();
-    if(this.canCloseOnAction) this.modalService.dismissAll();
+    if(this.canCloseOnAction) {
+      // Modal dismiss functionality removed
+    }
   }
 
   onCancel() {
     this.cancelled.emit();
-    this.modalService.dismissAll();
+    // Modal dismiss functionality removed
   }
 }

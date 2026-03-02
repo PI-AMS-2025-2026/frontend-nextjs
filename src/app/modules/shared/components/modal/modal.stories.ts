@@ -2,14 +2,13 @@ import { Meta, moduleMetadata, StoryFn } from '@storybook/angular';
 import { ModalComponent } from './modal';
 import { ButtonComponent } from '../button/button'; 
 import { CommonModule } from '@angular/common';
-import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 
 export default {
   title: 'Shared/Components/Modal',
   component: ModalComponent,
   decorators: [
     moduleMetadata({
-      imports: [CommonModule, NgbModule],
+      imports: [CommonModule],
       declarations: [ModalComponent, ButtonComponent], 
     }),
   ],

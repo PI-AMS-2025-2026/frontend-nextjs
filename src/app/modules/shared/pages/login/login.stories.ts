@@ -2,7 +2,6 @@ import { Meta, moduleMetadata, StoryFn } from '@storybook/angular';
 import { Login } from './login';
 import { ButtonComponent } from '../../components/button/button'; 
 import { CommonModule } from '@angular/common';
-import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { InputComponent } from '../../components/input/input';
 
 export default {
@@ -10,7 +9,7 @@ export default {
   component: Login,
   decorators: [
     moduleMetadata({
-      imports: [CommonModule, NgbModule],
+      imports: [CommonModule],
       declarations: [Login, ButtonComponent, InputComponent], 
     }),
   ],

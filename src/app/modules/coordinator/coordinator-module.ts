@@ -4,7 +4,6 @@ import { CoordinatorRoutingModule } from './coordinator-routing-module';
 import { HomePage } from './pages/home/home';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { SharedModule } from '../shared/shared-module';
-import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { UsersPage } from './pages/user/users';
 import { SubjetcPage } from './pages/subject/subjetc';
 import { CoursesPage } from './pages/course/courses';
@@ -18,7 +17,6 @@ import { AccessLevelPage } from './pages/access-level/access-level';
     CoordinatorRoutingModule,
     FormsModule,
     SharedModule,
-    NgbModule,
     ReactiveFormsModule,
   ],
   exports: [HomePage, CoursesPage, UsersPage, SubjetcPage, ClassroomPage, AccessLevelPage],
