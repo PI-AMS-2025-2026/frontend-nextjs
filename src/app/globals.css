@@ -7,6 +7,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-navbar-background: var(--navbar-background);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
@@ -57,6 +58,7 @@
   --dark-purple: #451473;
   --wine: #802651;
   --destructive: #ff0000;
+  --navbar-background: #0f1a30;
   
   --border: #17264d;
   --border-focus: #4471e6;
@@ -66,8 +68,8 @@
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
+  --popover: #0f1a30;
+  --popover-foreground: #d1d1d1;
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);

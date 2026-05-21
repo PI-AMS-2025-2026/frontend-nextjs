@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Poppins, Geist } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
+import { Navbar } from "@/components/created/navbar";
+import { Footer } from "@/components/created/footer";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -32,7 +34,11 @@ export default function RootLayout({
         geist.variable,
       )}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="min-h-[90dvh]">{children}</div>
+        <Footer />
+      </body>
     </html>
   );
 }
