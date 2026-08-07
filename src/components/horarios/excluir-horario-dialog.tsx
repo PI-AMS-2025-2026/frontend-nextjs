@@ -22,13 +22,13 @@ export function ExcluirHorarioDialog({
 }: ExcluirHorarioDialogProps) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md !bg-white !text-[#0c2c3e]">
                 <DialogHeader>
-                    <DialogTitle className="text-xl">Excluir Horário</DialogTitle>
+                    <DialogTitle className="text-xl !text-[#0c2c3e]">Excluir Horário</DialogTitle>
                 </DialogHeader>
 
                 <div className="flex flex-col gap-1 py-1">
-                    <p className="text-sm text-foreground">
+                    <p className="text-sm !text-[#0c2c3e]">
                         Tem certeza que deseja excluir este Horário?
                     </p>
                     <p className="text-sm font-medium text-[#1c5468]">
@@ -40,7 +40,7 @@ export function ExcluirHorarioDialog({
                     <Button
                         type="button"
                         variant="default"
-                        className="!bg-transparent !text-foreground/70 !shadow-none font-semibold tracking-wide hover:!bg-muted"
+                        className="!bg-transparent !text-[#0c2c3e]/70 !shadow-none font-semibold tracking-wide hover:!bg-muted"
                         onClick={() => onOpenChange(false)}
                     >
                         CANCELAR

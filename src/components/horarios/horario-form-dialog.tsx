@@ -74,30 +74,30 @@ function HorarioFormContent({
     }
 
     return (
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md !bg-white !text-[#0c2c3e]">
             <DialogHeader>
-                <DialogTitle className="text-xl">{titulo}</DialogTitle>
+                <DialogTitle className="text-xl !text-[#0c2c3e]">{titulo}</DialogTitle>
             </DialogHeader>
 
             <div className="grid grid-cols-2 gap-4 py-2">
                 <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="horario-inicio">Início</Label>
+                    <Label htmlFor="horario-inicio" className="!text-[#0c2c3e]">Início</Label>
                     <Input
                         id="horario-inicio"
                         type="time"
                         value={inicio}
                         onChange={(e) => setInicio(e.target.value)}
-                        className="border-[#1c5468]/40 focus-visible:border-[#1c5468]"
+                        className="!bg-white !text-[#0c2c3e] border-[#1c5468]/40 focus-visible:border-[#1c5468]"
                     />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="horario-fim">Fim</Label>
+                    <Label htmlFor="horario-fim" className="!text-[#0c2c3e]">Fim</Label>
                     <Input
                         id="horario-fim"
                         type="time"
                         value={fim}
                         onChange={(e) => setFim(e.target.value)}
-                        className="border-[#1c5468]/40 focus-visible:border-[#1c5468]"
+                        className="!bg-white !text-[#0c2c3e] border-[#1c5468]/40 focus-visible:border-[#1c5468]"
                     />
                 </div>
             </div>
@@ -108,7 +108,7 @@ function HorarioFormContent({
                 <Button
                     type="button"
                     variant="default"
-                    className="!bg-transparent !text-foreground/70 !shadow-none font-semibold tracking-wide hover:!bg-muted"
+                    className="!bg-transparent !text-[#0c2c3e]/70 !shadow-none font-semibold tracking-wide hover:!bg-muted"
                     onClick={onCancel}
                 >
                     CANCELAR

@@ -28,7 +28,7 @@ export function SucessoDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="flex flex-col items-center gap-3 py-8 text-center sm:max-w-xs"
+        className="flex flex-col items-center gap-3 py-8 text-center sm:max-w-xs !bg-white"
       >
         {/* Título exigido pelo Radix para acessibilidade (leitor de tela),
             mas visualmente escondido porque o ícone + mensagem já bastam aqui. */}
@@ -36,7 +36,7 @@ export function SucessoDialog({
           <DialogTitle>{mensagem}</DialogTitle>
         </VisuallyHidden.Root>
         <CheckCircle2 className="size-12 text-[#2fa4b5]" strokeWidth={1.5} />
-        <p className="text-base font-medium text-foreground">{mensagem}</p>
+        <p className="text-base font-medium !text-[#0c2c3e]">{mensagem}</p>
       </DialogContent>
     </Dialog>
   );
