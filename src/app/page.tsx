@@ -1,7 +1,9 @@
+import { HorariosListagem } from "@/components/horarios/horarios-listagem";
+
 export default function Home() {
   return (
-    <div className="flex items-center justify-center h-full">
-      <h1 className="text-3xl font-bold underline">Hello world!</h1>
+    <div className="flex min-h-screen w-full flex-col bg-white">
+      <HorariosListagem />
     </div>
   );
 }

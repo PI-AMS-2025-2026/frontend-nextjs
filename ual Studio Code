@@ -1,0 +1,37 @@
+[33mcommit e8c96f6d030f48399d9b1d745caed44badcae931[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32menhancement/issue88[m[33m, [m[1;31morigin/enhancement/issue88[m[33m)[m
+Author: anacorreaa <anacarolcorr07@gmail.com>
+Date:   Wed Aug 5 17:06:54 2026 -0300
+
+    feat: tela de cadastro de horários (issue #88)
+
+ src/horarios-next/.gitignore                       |   41 [32m+[m
+ src/horarios-next/README.md                        |   77 [32m+[m
+ src/horarios-next/eslint.config.mjs                |   18 [32m+[m
+ src/horarios-next/next.config.ts                   |    7 [32m+[m
+ src/horarios-next/package-lock.json                | 6156 [32m++++++++++++++++++++[m
+ src/horarios-next/package.json                     |   24 [32m+[m
+ src/horarios-next/public/file.svg                  |    1 [32m+[m
+ src/horarios-next/public/globe.svg                 |    1 [32m+[m
+ src/horarios-next/public/next.svg                  |    1 [32m+[m
+ src/horarios-next/public/vercel.svg                |    1 [32m+[m
+ src/horarios-next/public/window.svg                |    1 [32m+[m
+ src/horarios-next/src/app/favicon.ico              |  Bin [31m0[m -> [32m25931[m bytes
+ src/horarios-next/src/app/globals.css              |   53 [32m+[m
+ src/horarios-next/src/app/layout.tsx               |   15 [32m+[m
+ src/horarios-next/src/app/page.tsx                 |   11 [32m+[m
+ .../ConfirmModal/ConfirmModal.module.css           |   61 [32m+[m
+ .../src/components/ConfirmModal/ConfirmModal.tsx   |   54 [32m+[m
+ .../HorarioFormModal/HorarioFormModal.module.css   |  104 [32m+[m
+ .../HorarioFormModal/HorarioFormModal.tsx          |  148 [32m+[m
+ .../src/components/Horarios/Horarios.module.css    |  275 [32m+[m
+ .../src/components/Horarios/Horarios.tsx           |  435 [32m++[m
+ .../src/components/Modal/Modal.module.css          |   31 [32m+[m
+ src/horarios-next/src/components/Modal/Modal.tsx   |   51 [32m+[m
+ .../components/Pagination/Pagination.module.css    |   69 [32m+[m
+ .../src/components/Pagination/Pagination.tsx       |   95 [32m+[m
+ .../SuccessModal/SuccessModal.module.css           |   19 [32m+[m
+ .../src/components/SuccessModal/SuccessModal.tsx   |   49 [32m+[m
+ src/horarios-next/src/models/horario.ts            |   10 [32m+[m
+ src/horarios-next/src/services/horarioService.ts   |  189 [32m+[m
+ src/horarios-next/tsconfig.json                    |   34 [32m+[m
+ 30 files changed, 8031 insertions(+)
