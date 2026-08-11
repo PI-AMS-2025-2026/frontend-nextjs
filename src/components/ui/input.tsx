@@ -1,24 +1,19 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import {
-  Calendar,
-  Eye,
-  EyeOff,
-  Lock,
-  Search,
-} from "lucide-react"
+import * as React from "react";
+import { Calendar, Eye, EyeOff, Lock, Search } from "lucide-react";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 // ====================
 // INPUT PROPS
 // ====================
 
 interface InputLabelProps {
-  label?: string
-  showLabel?: boolean
-  className?: string
+  label?: string;
+  showLabel?: boolean;
+  height?: string;
+  className?: string;
 }
 
 // ====================
@@ -26,13 +21,13 @@ interface InputLabelProps {
 // ====================
 
 interface InputProps
-  extends React.ComponentProps<"input">,
-  InputLabelProps { }
+  extends Omit<React.ComponentProps<"input">, "height">, InputLabelProps {}
 
 function Input({
   className,
   label,
   showLabel = false,
+  height = "50px",
   ...props
 }: InputProps) {
   return (
@@ -45,17 +40,18 @@ function Input({
 
       <input
         data-slot="input"
+        style={{ height }}
         className={cn(
-          "h-[50px] w-full min-w-0 rounded-[15px] border border-[#17264D] bg-[#F2F2F2] px-3 text-base text-[#17264D] outline-none transition-colors",
+          "w-full min-w-0 rounded-[15px] border border-[#17264D] bg-[#F2F2F2] px-3 text-base text-[#17264D] outline-none transition-colors",
           "placeholder:text-gray-500",
           "focus:border-[#4471E6]",
           "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
-          className
+          className,
         )}
         {...props}
       />
     </div>
-  )
+  );
 }
 
 // ====================
@@ -63,22 +59,22 @@ function Input({
 // ====================
 
 interface DateInputProps
-  extends React.ComponentProps<"input">,
-  InputLabelProps { }
+  extends Omit<React.ComponentProps<"input">, "height">, InputLabelProps {}
 
 function DateInput({
   className,
   label,
   showLabel = false,
+  height = "50px",
   ...props
 }: DateInputProps) {
-  const inputRef = React.useRef<HTMLInputElement>(null)
+  const inputRef = React.useRef<HTMLInputElement>(null);
 
   const openCalendar = () => {
     if (inputRef.current) {
-      inputRef.current.showPicker?.()
+      inputRef.current.showPicker?.();
     }
-  }
+  };
 
   return (
     <div className="w-full">
@@ -98,7 +94,7 @@ function DateInput({
             "focus:border-[#4471E6]",
             "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
             "[&::-webkit-calendar-picker-indicator]:opacity-0",
-            className
+            className,
           )}
           {...props}
         />
@@ -113,7 +109,7 @@ function DateInput({
         </button>
       </div>
     </div>
-  )
+  );
 }
 
 // ====================
@@ -121,13 +117,13 @@ function DateInput({
 // ====================
 
 interface SearchInputProps
-  extends React.ComponentProps<"input">,
-  InputLabelProps { }
+  extends Omit<React.ComponentProps<"input">, "height">, InputLabelProps {}
 
 function SearchInput({
   className,
   label,
   showLabel = false,
+  height = "50px",
   ...props
 }: SearchInputProps) {
   return (
@@ -149,13 +145,13 @@ function SearchInput({
             "placeholder:text-gray-500",
             "focus:border-[#4471E6]",
             "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
-            className
+            className,
           )}
           {...props}
         />
       </div>
     </div>
-  )
+  );
 }
 
 // ====================
@@ -163,17 +159,16 @@ function SearchInput({
 // ====================
 
 interface PasswordInputProps
-  extends React.ComponentProps<"input">,
-  InputLabelProps { }
+  extends Omit<React.ComponentProps<"input">, "height">, InputLabelProps {}
 
 function PasswordInput({
   className,
   label,
   showLabel = false,
+  height = "50px",
   ...props
 }: PasswordInputProps) {
-  const [showPassword, setShowPassword] =
-    React.useState(false)
+  const [showPassword, setShowPassword] = React.useState(false);
 
   return (
     <div className="w-full">
@@ -194,22 +189,16 @@ function PasswordInput({
             "placeholder:text-gray-500",
             "focus:border-[#4471E6]",
             "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
-            className
+            className,
           )}
           {...props}
         />
 
         <button
           type="button"
-          onClick={() =>
-            setShowPassword((prev) => !prev)
-          }
+          onClick={() => setShowPassword((prev) => !prev)}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-[#17264D] transition-colors hover:text-[#4471E6]"
-          aria-label={
-            showPassword
-              ? "Ocultar senha"
-              : "Mostrar senha"
-          }
+          aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
         >
           {showPassword ? (
             <EyeOff className="size-5" />
@@ -219,12 +208,7 @@ function PasswordInput({
         </button>
       </div>
     </div>
-  )
+  );
 }
 
-export {
-  Input,
-  DateInput,
-  SearchInput,
-  PasswordInput,
-}
+export { Input, DateInput, SearchInput, PasswordInput };
