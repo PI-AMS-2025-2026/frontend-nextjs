@@ -1,3 +1,6 @@
+"use client"
+
+import * as React from "react"
 import {
   Accordion,
   AccordionContent,
@@ -15,43 +18,24 @@ import {
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+  Modal
+} from "@/components/ui/modal";
+import { DateInput, SearchInput, PasswordInput, Input } from "@/components/ui/input";
 import { Dropdown } from "@/components/ui/dropdown";
-import {
-  NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-} from "@/components/ui/navigation-menu";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  RoomTable
 } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip } from "@/components/ui/tooltip";
+import { Toggle } from "@/components/ui/toggle";
+import { TableFilters } from "@/components/ui/tablefilters";
 
 export default function Home() {
+  const [modalOpen, setModalOpen] = React.useState(false)
+  const [createModalOpen, setCreateModalOpen] = React.useState(false)
+  const [editModalOpen, setEditModalOpen] = React.useState(false)
+  const [deleteModalOpen, setDeleteModalOpen] = React.useState(false)
+  const [errorModalOpen, setErrorModalOpen] = React.useState(false)
   return (
     <main className="min-h-screen bg-background p-6 text-foreground">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -72,17 +56,26 @@ export default function Home() {
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
               <div className="flex flex-wrap gap-2">
-                <Button>Primário</Button>
-                <Button variant="outline">Outline</Button>
-                <Button variant="secondary">Secondary</Button>
+                <Button variant="primary" size="large">Primary</Button>
+                <Button variant="secondary" size="medium">Secondary</Button>
+                <Button variant="danger" size="small">Danger</Button>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="name">Nome</Label>
-                <Input id="name" placeholder="Digite seu nome" />
+                <DateInput label="Data de nascimento"
+                  showLabel />
+                <PasswordInput
+                  label="Senha"
+                  showLabel
+                  placeholder="Digite sua senha"
+                />
+                <Input label="Nome"
+                  showLabel placeholder="Digite algo..." />
+                <SearchInput placeholder="Pesquisar..." />
               </div>
             </CardContent>
-            <CardFooter>
-              <Button variant="ghost">Cancelar</Button>
+            <CardFooter className="flex justify-end gap-2">
+              <Button variant="ghost" size="small">Cancelar</Button>
+              <Button variant="primary" size="small">Salvar</Button>
             </CardFooter>
           </Card>
 
@@ -99,16 +92,30 @@ export default function Home() {
                 <span className="text-sm">Aceito os termos</span>
               </label>
 
-              <RadioGroup defaultValue="option-1" className="flex gap-4">
-                <label className="flex items-center gap-2">
-                  <RadioGroupItem value="option-1" id="option-1" />
-                  <Label htmlFor="option-1">Opção 1</Label>
-                </label>
-                <label className="flex items-center gap-2">
-                  <RadioGroupItem value="option-2" id="option-2" />
-                  <Label htmlFor="option-2">Opção 2</Label>
-                </label>
+              <RadioGroup defaultValue="opcao1">
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="opcao1" />
+                  <span>Opção 1</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="opcao2" />
+                  <span>Opção 2</span>
+                </div>
               </RadioGroup>
+
+              <Toggle
+                label="Notificações"
+                showLabel
+              />
+
+              <Toggle />
+
+              <Toggle
+                label="Modo escuro"
+                showLabel
+                defaultChecked
+              />
 
               <Dropdown
                 options={[
@@ -122,24 +129,47 @@ export default function Home() {
           </Card>
         </section>
 
-        <section className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
+        <section className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
               <CardTitle>Accordion</CardTitle>
               <CardDescription>Conteúdo em blocos expansíveis.</CardDescription>
             </CardHeader>
             <CardContent>
-              <Accordion type="single" defaultValue="item-1" className="w-full">
+              <Accordion type="single" collapsible>
                 <AccordionItem value="item-1">
-                  <AccordionTrigger>Primeiro item</AccordionTrigger>
+                  <AccordionTrigger>
+                    Qual é a melhor época para viajar?
+                  </AccordionTrigger>
+
                   <AccordionContent>
-                    Conteúdo do primeiro item com uma descrição simples.
+                    A melhor época depende do destino e do clima que você
+                    prefere. Pesquisar as condições locais antes da viagem
+                    pode ajudar no planejamento.
                   </AccordionContent>
                 </AccordionItem>
+
                 <AccordionItem value="item-2">
-                  <AccordionTrigger>Segundo item</AccordionTrigger>
+                  <AccordionTrigger>
+                    Quanto tempo leva para aprender um idioma?
+                  </AccordionTrigger>
+
                   <AccordionContent>
-                    Conteúdo do segundo item com mais detalhes.
+                    O tempo varia de acordo com a frequência de estudo,
+                    contato com o idioma e familiaridade com a língua.
+                    A prática constante costuma trazer melhores resultados.
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="item-3">
+                  <AccordionTrigger>
+                    Como cuidar de uma planta dentro de casa?
+                  </AccordionTrigger>
+
+                  <AccordionContent>
+                    Verifique a quantidade de luz necessária para a espécie,
+                    mantenha uma rotina adequada de rega e evite deixar água
+                    acumulada no recipiente.
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
@@ -151,124 +181,198 @@ export default function Home() {
               <CardTitle>Tooltip</CardTitle>
               <CardDescription>Informações contextuais.</CardDescription>
             </CardHeader>
-            <CardContent className="flex justify-center">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="outline">Passe o mouse</Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Texto de ajuda</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+            <CardContent className="flex h-full flex-wrap justify-center items-center gap-4">
+
+              <Tooltip
+                content="Configurações"
+                side="left"
+                variant="secondary"
+              >
+                <Button variant="primary" size="small">Config</Button>
+              </Tooltip>
+
+              <Tooltip content="Editar usuário">
+                <Button variant="secondary" size="small">Editar</Button>
+              </Tooltip>
+
+              <Tooltip
+                content="Excluir este item"
+                side="bottom"
+                variant="primary"
+              >
+                <Button variant="danger" size="small">Excluir</Button>
+              </Tooltip>
+
+              <Tooltip
+                content="Informações adicionais"
+                side="right"
+                variant="secondary"
+              >
+                <Button variant="primary" size="small">Mais info</Button>
+              </Tooltip>
+
             </CardContent>
           </Card>
         </section>
 
-        <section className="grid gap-6 lg:grid-cols-[1fr_1fr]">
+        <section className="grid w-full gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>Tabs</CardTitle>
-              <CardDescription>Organização por abas.</CardDescription>
+              <CardTitle>Modal</CardTitle>
+              <CardDescription>
+                Modal simples com ação.
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <Tabs defaultValue="account" className="w-full">
-                <TabsList>
-                  <TabsTrigger value="account">Conta</TabsTrigger>
-                  <TabsTrigger value="password">Senha</TabsTrigger>
-                </TabsList>
-                <TabsContent
-                  value="account"
-                  className="mt-3 rounded-lg border border-border p-3"
+
+            <CardContent className="flex w-full flex-1 items-center justify-center">
+              <div className="flex flex-wrap items-center justify-center gap-3">
+
+                {/* Modal personalizado */}
+                <Button
+                  variant="primary"
+                  size="small"
+                  onClick={() => setModalOpen(true)}
                 >
-                  Configurações da conta.
-                </TabsContent>
-                <TabsContent
-                  value="password"
-                  className="mt-3 rounded-lg border border-border p-3"
+                  Modal
+                </Button>
+
+                {/* Modal de criação */}
+                <Button
+                  variant="secondary"
+                  size="small"
+                  onClick={() => setCreateModalOpen(true)}
                 >
-                  Configurações de senha.
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
+                  Criar
+                </Button>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Diálogo</CardTitle>
-              <CardDescription>Modal simples com ação.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex justify-center">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="outline">Abrir diálogo</Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Olá!</DialogTitle>
-                    <DialogDescription>
-                      Este é um exemplo de modal usando os componentes do
-                      projeto.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter showCloseButton>
-                    <Button>Confirmar</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                {/* Modal de edição */}
+                <Button
+                  variant="primary"
+                  size="small"
+                  onClick={() => setEditModalOpen(true)}
+                >
+                  Editar
+                </Button>
+
+                {/* Modal de exclusão */}
+                <Button
+                  variant="danger"
+                  size="small"
+                  onClick={() => setDeleteModalOpen(true)}
+                >
+                  Excluir
+                </Button>
+
+                {/* Modal de erro */}
+                <Button
+                  variant="secondary"
+                  size="small"
+                  onClick={() => setErrorModalOpen(true)}
+                >
+                  Erro
+                </Button>
+              </div>
+
+              {/* ==================== */}
+              {/* MODAL PERSONALIZADO */}
+              {/* ==================== */}
+
+              <Modal
+                open={modalOpen}
+                onClose={() => setModalOpen(false)}
+              >
+                <h2 className="text text-xl font-semibold">
+                  Olá!
+                </h2>
+
+                <p className="mt-2 text text-sm text-[#17264D]/70">
+                  Este é um exemplo de modal usando o componente
+                  reutilizável.
+                </p>
+
+                <div className="mt-6 flex justify-end gap-3">
+                  <Button
+                    variant="ghost"
+                    size="small"
+                    onClick={() => setModalOpen(false)}
+                  >
+                    Fechar
+                  </Button>
+
+                  <Button
+                    variant="primary"
+                    size="small"
+                    onClick={() => setModalOpen(false)}
+                  >
+                    Confirmar
+                  </Button>
+                </div>
+              </Modal>
+
+              {/* ==================== */}
+              {/* MODAL DE CRIAÇÃO */}
+              {/* ==================== */}
+
+              <Modal
+                open={createModalOpen}
+                onClose={() => setCreateModalOpen(false)}
+                type="success"
+                message="Usuário criado com sucesso!"
+              />
+
+              {/* ==================== */}
+              {/* MODAL DE EDIÇÃO */}
+              {/* ==================== */}
+
+              <Modal
+                open={editModalOpen}
+                onClose={() => setEditModalOpen(false)}
+                type="success"
+                message="Usuário editado com sucesso!"
+              />
+
+              {/* ==================== */}
+              {/* MODAL DE EXCLUSÃO */}
+              {/* ==================== */}
+
+              <Modal
+                open={deleteModalOpen}
+                onClose={() => setDeleteModalOpen(false)}
+                type="success"
+                message="Usuário excluído com sucesso!"
+              />
+
+              {/* ==================== */}
+              {/* MODAL DE ERRO */}
+              {/* ==================== */}
+
+              <Modal
+                open={errorModalOpen}
+                onClose={() => setErrorModalOpen(false)}
+                type="error"
+                message="Não foi possível criar o usuário!"
+              />
+
             </CardContent>
           </Card>
         </section>
 
-        <section className="grid gap-6 lg:grid-cols-[1fr_1fr]">
-          <Card>
-            <CardHeader>
-              <CardTitle>Navigation Menu</CardTitle>
-              <CardDescription>Menu de navegação simples.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <NavigationMenu>
-                <NavigationMenuList>
-                  <NavigationMenuItem>
-                    <NavigationMenuTrigger>Menu</NavigationMenuTrigger>
-                    <NavigationMenuContent>
-                      <div className="flex w-48 flex-col gap-2 p-3">
-                        <NavigationMenuLink href="#">Início</NavigationMenuLink>
-                        <NavigationMenuLink href="#">Sobre</NavigationMenuLink>
-                      </div>
-                    </NavigationMenuContent>
-                  </NavigationMenuItem>
-                </NavigationMenuList>
-              </NavigationMenu>
-            </CardContent>
-          </Card>
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle>Tabela com campo de filtros</CardTitle>
+            <CardDescription>
+              Lista de salas cadastradas.
+            </CardDescription>
+          </CardHeader>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Tabela</CardTitle>
-              <CardDescription>Estrutura básica de dados.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow>
-                    <TableCell>Ana</TableCell>
-                    <TableCell>Ativo</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>Bruno</TableCell>
-                    <TableCell>Inativo</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </section>
+          <CardContent>
+            <div className="flex flex-col gap-4">
+              <TableFilters />
+
+              <RoomTable />
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </main>
   );
