@@ -1,0 +1,64 @@
+'use client';
+
+import { useEffect } from 'react';
+import Modal from '../Modal/Modal';
+import styles from './SuccessModal.module.css';
+
+interface SuccessModalProps {
+  open: boolean;
+  message: string;
+  autoCloseMs?: number;
+  onClose: () => void;
+  /** Rótulo de um botão de ação extra (ex: "VISUALIZAR GRADE"). Opcional. */
+  actionLabel?: string;
+  onAction?: () => void;
+}
+
+/**
+ * Modal de feedback de sucesso, exibido após cadastro/edição/exclusão.
+ * Fecha automaticamente após `autoCloseMs` milissegundos — a menos que
+ * tenha um botão de ação extra (actionLabel/onAction), caso em que o
+ * fechamento automático fica desligado, pra dar tempo da pessoa clicar.
+ */
+export default function SuccessModal({
+  open,
+  message,
+  autoCloseMs = 2000,
+  onClose,
+  actionLabel,
+  onAction,
+}: SuccessModalProps) {
+  const temAcaoExtra = !!actionLabel && !!onAction;
+
+  useEffect(() => {
+    if (!open || temAcaoExtra) return;
+    const timer = setTimeout(onClose, autoCloseMs);
+    return () => clearTimeout(timer);
+  }, [open, autoCloseMs, onClose, temAcaoExtra]);
+
+  return (
+    <Modal open={open} onClose={onClose} width="320px">
+      <div className={styles.content}>
+        <div className={styles.icon}>
+          <svg viewBox="0 0 24 24" width="40" height="40" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="var(--color-accent-blue)" strokeWidth="2" />
+            <path
+              d="M7.5 12.5L10.3 15.3L16.5 9"
+              stroke="var(--color-accent-blue)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
+        <p className={styles.message}>{message}</p>
+
+        {temAcaoExtra && (
+          <button type="button" className={styles.actionBtn} onClick={onAction}>
+            {actionLabel}
+          </button>
+        )}
+      </div>
+    </Modal>
+  );
+}

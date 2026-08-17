@@ -8,6 +8,11 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-navbar-background: var(--navbar-background);
+  --color-cyan: var(--cyan);
+  --color-middle-blue: var(--middle-blue);
+  --color-lavender: var(--lavender);
+  --color-dark-purple: var(--dark-purple);
+  --color-wine: var(--wine);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
@@ -50,33 +55,30 @@
 }
 
 :root {
-  /* CORES DO PROJETO */
-  --primary: #17264d;
-  --cyan: #0099aa;
-  --middle-blue: #4471e6;
-  --lavender: #9bb2ff;
-  --dark-purple: #451473;
-  --wine: #802651;
-  --destructive: #ff0000;
-  --navbar-background: #0f1a30;
-  
-  --border: #17264d;
-  --border-focus: #4471e6;
-  --input: #f2f2f2;
-  /* CORES PADRÃO */
-  --background: oklch(1 0 0);
+  /*
+   * ---- TEMA DO PROJETO (shadcn) ----
+   * É usado pela navbar, footer e por qualquer componente ui/* que o
+   * resto do time faz. NÃO mexer aqui só pra estilizar uma tela
+   * específica; ver o bloco "TEMA DAS NOSSAS TELAS" mais abaixo pra isso.
+   */
+  --background: #253060(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
-  --popover: #0f1a30;
-  --popover-foreground: #d1d1d1;
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: #253060;         /* mesmo tom usado nos hover/bg-[#253060] hardcoded da navbar */
   --primary-foreground: oklch(0.985 0 0);
+  --navbar-background: #1a2540; /* mesmo tom do bg-[#1a2540] do menu mobile */
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
@@ -84,6 +86,83 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+
+  /* Cores de marca da Fatec (usadas pontualmente, ex: seletor de cor de disciplina) */
+  --cyan: #0099aa;
+  --middle-blue: #4471e6;
+  --lavender: #9bb2ff;
+  --dark-purple: #451473;
+  --wine: #802651;
+
+  /*
+   * ---- TEMA DAS NOSSAS TELAS (Horários / Cursos / Disciplinas / Grade Horária) ----
+   * Totalmente separado do tema acima — nada aqui embaixo referencia
+   * --primary, --background etc do shadcn. Só os nossos componentes em
+   * CSS Modules usam essas variáveis (var(--color-primary) etc), então
+   * mexer aqui nunca mais afeta navbar/footer/ui compartilhado.
+   */
+  --color-primary: #0099aa;        /* teal principal (botões, cabeçalho da tabela) */
+  --color-primary-dark: #0a5e66;
+  --color-primary-light: #e6f3f4;
+
+  --color-accent-blue: #0099aa;
+;    /* botão CONFIRMAR e ícone de sucesso */
+  --color-accent-blue-dark: #006570;
+
+  --color-danger: #e35353;         /* ícone/ação de excluir */
+  --color-danger-dark: #c53d3d;
+
+  --color-bg-page: #f4f7f9;
+  --color-bg-filter: #eef4f7;
+  --color-bg-row-alt: #f7fafb;
+
+  --color-text: #263238;
+  --color-text-muted: #64748b;
+  --color-border: #dbe4ea;
+
+  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
 }
 
 @layer base {
