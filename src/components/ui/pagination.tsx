@@ -91,6 +91,7 @@ function Pagination({
             "
             aria-label="Itens por página"
           >
+            <option value={2}>2</option>
             <option value={6}>6</option>
             <option value={10}>10</option>
             <option value={15}>15</option>

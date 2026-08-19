@@ -1,4 +1,4 @@
-import CadastroUsuario from "./admin/usuario/cadastrousuario";
+import CadastroUsuario from "./cadastrousuario";
 
 export default function Page() {
   return <CadastroUsuario />;
