@@ -4,6 +4,7 @@ import * as React from "react";
 import {
     CheckCircle,
     CircleSlash,
+    Filter,
     Pencil,
     Plus,
     Trash2,
@@ -352,7 +353,20 @@ export default function CadastroUsuario() {
                                 },
                                 {
                                     key: "status",
-                                    label: "Status",
+                                    label: (
+                                        <>
+                                            Status
+                                            <svg
+                                                width="23"
+                                                height="23"
+                                                viewBox="0 0 24 24"
+                                                fill="white"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                            >
+                                                <path d="M3 5H21L14 12.5V19L10 17V12.5L3 5Z" />
+                                            </svg>
+                                        </>
+                                    ),
                                     render: (usuario) =>
                                         usuario.status === "Ativo" ? (
                                             <span className="flex items-center gap-2 text-[#16B800]">

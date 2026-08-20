@@ -120,11 +120,16 @@ function TableFilters({
         </div>
       ))}
 
-      <div className="ml-auto">
-        <Button variant="secondary" size="small" onClick={handleClear}>
+      <div className="ml-auto flex items-center justify-center">
+        <Button
+          variant="secondary"
+          size="small"
+          onClick={handleClear}
+          className="-translate-y-3"
+        >
           {clearButtonLabel}
         </Button>
-      </div> 
+      </div>
     </div>
   );
 }
