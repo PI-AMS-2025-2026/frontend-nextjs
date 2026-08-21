@@ -59,12 +59,11 @@ function Pagination({
   );
 
   return (
-    <div className={cn("mt-8 flex w-full justify-center px-4", className)}>
+    <div className={cn("mt-8 flex w-full justify-center", className)}>
       <div
         className="
           flex
-          w-[80%]
-          min-w-[700px]
+          w-full
           items-center
           gap-2
           text-[16px]

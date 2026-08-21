@@ -45,7 +45,7 @@ function DataTable<T>({
             {columns.map((column) => (
               <th
                 key={column.key}
-                className="px-6 text-left text-[16px] font-semibold"
+                className="px-6 text-left text-[17px] font-semibold"
               >
                 <div className="flex items-center gap-2">
                   {column.label}
@@ -67,14 +67,14 @@ function DataTable<T>({
             <tr
               key={getRowKey?.(item, index) ?? index}
               className={cn(
-                "h-[46px] border-b border-[#D0D4D8]",
+                "h-[50px] border-b border-[#D0D4D8]",
                 index % 2 === 0 ? "bg-white" : "bg-[#F0F0F0]",
               )}
             >
               {columns.map((column) => (
                 <td
                   key={column.key}
-                  className="px-6 text-[16px] text-[#171717]"
+                  className="px-6 text-[17px] text-[#171717]"
                 >
                   {column.render
                     ? column.render(item, index)

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -83,18 +83,19 @@ function TableFilters({
           {field.type === "select" ? (
             <div className="w-full">
               {field.showLabel !== false && field.label && (
-                <label className="mb-2 block text-sm font-medium text-[#17264D]">
+                <label className="mb-2 block text-base font-semibold text-[#17264D]">
                   {field.label}
                 </label>
               )}
-
+              <div className="relative w-full">
               <select
                 value={filters[field.name] ?? ""}
                 onChange={(event) =>
                   handleChange(field.name, event.target.value)
                 }
-                className="h-[32px] w-full rounded-[10px] border border-[#17264D] bg-[#F2F2F2] px-3 text-[14px] text-[#17264D] outline-none transition-colors focus:border-[#4471E6]"
+                className="h-[36px] w-full rounded-[10px] border border-[#17264D] bg-[#F2F2F2] px-3 pr-4 text-[15px] text-[#17264D] outline-none transition-colors focus:border-[#4471E6]"
               >
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-5 -translate-y-1/2 text-[#17264D]" />
                 {field.placeholder && (
                   <option value="">{field.placeholder}</option>
                 )}
@@ -105,6 +106,7 @@ function TableFilters({
                   </option>
                 ))}
               </select>
+            </div>
             </div>
           ) : (
             <Input
