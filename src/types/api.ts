@@ -133,7 +133,7 @@ export interface QuadroHorarioRequest {
   versao: number;
   status: Status;
   curso: LongDTO;
-  PeriodoAtividadeQuadro: LongDTO;
+  periodoAtividadeQuadro: LongDTO;
 }
 export interface QuadroHorarioResponse {
   id: Id;
