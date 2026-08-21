@@ -33,12 +33,16 @@ import { HorarioFormDialog } from "@/components/horarios/horario-form-dialog";
 import { ExcluirHorarioDialog } from "@/components/horarios/excluir-horario-dialog";
 import { SucessoDialog } from "@/components/horarios/sucesso-dialog";
 
-import { calcDuracao, gerarHorariosMock, carregarHorariosSalvos, salvarHorarios, type Horario } from "@/lib/horarios";
+import {
+    calcDuracao,
+    carregarHorariosSalvos,
+    gerarHorariosMock,
+    salvarHorarios,
+    type Horario,
+} from "@/lib/horarios";
 
 export function HorariosListagem() {
     // null = ainda não sabemos os dados reais (aguardando checar o localStorage).
-    // Só sai de null depois que já lemos o storage, pra nunca mostrar os 24 mocks
-    // "piscando" antes do valor salvo de verdade aparecer.
     const [horarios, setHorarios] = React.useState<Horario[] | null>(null);
 
     React.useEffect(() => {
@@ -153,8 +157,6 @@ export function HorariosListagem() {
         setSucessoAberto(true);
     }
 
-    // Enquanto não sabemos os dados reais (checando o localStorage), mostra um
-    // loading simples no lugar da tabela em vez de "piscar" o mock e depois trocar.
     if (horarios === null) {
         return (
             <div className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col items-center justify-center gap-3 px-6 py-24">
@@ -165,14 +167,14 @@ export function HorariosListagem() {
     }
 
     return (
-        <div className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-6 px-6 py-8">
+        <div className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-6 px-4 py-8 sm:px-6">
             {/* Cabeçalho da página */}
-            <div className="flex flex-wrap items-center justify-between gap-4">
-                <h1 className="font-heading text-3xl font-bold text-foreground">
+            <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                <h1 className="font-heading text-2xl font-bold text-foreground sm:text-3xl">
                     Listagem de horários
                 </h1>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                     <div className="relative">
                         <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
@@ -182,7 +184,7 @@ export function HorariosListagem() {
                                 setPaginaAtual(1);
                             }}
                             placeholder="Pesquisar..."
-                            className="h-9 w-48 pl-8"
+                            className="h-9 w-full pl-8 sm:w-48"
                         />
                     </div>
                     <Button
@@ -197,8 +199,8 @@ export function HorariosListagem() {
             </div>
 
             {/* Filtros */}
-            <div className="flex flex-wrap items-end justify-between gap-4 rounded-xl border border-[#cfe6ea] bg-[#eef7f9] p-5">
-                <div className="flex flex-wrap gap-6">
+            <div className="flex flex-col gap-4 rounded-xl border border-[#cfe6ea] bg-[#eef7f9] p-5 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+                <div className="flex flex-wrap gap-4 sm:gap-6">
                     <div className="flex flex-col gap-1.5">
                         <Label htmlFor="filtro-inicio" className="text-foreground/80">
                             Horário Início
@@ -234,24 +236,25 @@ export function HorariosListagem() {
                 <Button
                     type="button"
                     variant="default"
-                    className="h-9 !bg-transparent !border !border-[#2fa4b5] !text-[#1c5468] !shadow-none font-semibold hover:!bg-[#2fa4b5]/10"
+                    className="h-9 w-full !bg-transparent !border !border-[#2fa4b5] !text-[#1c5468] !shadow-none font-semibold hover:!bg-[#2fa4b5]/10 sm:w-auto"
                     onClick={limparFiltros}
                 >
                     Limpar filtros
                 </Button>
             </div>
 
-            {/* Tabela */}
-            <div className="overflow-hidden rounded-xl border border-[#e2ecee]">
-                <Table className="table-fixed">
+            {/* Tabela — largura fixa em px pra rolar horizontalmente em telas pequenas,
+          em vez de espremer as colunas até ficar ilegível */}
+            <div className="overflow-x-auto rounded-xl border border-[#e2ecee]">
+                <Table className="min-w-[520px] table-fixed">
                     <colgroup>
-                        <col className="w-[22%]" />
-                        <col className="w-[22%]" />
-                        <col className="w-[22%]" />
-                        <col className="w-[34%]" />
+                        <col className="w-[120px]" />
+                        <col className="w-[120px]" />
+                        <col className="w-[120px]" />
+                        <col className="w-[160px]" />
                     </colgroup>
                     <TableHeader>
-                        <TableRow className="border-none bg-[#2f96a3] hover:bg-[#2f96a3]">
+                        <TableRow className="border-none bg-[#2f96a3] hover:bg-[#2f96a3] has-aria-expanded:!bg-[#2f96a3]">
                             <TableHead className="h-11 px-5 text-sm font-semibold text-white">
                                 Início
                             </TableHead>
@@ -322,8 +325,8 @@ export function HorariosListagem() {
             </div>
 
             {/* Paginação */}
-            <div className="grid grid-cols-3 items-center gap-4 rounded-xl border border-[#e2ecee] px-4 py-3">
-                <div className="flex items-center gap-2 justify-self-start">
+            <div className="flex flex-col items-center gap-4 rounded-xl border border-[#e2ecee] px-4 py-3 sm:grid sm:grid-cols-3">
+                <div className="flex items-center gap-2 sm:justify-self-start">
                     <span className="text-sm text-foreground/80">Itens por página:</span>
                     <NativeSelect
                         value={itensPorPagina}
@@ -341,7 +344,7 @@ export function HorariosListagem() {
                     </NativeSelect>
                 </div>
 
-                <div className="flex items-center gap-2 justify-self-center">
+                <div className="flex items-center gap-2 sm:justify-self-center">
                     <button
                         type="button"
                         aria-label="Primeira página"
@@ -385,7 +388,7 @@ export function HorariosListagem() {
                     </button>
                 </div>
 
-                <span className="justify-self-end text-right text-sm tabular-nums text-foreground/70">
+                <span className="text-center text-sm tabular-nums text-foreground/70 sm:justify-self-end sm:text-right">
                     {totalRegistros === 0
                         ? "Nenhum registro encontrado"
                         : `Mostrando ${inicioIndice + 1} a ${Math.min(

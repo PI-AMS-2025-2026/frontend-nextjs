@@ -74,14 +74,16 @@ function HorarioFormContent({
     }
 
     return (
-        <DialogContent className="sm:max-w-md !bg-white !text-[#0c2c3e]">
+        <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto !bg-white !text-[#0c2c3e]">
             <DialogHeader>
                 <DialogTitle className="text-xl !text-[#0c2c3e]">{titulo}</DialogTitle>
             </DialogHeader>
 
-            <div className="grid grid-cols-2 gap-4 py-2">
+            <div className="grid grid-cols-1 gap-4 py-2 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="horario-inicio" className="!text-[#0c2c3e]">Início</Label>
+                    <Label htmlFor="horario-inicio" className="!text-[#0c2c3e]">
+                        Início
+                    </Label>
                     <Input
                         id="horario-inicio"
                         type="time"
@@ -91,7 +93,9 @@ function HorarioFormContent({
                     />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="horario-fim" className="!text-[#0c2c3e]">Fim</Label>
+                    <Label htmlFor="horario-fim" className="!text-[#0c2c3e]">
+                        Fim
+                    </Label>
                     <Input
                         id="horario-fim"
                         type="time"
