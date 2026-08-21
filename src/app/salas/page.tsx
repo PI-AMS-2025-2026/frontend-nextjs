@@ -5,40 +5,30 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import { Label } from "@/components/ui/label"
 import {
   ArrowLeftIcon,
-  PencilIcon,
   PlusIcon,
   SearchIcon,
   ChevronsLeftIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   ChevronsRightIcon,
-  WrenchIcon,
-  TrashIcon,
-  CheckIcon,
 } from "lucide-react"
 import { Sala } from "./types"
 import { SALAS_MOCK } from "./mock"
 import {
-  TIPOS,
   ITENS_POR_PAGINA_OPCOES,
   PRIMARY,
   PRIMARY_FG,
 } from "./constants"
+import { SalasTable } from "./components/SalasTable"
+import { SalaFormDialog } from "./components/SalaFormDialog"
+import { SalaRecursosDialog } from "./components/SalaRecursosDialog"
+import { SalaExcluirDialog } from "./components/SalaExcluirDialog"
+import { SalaSucessoDialog } from "./components/SalaSucessoDialog"
 
-const RECURSO_DOT = "#9B2242"
 
 // -------------------------------------------------------
 // Componente principal
@@ -347,93 +337,12 @@ export default function SalasPage() {
       </div>
 
       {/* Tabela */}
-      <div className="overflow-hidden rounded-xl border border-[#D9D9D9]">
-        <Table className="table-fixed w-full">
-          <TableHeader>
-            <TableRow
-              className="border-0 hover:bg-transparent"
-              style={{ backgroundColor: PRIMARY }}
-            >
-              <TableHead className="text-base font-bold py-4 pl-6 rounded-tl-lg" style={{ color: PRIMARY_FG }}>
-                Código
-              </TableHead>
-              <TableHead className="text-base font-bold py-4" style={{ color: PRIMARY_FG }}>
-                Capacidade
-              </TableHead>
-              <TableHead className="text-base font-bold py-4" style={{ color: PRIMARY_FG }}>
-                Tipo
-              </TableHead>
-              <TableHead className="text-right rounded-tr-lg text-base font-bold py-4 pr-6" style={{ color: PRIMARY_FG }}>
-                Ações
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {salasPagina.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                  Nenhuma sala encontrada.
-                </TableCell>
-              </TableRow>
-            ) : (
-              salasPagina.map((sala, index) => (
-                <TableRow
-                  key={sala.id}
-                  className={`
-                    ${index % 2 === 0 ? "bg-white" : "bg-[#F2F2F2]"}
-                    border-b border-[#D9D9D9]
-                    hover:bg-[#EAF6FB]
-                    transition-colors
-                    cursor-pointer
-                  `}
-                >
-                  <TableCell className="py-4 pl-6">{sala.codigo}</TableCell>
-                  <TableCell className="py-4">{sala.capacidade}</TableCell>
-                  <TableCell className="max-w-[200px] truncate py-4" title={sala.tipo}>
-                    {sala.tipo}
-                  </TableCell>
-                  <TableCell className="text-right pr-6">
-                    <div className="flex items-center justify-end gap-2">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            onClick={() => abrirDetalhes(sala)}
-                            className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-[#D9D9D9] bg-white hover:bg-[#0099AA] hover:border-[#0099AA] group transition-colors"
-                            style={{ color: PRIMARY }}
-                          >
-                            <WrenchIcon className="size-4 group-hover:text-white transition-colors" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent
-                          side="top"
-                          sideOffset={8}
-                          style={{ backgroundColor: PRIMARY, color: PRIMARY_FG }}
-                        >
-                          Ver Recursos
-                        </TooltipContent>
-                      </Tooltip>
-                      <button
-                        onClick={() => abrirEdicao(sala)}
-                        className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-[#D9D9D9] bg-white hover:bg-[#0099AA] hover:border-[#0099AA] group transition-colors"
-                        style={{ color: PRIMARY }}
-                      >
-                        <PencilIcon className="size-4 group-hover:text-white transition-colors" />
-                      </button>
-                      <button
-                        onClick={() => excluir(sala)}
-                        className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-[#D9D9D9] bg-white hover:bg-[#FF0000] hover:border-[#FF0000] group transition-colors"
-                        style={{ color: "#FF0000" }}
-                      >
-                        <TrashIcon className="size-4 group-hover:text-white transition-colors" />
-                      </button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <SalasTable
+        salas={salasPagina}
+        onVerRecursos={abrirDetalhes}
+        onEditar={abrirEdicao}
+        onExcluir={excluir}
+      />
 
       {/* Paginação */}
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border rounded-lg p-2 bg-white">
@@ -514,185 +423,52 @@ export default function SalasPage() {
       </div>
 
       {/* Modal Cadastro / Edição */}
-      <Dialog open={modalAberto} onOpenChange={setModalAberto}>
-        <DialogContent
-          className="!max-w-[560px] p-8 bg-white rounded-2xl"
-          showCloseButton={false}
-        >
-          <DialogHeader className="mb-4">
-            <DialogTitle className="text-left text-2xl font-bold">
-              {salaEditando ? "Edição de Sala" : "Cadastro de Sala"}
-            </DialogTitle>
-          </DialogHeader>
+      <SalaFormDialog
+        open={modalAberto}
+        onOpenChange={setModalAberto}
+        salaEditando={salaEditando}
+        formCodigo={formCodigo}
+        onCodigoChange={(value) => {
+          setFormCodigo(value)
+          setErros((p) => ({ ...p, codigo: "" }))
+        }}
+        formCapacidade={formCapacidade}
+        onCapacidadeChange={(value) => {
+          setFormCapacidade(value)
+          setErros((p) => ({ ...p, capacidade: "" }))
+        }}
+        formTipo={formTipo}
+        onTipoChange={(value) => {
+          setFormTipo(value)
+          setErros((p) => ({ ...p, tipo: "" }))
+        }}
+        erros={erros}
+        onSalvar={salvar}
+      />
 
-          <div className="grid gap-5">
-            {/* Linha 1 — Código da Sala + Capacidade */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="codigo" className="text-sm">Código da Sala:</Label>
-                <Input
-                  id="codigo"
-                  placeholder="Digite aqui..."
-                  value={formCodigo}
-                  onChange={(e) => { setFormCodigo(e.target.value); setErros((p) => ({ ...p, codigo: "" })) }}
-                  style={{ borderColor: erros.codigo ? "#FF0000" : "#D1D5DB" }}
-                />
-                {erros.codigo && <span className="text-xs text-red-500">{erros.codigo}</span>}
-              </div>
 
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="capacidade" className="text-sm">Capacidade:</Label>
-                <Input
-                  id="capacidade"
-                  type="number"
-                  placeholder="0"
-                  value={formCapacidade}
-                  onChange={(e) => { setFormCapacidade(e.target.value); setErros((p) => ({ ...p, capacidade: "" })) }}
-                  style={{ borderColor: erros.capacidade ? "#FF0000" : "#D1D5DB" }}
-                />
-                {erros.capacidade && <span className="text-xs text-red-500">{erros.capacidade}</span>}
-              </div>
-            </div>
-
-            {/* Linha 2 — Tipo de Sala */}
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="tipo" className="text-sm">Tipo de Sala:</Label>
-              <NativeSelect
-                id="tipo"
-                className="w-full h-11 hover:border-[#0099AA] transition-colors"
-                value={formTipo}
-                onChange={(e) => { setFormTipo(e.target.value); setErros((p) => ({ ...p, tipo: "" })) }}
-                style={{
-                  backgroundColor: "#F2F2F2",
-                  color: formTipo === "" ? "rgba(0, 0, 0, 0.4)" : "#000000",
-                  borderColor: erros.tipo ? "#FF0000" : "rgba(23, 38, 77, 0.15)",
-                  borderWidth: "1.4px"
-                }}
-              >
-                <NativeSelectOption value="">Selecione...</NativeSelectOption>
-                {TIPOS.map((tipo) => (
-                  <NativeSelectOption key={tipo} value={tipo}>
-                    {tipo}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
-              {erros.tipo && <span className="text-xs text-red-500">{erros.tipo}</span>}
-            </div>
-          </div>
-
-          {/* Rodapé */}
-          <DialogFooter className="mt-6 bg-transparent border-t-0 px-0 pb-0 gap-3">
-            <button
-              onClick={() => setModalAberto(false)}
-              className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors tracking-widest uppercase px-4"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={salvar}
-              className="inline-flex items-center justify-center h-10 px-6 rounded-lg text-sm font-semibold tracking-widest uppercase transition-opacity hover:opacity-90"
-              style={{ backgroundColor: PRIMARY, color: PRIMARY_FG }}
-            >
-              Confirmar
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Modal Ver Recursos */}
-      <Dialog open={modalDetalhesAberto} onOpenChange={setModalDetalhesAberto}>
-        <DialogContent className="!max-w-[420px] p-6 bg-white rounded-2xl">
-          <DialogHeader className="mb-2">
-            <DialogTitle className="text-left text-xl font-semibold">
-              Recursos — {salaDetalhe?.codigo}
-            </DialogTitle>
-          </DialogHeader>
-
-          {salaDetalhe && (
-            <div className="flex flex-col gap-3">
-              {salaDetalhe.recursos.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4 text-center">
-                  Nenhum recurso cadastrado para esta sala.
-                </p>
-              ) : (
-                salaDetalhe.recursos.map((recurso, index) => (
-                  <div
-                    key={index}
-                    className="flex items-start gap-3 rounded-lg border p-3"
-                    style={{ borderColor: "rgba(23, 38, 77, 0.15)" }}
-                  >
-                    <span
-                      className="mt-1.5 size-2 rounded-full shrink-0"
-                      style={{ backgroundColor: RECURSO_DOT }}
-                    />
-                    <div className="flex flex-col">
-                      <span className="text-sm font-semibold">{recurso.nome}</span>
-                      <span className="text-xs text-muted-foreground">{recurso.categoria}</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <SalaRecursosDialog
+        open={modalDetalhesAberto}
+        onOpenChange={setModalDetalhesAberto}
+        sala={salaDetalhe}
+      />
 
       {/* Modal Excluir Sala */}
-      <Dialog open={modalExcluirAberto} onOpenChange={setModalExcluirAberto}>
-        <DialogContent
-          className="!max-w-[760px] p-8 bg-white rounded-2xl"
-          showCloseButton={false}
-        >
-          <DialogHeader className="mb-1">
-            <DialogTitle className="text-left text-2xl font-bold">
-              Excluir Sala
-            </DialogTitle>
-          </DialogHeader>
-
-          <p className="text-base">
-            Tem certeza que deseja excluir {salaExcluir ? `a ${salaExcluir.codigo}` : "esta Sala"}?
-          </p>
-          <p className="text-sm mt-1" style={{ color: "rgba(0, 0, 0, 0.45)" }}>
-            A ação será irreversível.
-          </p>
-
-          <DialogFooter className="mt-6 bg-transparent border-t-0 px-0 pb-0 gap-3">
-            <button
-              onClick={() => setModalExcluirAberto(false)}
-              className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors tracking-widest uppercase px-4"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={confirmarExclusao}
-              className="inline-flex items-center justify-center h-10 px-6 rounded-lg text-sm font-semibold tracking-widest uppercase transition-opacity hover:opacity-90"
-              style={{ backgroundColor: PRIMARY, color: PRIMARY_FG }}
-            >
-              Confirmar
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <SalaExcluirDialog
+        open={modalExcluirAberto}
+        onOpenChange={setModalExcluirAberto}
+        sala={salaExcluir}
+        onConfirmar={confirmarExclusao}
+      />
 
       {/* Modal Sucesso (cadastrar / editar / excluir) */}
-      <Dialog open={modalSucessoAberto} onOpenChange={setModalSucessoAberto}>
-        <DialogContent
-          className="!max-w-[420px] py-10 px-8 bg-[#EDEDED] rounded-2xl flex flex-col items-center gap-4"
-          showCloseButton={false}
-        >
-          <div
-            className="flex items-center justify-center size-16 rounded-full border-2"
-            style={{ borderColor: "#4471E6" }}
-          >
-            <CheckIcon className="size-8" style={{ color: "#4471E6" }} strokeWidth={3} />
-          </div>
-          <DialogHeader>
-            <DialogTitle className="text-center text-base font-medium">
-              {mensagemSucesso}
-            </DialogTitle>
-          </DialogHeader>
-        </DialogContent>
-      </Dialog>
+      <SalaSucessoDialog
+        open={modalSucessoAberto}
+        onOpenChange={setModalSucessoAberto}
+        mensagem={mensagemSucesso}
+      />
     </div>
     </TooltipProvider>
   )
