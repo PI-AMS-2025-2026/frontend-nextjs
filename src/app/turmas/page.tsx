@@ -4,43 +4,28 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import {
   ArrowLeftIcon,
-  PencilIcon,
   PlusIcon,
   SearchIcon,
   ChevronsLeftIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   ChevronsRightIcon,
-  FunnelIcon,
-  CircleCheckIcon,
-  CircleMinusIcon,
-  CheckIcon,
 } from "lucide-react"
 import { Turma, Status } from "./types"
 import { TURMAS_MOCK } from "./mock"
 import {
   PERIODOS,
   ANOS,
-  CURSOS,
   ITENS_POR_PAGINA_OPCOES,
   PRIMARY,
   PRIMARY_FG,
 } from "./constants"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-
+import { TurmasTable } from "./turmas-table"
+import { TurmaFormDialog, SucessoDialog } from "./turma-dialogs"
 
 // -------------------------------------------------------
 // Componente principal
@@ -78,7 +63,6 @@ export default function TurmasPage() {
   const [formCurso, setFormCurso] = useState("")
   const [formStatus, setFormStatus] = useState<Status | null>(null)
   const [erros, setErros] = useState<Record<string, string>>({})
-
 
   // Lista de turmas (estado local para simular CRUD)
   const [turmas, setTurmas] = useState<Turma[]>(TURMAS_MOCK)
@@ -144,6 +128,34 @@ export default function TurmasPage() {
     setFormStatus(turma.status)
     setErros({})
     setModalAberto(true)
+  }
+
+  // -------------------------------------------------------
+  // Campos do formulário (cada handler já limpa o erro correspondente)
+  // -------------------------------------------------------
+  function handleFormPeriodoChange(valor: string) {
+    setFormPeriodo(valor)
+    setErros((p) => ({ ...p, periodo: "" }))
+  }
+
+  function handleFormCursoChange(valor: string) {
+    setFormCurso(valor)
+    setErros((p) => ({ ...p, curso: "" }))
+  }
+
+  function handleFormQtdAlunosChange(valor: string) {
+    setFormQtdAlunos(valor)
+    setErros((p) => ({ ...p, qtdAlunos: "" }))
+  }
+
+  function handleFormAnoChange(valor: string) {
+    setFormAno(valor)
+    setErros((p) => ({ ...p, ano: "" }))
+  }
+
+  function handleFormStatusChange(valor: Status) {
+    setFormStatus(valor)
+    setErros((p) => ({ ...p, status: "" }))
   }
 
   // -------------------------------------------------------
@@ -220,8 +232,8 @@ export default function TurmasPage() {
         <div className="flex items-center gap-2">
           {/* Campo de busca */}
           <div className="relative">
-            <SearchIcon 
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4" 
+            <SearchIcon
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4"
               style={{ color: "#464646" }}
               strokeWidth={4}
             />
@@ -249,13 +261,12 @@ export default function TurmasPage() {
       <div className="flex items-end gap-3 mb-4">
         <div
           className="border rounded-lg px-4 py-3 flex flex-wrap items-end gap-4 w-full"
-          style={{ 
-            backgroundColor: "#EAF6FB", 
+          style={{
+            backgroundColor: "#EAF6FB",
             borderColor: "rgba(23, 38, 77, 0.15)",
             borderWidth: "2px"
           }}
         >
-
           <div className="flex flex-col gap-1">
             <Label className="font-semibold text-black text-base">Período</Label>
             <NativeSelect
@@ -274,10 +285,10 @@ export default function TurmasPage() {
             >
               <NativeSelectOption value="">Selecione...</NativeSelectOption>
               {PERIODOS.map((periodo) => (
-              <NativeSelectOption key={periodo} value={periodo}>
-                {periodo}
-              </NativeSelectOption>
-            ))}
+                <NativeSelectOption key={periodo} value={periodo}>
+                  {periodo}
+                </NativeSelectOption>
+              ))}
             </NativeSelect>
           </div>
 
@@ -320,94 +331,11 @@ export default function TurmasPage() {
         </div>
       </div>
 
-
       {/* Tabela */}
-      <div className="overflow-hidden rounded-xl border border-[#D9D9D9]">
-        <Table className="table-fixed w-full">
-        <TableHeader>
-          <TableRow
-            className="border-0 hover:bg-transparent"
-            style={{ backgroundColor: PRIMARY }}
-          >
-            <TableHead
-              className="w-[80px] rounded-tl-lg text-base font-bold py-4 pl-6"
-              style={{ color: PRIMARY_FG }}
-            >ID</TableHead>
-            <TableHead className="text-base font-bold py-4" style={{ color: PRIMARY_FG }}>Período</TableHead>
-            <TableHead className="text-base font-bold py-4" style={{ color: PRIMARY_FG }}>Ano</TableHead>
-            <TableHead className="text-base font-bold py-4" style={{ color: PRIMARY_FG }}>Qtd Alunos</TableHead>
-            <TableHead className="text-base font-bold py-4" style={{ color: PRIMARY_FG }}>Curso</TableHead>
-            <TableHead className="text-base font-bold py-4" style={{ color: PRIMARY_FG }}>
-              <span className="flex items-center gap-2">
-                Status
-                <FunnelIcon className="size-4 py-4" />
-              </span>
-            </TableHead>
-            <TableHead className="text-right rounded-tr-lg text-base font-bold py-4 pr-6" style={{ color: PRIMARY_FG }}>
-              Ações
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {turmasPagina.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                Nenhuma turma encontrada.
-              </TableCell>
-            </TableRow>
-          ) : (
-            turmasPagina.map((turma, index) => (
-              <TableRow
-                key={turma.id}
-                className={`
-                  ${index % 2 === 0 ? "bg-white" : "bg-[#F2F2F2]"}
-                  border-b border-[#D9D9D9]
-                  hover:bg-[#EAF6FB]
-                  transition-colors
-                  cursor-pointer
-                `}
-              >
-                <TableCell className="py-4 pl-6">{turma.id}</TableCell>
-                <TableCell className="py-4">{turma.periodo}</TableCell>
-                <TableCell className="py-4">{turma.ano}</TableCell>
-                <TableCell className="py-4">{turma.qtdAlunos}</TableCell>
-                <TableCell className="max-w-[200px] truncate py-4" title={turma.curso}>
-                  {turma.curso}
-                </TableCell>                   
-                <TableCell className="py-4" >
-                  {turma.status === "Ativo" ? (
-                    <span className="inline-flex items-center gap-2 text-[#21C11E] font-medium">
-                      <CircleCheckIcon className="h-5 w-5" />
-                      Ativo
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-2 text-[#FF0000] font-medium">
-                      <CircleMinusIcon className="h-5 w-5" />
-                      Inativo
-                    </span>
-                  )}
-                </TableCell>
-                <TableCell className="text-right pr-6">
-                  <div className="flex items-center justify-end gap-2">
-                    <button
-                      onClick={() => abrirEdicao(turma)}
-                      className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-[#D9D9D9] bg-white hover:bg-[#0099AA] hover:border-[#0099AA] group transition-colors"
-                      style={{ color: PRIMARY }}
-                    >
-                      <PencilIcon className="size-4 group-hover:text-white transition-colors" />
-                    </button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-      </div>
+      <TurmasTable turmas={turmasPagina} onEditar={abrirEdicao} />
 
       {/* Paginação */}
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border rounded-lg p-2 bg-white">
-
         {/* Itens por página */}
         <div className="flex items-center gap-2 px-3 h-9">
           <span className="text-sm whitespace-nowrap text-gray-600">Itens por página:</span>
@@ -427,7 +355,6 @@ export default function TurmasPage() {
 
         {/* Navegação */}
         <div className="flex items-center gap-1">
-
           <Button
             variant="outline"
             size="icon-sm"
@@ -445,7 +372,6 @@ export default function TurmasPage() {
             className="h-10 w-10 bg-[#A7DCE4] hover:bg-[#7ECAD7] transition-colors"
             onClick={() => irParaPagina(paginaSegura - 1)}
             disabled={paginaSegura === 1}
-
           >
             <ChevronLeftIcon className="h-4 w-4" />
           </Button>
@@ -479,175 +405,39 @@ export default function TurmasPage() {
         </div>
 
         {/* Registros */}
-      <div className="w-[260px] border rounded-md px-4 h-9 flex items-center justify-center text-sm">          Mostrando {turmasFiltradas.length === 0 ? 0 : inicio + 1} a{" "}
+        <div className="w-[260px] border rounded-md px-4 h-9 flex items-center justify-center text-sm">
+          Mostrando {turmasFiltradas.length === 0 ? 0 : inicio + 1} a{" "}
           {Math.min(inicio + itensPorPagina, turmasFiltradas.length)} de{" "}
           {turmasFiltradas.length} registros
         </div>
       </div>
 
       {/* Modal Cadastro / Edição */}
-      <Dialog open={modalAberto} onOpenChange={setModalAberto}>
-        <DialogContent
-          className="!max-w-[640px] p-8 bg-white rounded-2xl"
-          showCloseButton={false}
-        >
-          <DialogHeader className="mb-4">
-            <DialogTitle className="text-left text-2xl font-bold">
-              {turmaEditando ? "Edição de Turma" : "Cadastro de Turma"}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="grid gap-5">
-            {/* Linha 1 — Período + Curso */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="periodo" className="text-sm">Período:</Label>
-                <NativeSelect
-                  id="periodo"
-                  className="w-full h-11 hover:border-[#0099AA] transition-colors"
-                  value={formPeriodo}
-                  onChange={(e) => { setFormPeriodo(e.target.value); setErros((p) => ({ ...p, periodo: "" })) }}
-                  style={{
-                    backgroundColor: "#F2F2F2",
-                    color: formPeriodo === "" ? "rgba(0, 0, 0, 0.4)" : "#000000",
-                    borderColor: erros.periodo ? "#FF0000" : "rgba(23, 38, 77, 0.15)",
-                    borderWidth: "1.4px"
-                  }}
-                >
-                  <NativeSelectOption value="">Selecione...</NativeSelectOption>
-                  {PERIODOS.map((periodo) => (
-                    <NativeSelectOption key={periodo} value={periodo}>
-                      {periodo}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-                {erros.periodo && <span className="text-xs text-red-500">{erros.periodo}</span>}
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="curso" className="text-sm">Curso:</Label>
-                <NativeSelect
-                  id="curso"
-                  className="w-full h-11 hover:border-[#0099AA] transition-colors"
-                  value={formCurso}
-                  onChange={(e) => { setFormCurso(e.target.value); setErros((p) => ({ ...p, curso: "" })) }}
-                  style={{
-                    backgroundColor: "#F2F2F2",
-                    color: formCurso === "" ? "rgba(0, 0, 0, 0.4)" : "#000000",
-                    borderColor: erros.curso ? "#FF0000" : "rgba(23, 38, 77, 0.15)",
-                    borderWidth: "1.4px"
-                  }}
-                >
-                  <NativeSelectOption value="">Selecione...</NativeSelectOption>
-                  {CURSOS.map((curso) => (
-                    <NativeSelectOption key={curso} value={curso}>
-                      {curso}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-                {erros.curso && <span className="text-xs text-red-500">{erros.curso}</span>}
-              </div>
-            </div>
-
-            {/* Linha 2 — Qtd Alunos + Ano + Status */}
-            <div className="grid grid-cols-[1fr_1fr_auto] gap-4 items-start">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="qtdAlunos" className="text-sm">Qtd. Alunos:</Label>
-                <Input
-                  id="qtdAlunos"
-                  type="number"
-                  placeholder="Ex. 40"
-                  value={formQtdAlunos}
-                  onChange={(e) => { setFormQtdAlunos(e.target.value); setErros((p) => ({ ...p, qtdAlunos: "" })) }}
-                  style={{ borderColor: erros.qtdAlunos ? "#FF0000" : "#D1D5DB" }}
-                />
-                {erros.qtdAlunos && <span className="text-xs text-red-500">{erros.qtdAlunos}</span>}
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="ano" className="text-sm">Ano:</Label>
-                <Input
-                  id="ano"
-                  type="number"
-                  placeholder="Ex. 2026"
-                  value={formAno}
-                  onChange={(e) => { setFormAno(e.target.value); setErros((p) => ({ ...p, ano: "" })) }}
-                  style={{ borderColor: erros.ano ? "#FF0000" : "#D1D5DB" }}
-                />
-                {erros.ano && <span className="text-xs text-red-500">{erros.ano}</span>}
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-sm">Status:</Label>
-                <RadioGroup
-                  value={formStatus ?? ""}
-                  onValueChange={(val) => { setFormStatus(val as Status); setErros((p) => ({ ...p, status: "" })) }}
-                  className="flex flex-row gap-4 pt-1"
-                >
-                  <div className="flex items-center gap-2">
-                    <RadioGroupItem
-                      value="Ativo"
-                      id="status-ativo"
-                      className="size-5 border-2 border-gray-400 data-checked:bg-[#4471E6] data-checked:border-[#4471E6]"
-                    />
-                    <Label htmlFor="status-ativo" className="font-normal cursor-pointer">
-                      Ativo
-                    </Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <RadioGroupItem
-                      value="Inativo"
-                      id="status-inativo"
-                      className="size-5 border-2 border-gray-400 data-checked:bg-[#4471E6] data-checked:border-[#4471E6]"
-                    />
-                    <Label htmlFor="status-inativo" className="font-normal cursor-pointer">
-                      Inativo
-                    </Label>
-                  </div>
-                </RadioGroup>
-                {erros.status && <span className="text-xs text-red-500">{erros.status}</span>}
-              </div>
-            </div>
-          </div>
-
-          {/* Rodapé */}
-          <DialogFooter className="mt-6 bg-transparent border-t-0 px-0 pb-0 gap-3">
-            <button
-              onClick={() => setModalAberto(false)}
-              className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors tracking-widest uppercase px-4"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={salvar}
-              className="inline-flex items-center justify-center h-10 px-6 rounded-lg text-sm font-semibold tracking-widest uppercase transition-opacity hover:opacity-90"
-              style={{ backgroundColor: PRIMARY, color: PRIMARY_FG }}
-            >
-              Confirmar
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <TurmaFormDialog
+        open={modalAberto}
+        onOpenChange={setModalAberto}
+        turmaEditando={turmaEditando}
+        formPeriodo={formPeriodo}
+        onFormPeriodoChange={handleFormPeriodoChange}
+        formCurso={formCurso}
+        onFormCursoChange={handleFormCursoChange}
+        formQtdAlunos={formQtdAlunos}
+        onFormQtdAlunosChange={handleFormQtdAlunosChange}
+        formAno={formAno}
+        onFormAnoChange={handleFormAnoChange}
+        formStatus={formStatus}
+        onFormStatusChange={handleFormStatusChange}
+        erros={erros}
+        onCancelar={() => setModalAberto(false)}
+        onSalvar={salvar}
+      />
 
       {/* Modal Sucesso (cadastrar / editar) */}
-      <Dialog open={modalSucessoAberto} onOpenChange={setModalSucessoAberto}>
-        <DialogContent
-          className="!max-w-[420px] py-10 px-8 bg-[#EDEDED] rounded-2xl flex flex-col items-center gap-4"
-          showCloseButton={false}
-        >
-          <div
-            className="flex items-center justify-center size-16 rounded-full border-2"
-            style={{ borderColor: "#4471E6" }}
-          >
-            <CheckIcon className="size-8" style={{ color: "#4471E6" }} strokeWidth={3} />
-          </div>
-          <DialogHeader>
-            <DialogTitle className="text-center text-base font-medium">
-              {mensagemSucesso}
-            </DialogTitle>
-          </DialogHeader>
-        </DialogContent>
-      </Dialog>
+      <SucessoDialog
+        open={modalSucessoAberto}
+        onOpenChange={setModalSucessoAberto}
+        mensagem={mensagemSucesso}
+      />
     </div>
   )
 }
