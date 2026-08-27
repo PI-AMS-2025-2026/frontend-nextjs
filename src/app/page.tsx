@@ -32,6 +32,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { Toggle } from "@/components/ui/toggle";
 import { TableFilters } from "@/components/ui/tablefilters";
 import { Pagination } from "@/components/ui/pagination";
+import { Select } from "@/components/ui/select";
 
 interface Room {
   codigo: string;
@@ -78,6 +79,7 @@ export default function Home() {
   const [editModalOpen, setEditModalOpen] = React.useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = React.useState(false);
   const [errorModalOpen, setErrorModalOpen] = React.useState(false);
+  const [selectedOption, setSelectedOption] = React.useState("");
   return (
     <main className="min-h-screen bg-background p-6 text-foreground">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -160,14 +162,37 @@ export default function Home() {
 
               <Toggle label="Modo escuro" showLabel defaultChecked />
 
-              <Dropdown
-                options={[
-                  { label: "Opção A", value: "a" },
-                  { label: "Opção B", value: "b" },
-                  { label: "Opção C", value: "c" },
-                ]}
-                placeholder="Selecione uma opção"
-              />
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-[#17264D]">
+                  Dropdown
+                </label>
+
+                <Dropdown
+                  options={[
+                    { label: "Opção A", value: "a" },
+                    { label: "Opção B", value: "b" },
+                    { label: "Opção C", value: "c" },
+                  ]}
+                  placeholder="Selecione uma opção"
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-[#17264D]">
+                  Select
+                </label>
+
+                <Select
+                  options={[
+                    { label: "Opção A", value: "a" },
+                    { label: "Opção B", value: "b" },
+                    { label: "Opção C", value: "c" },
+                  ]}
+                  value={selectedOption}
+                  onChange={setSelectedOption}
+                  placeholder="Selecione uma opção"
+                />
+              </div>
             </CardContent>
           </Card>
         </section>
