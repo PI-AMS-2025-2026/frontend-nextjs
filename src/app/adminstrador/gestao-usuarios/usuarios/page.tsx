@@ -473,10 +473,6 @@ export default function CadastroUsuario() {
                                             label: "Coordenador",
                                             value: "Coordenador",
                                         },
-                                        {
-                                            label: "Professor",
-                                            value: "Professor",
-                                        },
                                     ]}
                                     className="[&>button]:h-[34px] [&>button]:rounded-[7px] [&>button]:border-[#17264D] [&>button]:bg-white [&>button]:text-[12px]"
                                 />

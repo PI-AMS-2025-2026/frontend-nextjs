@@ -43,7 +43,7 @@ function Modal({
             >
                 {/* Pattern */}
                 <img
-                    src="/images/pattern-cps.png"
+                    src="public/images/pattern-cps.png"
                     alt=""
                     aria-hidden="true"
                     className="pointer-events-none absolute inset-0 z-0 h-full w-full object-cover opacity-10"

@@ -59,17 +59,8 @@ function Pagination({
   );
 
   return (
-    <div className={cn("mt-8 flex w-full justify-center", className)}>
-      <div
-        className="
-          flex
-          w-full
-          items-center
-          gap-2
-          text-[16px]
-          text-[#171717]
-        "
-      >
+    <div className={cn("mt-8 flex w-full justify-center px-4", className)}>
+      <div className="flex w-[80%] min-w-[700px] items-center gap-2 text-[16px]">
         {/* Itens por página */}
         <div className="flex h-[42px] items-center overflow-hidden rounded-[8px] border border-[#D0D7DB] bg-white">
           <span className="px-4 whitespace-nowrap">Itens por página:</span>
@@ -77,20 +68,9 @@ function Pagination({
           <select
             value={itemsPerPage}
             onChange={handleItemsPerPageChange}
-            className="
-              h-full
-              w-[45px]
-              appearance-none
-              border-l
-              border-[#D0D7DB]
-              bg-white
-              text-center
-              text-base
-              outline-none
-            "
+            className="h-full w-[45px] appearance-none border-l border-[#D0D7DB] bg-white text-center text-base outline-none"
             aria-label="Itens por página"
           >
-            <option value={2}>2</option>
             <option value={6}>6</option>
             <option value={10}>10</option>
             <option value={15}>15</option>
@@ -122,23 +102,7 @@ function Pagination({
         </button>
 
         {/* Página atual */}
-        <div
-          className="
-            flex
-            h-[42px]
-            flex-1
-            items-center
-            justify-center
-            rounded-[8px]
-            border
-            border-[#82C4D0]
-            bg-[#9DD5DF]
-            px-6
-            whitespace-nowrap
-            text-base
-            text-[#17264D]
-          "
-        >
+        <div className="flex h-[42px] flex-1 items-center justify-center rounded-[8px] border border-[#82C4D0] bg-[#9DD5DF] px-6 whitespace-nowrap text-base text-[#17264D]">
           Página {page} de {totalPages}
         </div>
 
@@ -165,22 +129,7 @@ function Pagination({
         </button>
 
         {/* Registros */}
-        <div
-          className="
-            flex
-            h-[42px]
-            flex-1
-            items-center
-            justify-center
-            rounded-[8px]
-            border
-            border-[#D0D7DB]
-            bg-white
-            px-4
-            whitespace-nowrap
-            text-base
-          "
-        >
+        <div className=" flex h-[42px] flex-1 items-center justify-center rounded-[8px] border border-[#D0D7DB] bg-white px-4 whitespace-nowrap text-base">
           Mostrando {startItem} a {endItem} de {totalItems} registros
         </div>
       </div>
