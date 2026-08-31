@@ -2,9 +2,13 @@
 
 import * as React from "react"
 import { Accordion as AccordionPrimitive } from "radix-ui"
+import { ChevronDown } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { ChevronDownIcon, ChevronUpIcon } from "lucide-react"
+
+// ====================
+// ACCORDION
+// ====================
 
 function Accordion({
   className,
@@ -13,11 +17,18 @@ function Accordion({
   return (
     <AccordionPrimitive.Root
       data-slot="accordion"
-      className={cn("flex w-full flex-col", className)}
+      className={cn(
+        "flex w-full flex-col overflow-hidden rounded-[12px] border border-[#17264D]/20 bg-[#F2F2F2]",
+        className
+      )}
       {...props}
     />
   )
 }
+
+// ====================
+// ACCORDION ITEM
+// ====================
 
 function AccordionItem({
   className,
@@ -26,11 +37,20 @@ function AccordionItem({
   return (
     <AccordionPrimitive.Item
       data-slot="accordion-item"
-      className={cn("not-last:border-b", className)}
+      className={cn(
+        "border-b border-[#17264D]/15 last:border-b-0",
+        "transition-colors duration-200",
+        "data-[state=open]:border-[#4471E6]",
+        className
+      )}
       {...props}
     />
   )
 }
+
+// ====================
+// ACCORDION TRIGGER
+// ====================
 
 function AccordionTrigger({
   className,
@@ -38,22 +58,37 @@ function AccordionTrigger({
   ...props
 }: React.ComponentProps<typeof AccordionPrimitive.Trigger>) {
   return (
-    <AccordionPrimitive.Header className="flex">
+    <AccordionPrimitive.Header>
       <AccordionPrimitive.Trigger
         data-slot="accordion-trigger"
         className={cn(
-          "group/accordion-trigger relative flex flex-1 items-start justify-between rounded-lg border border-transparent py-2.5 text-left text-sm font-medium transition-all outline-none hover:underline focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:after:border-ring disabled:pointer-events-none disabled:opacity-50 **:data-[slot=accordion-trigger-icon]:ml-auto **:data-[slot=accordion-trigger-icon]:size-4 **:data-[slot=accordion-trigger-icon]:text-muted-foreground",
+          "group flex w-full items-center justify-between px-5 py-4 text-left",
+          "text-base font-semibold text-[#17264D]",
+          "outline-none transition-colors duration-200",
+          "hover:bg-[#17264D]/5",
+          "focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#4471E6]",
+          "disabled:cursor-not-allowed disabled:opacity-50",
           className
         )}
         {...props}
       >
-        {children}
-        <ChevronDownIcon data-slot="accordion-trigger-icon" className="pointer-events-none shrink-0 group-aria-expanded/accordion-trigger:hidden" />
-        <ChevronUpIcon data-slot="accordion-trigger-icon" className="pointer-events-none hidden shrink-0 group-aria-expanded/accordion-trigger:inline" />
+        <span>{children}</span>
+
+        <ChevronDown
+          className={cn(
+            "size-5 shrink-0 text-[#17264D]",
+            "transition-transform duration-200 ease-in-out",
+            "group-data-[state=open]:rotate-180"
+          )}
+        />
       </AccordionPrimitive.Trigger>
     </AccordionPrimitive.Header>
   )
 }
+
+// ====================
+// ACCORDION CONTENT
+// ====================
 
 function AccordionContent({
   className,
@@ -63,12 +98,17 @@ function AccordionContent({
   return (
     <AccordionPrimitive.Content
       data-slot="accordion-content"
-      className="overflow-hidden text-sm data-open:animate-accordion-down data-closed:animate-accordion-up"
+      className={cn(
+        "overflow-hidden text-sm text-[#17264D]",
+        "data-[state=open]:animate-accordion-down",
+        "data-[state=closed]:animate-accordion-up"
+      )}
       {...props}
     >
       <div
         className={cn(
-          "h-(--radix-accordion-content-height) pt-0 pb-2.5 [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground [&_p:not(:last-child)]:mb-4",
+          "border-t border-[#17264D]/10 px-5 py-4",
+          "leading-relaxed",
           className
         )}
       >
@@ -78,4 +118,9 @@ function AccordionContent({
   )
 }
 
-export { Accordion, AccordionItem, AccordionTrigger, AccordionContent }
+export {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+}
