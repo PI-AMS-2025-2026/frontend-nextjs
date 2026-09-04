@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
+import { Select } from "@/components/ui/select"
 import {
   ArrowLeftIcon,
   PlusIcon,
@@ -16,16 +16,16 @@ import {
   ChevronsRightIcon,
 } from "lucide-react"
 import { Turma, Status } from "./types"
-import { TURMAS_MOCK } from "./mock"
+import { TURMAS_MOCK } from "@/components/disciplinas/mock"
 import {
   PERIODOS,
   ANOS,
   ITENS_POR_PAGINA_OPCOES,
   PRIMARY,
   PRIMARY_FG,
-} from "./constants"
-import { TurmasTable } from "./turmas-table"
-import { TurmaFormDialog, SucessoDialog } from "./turma-dialogs"
+} from "@/components/disciplinas/constants"
+import { TurmasTable } from "../../../../components/disciplinas/turmas-table"
+import { TurmaFormDialog, SucessoDialog } from "../../../../components/disciplinas/turma-dialogs"
 
 // -------------------------------------------------------
 // Componente principal
@@ -267,54 +267,34 @@ export default function TurmasPage() {
             borderWidth: "2px"
           }}
         >
+
+
           <div className="flex flex-col gap-1">
             <Label className="font-semibold text-black text-base">Período</Label>
-            <NativeSelect
-              className="w-40 h-11 hover:border-[#0099AA] transition-colors"
+            <Select
+              className="w-40"
               value={filtroPeriodo}
-              onChange={(e) => {
-                setFiltroPeriodo(e.target.value)
+              onChange={(valor) => {
+                setFiltroPeriodo(valor)
                 setPaginaAtual(1)
               }}
-              style={{
-                backgroundColor: "#F2F2F2",
-                color: filtroPeriodo === "" ? "rgba(0, 0, 0, 0.4)" : "#000000",
-                borderColor: "rgba(23, 38, 77, 0.15)",
-                borderWidth: "1.4px"
-              }}
-            >
-              <NativeSelectOption value="">Selecione...</NativeSelectOption>
-              {PERIODOS.map((periodo) => (
-                <NativeSelectOption key={periodo} value={periodo}>
-                  {periodo}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+              placeholder="Selecione..."
+              options={PERIODOS.map((periodo) => ({ label: periodo, value: periodo }))}
+            />
           </div>
 
           <div className="flex flex-col gap-1">
             <Label className="font-semibold text-black text-base">Ano</Label>
-            <NativeSelect
-              className="w-40 h-11 hover:border-[#0099AA] transition-colors"
+            <Select
+              className="w-40"
               value={filtroAno}
-              onChange={(e) => {
-                setFiltroAno(e.target.value)
+              onChange={(valor) => {
+                setFiltroAno(valor)
                 setPaginaAtual(1)
               }}
-              style={{
-                backgroundColor: "#F2F2F2",
-                color: filtroAno === "" ? "rgba(0, 0, 0, 0.4)" : "#000000",
-                borderColor: "rgba(23, 38, 77, 0.15)",
-                borderWidth: "1.4px"
-              }}
-            >
-              <NativeSelectOption value="">Selecione...</NativeSelectOption>
-              {ANOS.map((ano) => (
-                <NativeSelectOption key={ano} value={String(ano)}>
-                  {ano}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+              placeholder="Selecione..."
+              options={ANOS.map((ano) => ({ label: String(ano), value: String(ano) }))}
+            />
           </div>
 
           {/* Botão Limpar filtros */}
@@ -339,25 +319,22 @@ export default function TurmasPage() {
         {/* Itens por página */}
         <div className="flex items-center gap-2 px-3 h-9">
           <span className="text-sm whitespace-nowrap text-gray-600">Itens por página:</span>
-          <NativeSelect
-            className="border-0 text-sm bg-transparent font-medium cursor-pointer p-0 w-auto"
-            value={itensPorPagina}
-            onChange={(e) => {
-              setItensPorPagina(Number(e.target.value))
+          <Select
+            className="w-20"
+            value={String(itensPorPagina)}
+            onChange={(valor) => {
+              setItensPorPagina(Number(valor))
               setPaginaAtual(1)
             }}
-          >
-            {ITENS_POR_PAGINA_OPCOES.map((n) => (
-              <NativeSelectOption key={n} value={n}>{n}</NativeSelectOption>
-            ))}
-          </NativeSelect>
+            options={ITENS_POR_PAGINA_OPCOES.map((n) => ({ label: String(n), value: String(n) }))}
+          />
         </div>
 
         {/* Navegação */}
         <div className="flex items-center gap-1">
           <Button
-            variant="outline"
-            size="icon-sm"
+            variant="ghost"
+            size="small"
             className="h-10 w-10 bg-[#A7DCE4] hover:bg-[#7ECAD7] transition-colors"
             onClick={() => irParaPagina(1)}
             disabled={paginaSegura === 1}
@@ -367,8 +344,8 @@ export default function TurmasPage() {
 
           <Button
             style={{ borderColor: "rgb(0, 153, 170, 0.3)" }}
-            variant="outline"
-            size="icon-sm"
+            variant="ghost"
+            size="small"
             className="h-10 w-10 bg-[#A7DCE4] hover:bg-[#7ECAD7] transition-colors"
             onClick={() => irParaPagina(paginaSegura - 1)}
             disabled={paginaSegura === 1}
@@ -384,8 +361,8 @@ export default function TurmasPage() {
           </div>
 
           <Button
-            variant="outline"
-            size="icon-sm"
+            variant="ghost"
+            size="small"
             className="h-10 w-10 bg-[#A7DCE4] hover:bg-[#7ECAD7] transition-colors"
             onClick={() => irParaPagina(paginaSegura + 1)}
             disabled={paginaSegura === totalPaginas}
@@ -394,8 +371,8 @@ export default function TurmasPage() {
           </Button>
 
           <Button
-            variant="outline"
-            size="icon-sm"
+            variant="ghost"
+            size="small"
             className="h-10 w-10 bg-[#A7DCE4] hover:bg-[#7ECAD7] transition-colors"
             onClick={() => irParaPagina(totalPaginas)}
             disabled={paginaSegura === totalPaginas}

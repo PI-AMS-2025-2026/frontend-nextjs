@@ -1,4 +1,4 @@
-import { Turma } from "./types"
+import { Turma } from "@/app/coordenador/estrutura-academica/turmas/types";
 
 export const TURMAS_MOCK: Turma[] = [
   { id: 1, periodo: "Matutino", ano: 2026, qtdAlunos: 40, curso: "ADS", status: "Ativo" },

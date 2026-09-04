@@ -1,10 +1,10 @@
 import { Input } from "@/components/ui/input"
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
+import { Select } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { CheckIcon } from "lucide-react"
-import { Turma, Status } from "./types"
+import { Turma, Status } from "../../app/coordenador/estrutura-academica/turmas/types"
 import { PERIODOS, CURSOS, PRIMARY, PRIMARY_FG } from "./constants"
 
 // -------------------------------------------------------
@@ -35,6 +35,9 @@ type TurmaFormDialogProps = {
   onCancelar: () => void
   onSalvar: () => void
 }
+
+const opcoesPeriodo = PERIODOS.map((periodo) => ({ label: periodo, value: periodo }))
+const opcoesCurso = CURSOS.map((curso) => ({ label: curso, value: curso }))
 
 export function TurmaFormDialog({
   open,
@@ -70,50 +73,24 @@ export function TurmaFormDialog({
           {/* Linha 1 — Período + Curso */}
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="periodo" className="text-sm">Período:</Label>
-              <NativeSelect
-                id="periodo"
-                className="w-full h-11 hover:border-[#0099AA] transition-colors"
+              <Label className="text-sm">Período:</Label>
+              <Select
+                options={opcoesPeriodo}
                 value={formPeriodo}
-                onChange={(e) => onFormPeriodoChange(e.target.value)}
-                style={{
-                  backgroundColor: "#F2F2F2",
-                  color: formPeriodo === "" ? "rgba(0, 0, 0, 0.4)" : "#000000",
-                  borderColor: erros.periodo ? "#FF0000" : "rgba(23, 38, 77, 0.15)",
-                  borderWidth: "1.4px"
-                }}
-              >
-                <NativeSelectOption value="">Selecione...</NativeSelectOption>
-                {PERIODOS.map((periodo) => (
-                  <NativeSelectOption key={periodo} value={periodo}>
-                    {periodo}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
+                onChange={onFormPeriodoChange}
+                placeholder="Selecione..."
+              />
               {erros.periodo && <span className="text-xs text-red-500">{erros.periodo}</span>}
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="curso" className="text-sm">Curso:</Label>
-              <NativeSelect
-                id="curso"
-                className="w-full h-11 hover:border-[#0099AA] transition-colors"
+              <Label className="text-sm">Curso:</Label>
+              <Select
+                options={opcoesCurso}
                 value={formCurso}
-                onChange={(e) => onFormCursoChange(e.target.value)}
-                style={{
-                  backgroundColor: "#F2F2F2",
-                  color: formCurso === "" ? "rgba(0, 0, 0, 0.4)" : "#000000",
-                  borderColor: erros.curso ? "#FF0000" : "rgba(23, 38, 77, 0.15)",
-                  borderWidth: "1.4px"
-                }}
-              >
-                <NativeSelectOption value="">Selecione...</NativeSelectOption>
-                {CURSOS.map((curso) => (
-                  <NativeSelectOption key={curso} value={curso}>
-                    {curso}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
+                onChange={onFormCursoChange}
+                placeholder="Selecione..."
+              />
               {erros.curso && <span className="text-xs text-red-500">{erros.curso}</span>}
             </div>
           </div>
