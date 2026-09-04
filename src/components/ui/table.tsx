@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 interface TableColumn<T> {
   key: string;
-  label: string;
+  label: React.ReactNode;
   render?: (item: T, index: number) => React.ReactNode;
 }
 
@@ -45,9 +45,11 @@ function DataTable<T>({
             {columns.map((column) => (
               <th
                 key={column.key}
-                className="px-6 text-left text-[16px] font-semibold"
+                className="px-6 text-left text-[17px] font-semibold"
               >
-                {column.label}
+                <div className="flex items-center gap-2">
+                  {column.label}
+                </div>
               </th>
             ))}
 
@@ -65,20 +67,20 @@ function DataTable<T>({
             <tr
               key={getRowKey?.(item, index) ?? index}
               className={cn(
-                "h-[46px] border-b border-[#D0D4D8]",
+                "h-[50px] border-b border-[#D0D4D8]",
                 index % 2 === 0 ? "bg-white" : "bg-[#F0F0F0]",
               )}
             >
               {columns.map((column) => (
                 <td
                   key={column.key}
-                  className="px-6 text-[16px] text-[#171717]"
+                  className="px-6 text-[17px] text-[#171717]"
                 >
                   {column.render
                     ? column.render(item, index)
                     : String(
-                        (item as Record<string, unknown>)[column.key] ?? "",
-                      )}
+                      (item as Record<string, unknown>)[column.key] ?? "",
+                    )}
                 </td>
               ))}
 
