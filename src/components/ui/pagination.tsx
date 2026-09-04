@@ -62,7 +62,7 @@ function Pagination({
     <div className={cn("mt-8 flex w-full justify-center px-4", className)}>
       <div className="flex w-[80%] min-w-[700px] items-center gap-2 text-[16px]">
         {/* Itens por página */}
-        <div className="flex h-[42px] items-center overflow-hidden rounded-[8px] border border-[#D0D7DB] bg-white">
+        <div className="flex h-[42px] items-center overflow-hidden rounded-[8px] border border-[#D0D7DB] bg-white margin-right-[100px]">
           <span className="px-4 whitespace-nowrap">Itens por página:</span>
 
           <select

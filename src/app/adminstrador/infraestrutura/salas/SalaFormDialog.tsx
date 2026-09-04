@@ -1,4 +1,4 @@
-import { Sala } from "../types"
+import { Sala } from "./types"
 import {
   Dialog,
   DialogContent,
@@ -9,14 +9,11 @@ import {
 
 import { Input } from "@/components/ui/input"
 
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select"
+import { Select } from "@/components/ui/select"
 
 import { Label } from "@/components/ui/label"
 
-import { TIPOS, PRIMARY, PRIMARY_FG } from "../constants"
+import { TIPOS, PRIMARY, PRIMARY_FG } from "./constants"
 
 type SalaFormDialogProps = {
   open: boolean
@@ -38,6 +35,8 @@ type SalaFormDialogProps = {
 
   onSalvar: () => void
 }
+
+const TIPO_OPTIONS = TIPOS.map((tipo) => ({ label: tipo, value: tipo }))
 
 export function SalaFormDialog({
   open,
@@ -94,25 +93,13 @@ export function SalaFormDialog({
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="tipo" className="text-sm">Tipo de Sala:</Label>
-            <NativeSelect
-              id="tipo"
-              className="w-full h-11 hover:border-[#0099AA] transition-colors"
+            <Select
+              options={TIPO_OPTIONS}
               value={formTipo}
-              onChange={(e) => onTipoChange(e.target.value)}
-              style={{
-                backgroundColor: "#F2F2F2",
-                color: formTipo === "" ? "rgba(0, 0, 0, 0.4)" : "#000000",
-                borderColor: erros.tipo ? "#FF0000" : "rgba(23, 38, 77, 0.15)",
-                borderWidth: "1.4px"
-              }}
-            >
-              <NativeSelectOption value="">Selecione...</NativeSelectOption>
-              {TIPOS.map((tipo) => (
-                <NativeSelectOption key={tipo} value={tipo}>
-                  {tipo}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+              onChange={onTipoChange}
+              placeholder="Selecione..."
+              className={erros.tipo ? "ring-1 ring-red-500 rounded-lg" : ""}
+            />
             {erros.tipo && <span className="text-xs text-red-500">{erros.tipo}</span>}
           </div>
 
@@ -143,4 +130,3 @@ export function SalaFormDialog({
     </Dialog>
   )
 }
-

@@ -2,33 +2,25 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
-import { TooltipProvider } from "@/components/ui/tooltip"
+import { Pagination } from "@/components/ui/pagination"
 import { Label } from "@/components/ui/label"
 import {
   ArrowLeftIcon,
   PlusIcon,
   SearchIcon,
-  ChevronsLeftIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  ChevronsRightIcon,
 } from "lucide-react"
 import { Sala } from "./types"
 import { SALAS_MOCK } from "./mock"
 import {
-  ITENS_POR_PAGINA_OPCOES,
   PRIMARY,
   PRIMARY_FG,
 } from "./constants"
-import { SalasTable } from "./components/SalasTable"
-import { SalaFormDialog } from "./components/SalaFormDialog"
-import { SalaRecursosDialog } from "./components/SalaRecursosDialog"
-import { SalaExcluirDialog } from "./components/SalaExcluirDialog"
-import { SalaSucessoDialog } from "./components/SalaSucessoDialog"
-
+import { SalasTable } from "./SalasTable"
+import { SalaFormDialog } from "./SalaFormDialog"
+import { SalaRecursosDialog } from "./SalaRecursosDialog"
+import { SalaExcluirDialog } from "./SalaExcluirDialog"
+import { SalaSucessoDialog } from "./SalaSucessoDialog"
 
 // -------------------------------------------------------
 // Componente principal
@@ -105,13 +97,6 @@ export default function SalasPage() {
   const inicio = (paginaSegura - 1) * itensPorPagina
   const salasPagina = salasFiltradas.slice(inicio, inicio + itensPorPagina)
 
-  function irParaPagina(p: number) {
-    setPaginaAtual(Math.max(1, Math.min(p, totalPaginas)))
-  }
-
-  // -------------------------------------------------------
-  // Limpar filtros
-  // -------------------------------------------------------
   function limparFiltros() {
     setBusca("")
     setFiltroCodigo("")
@@ -208,22 +193,7 @@ export default function SalasPage() {
   // Render
   // -------------------------------------------------------
   return (
-    <TooltipProvider>
     <div className="max-w-6xl mx-auto px-6 py-8">
-      <style>{`
-        #tipo:hover {
-          border-color: #0099AA !important;
-        }
-        /* A seta do Tooltip (TooltipPrimitive.Arrow) tem className fixo dentro
-           do tooltip.tsx compartilhado e não expõe prop para sobrescrever a cor.
-           Como só podemos editar esta página, sobrescrevemos via CSS aqui,
-           mirando o atributo data-slot exposto pelo Radix + a classe rotate-45
-           (exclusiva da seta, a caixa do tooltip não tem essa classe). */
-        [data-slot="tooltip-content"] [class*="rotate-45"] {
-          background-color: ${PRIMARY} !important;
-          fill: ${PRIMARY} !important;
-        }
-      `}</style>
       {/* Cabeçalho */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-start gap-3">
@@ -345,81 +315,17 @@ export default function SalasPage() {
       />
 
       {/* Paginação */}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border rounded-lg p-2 bg-white">
-        {/* Itens por página */}
-        <div className="flex items-center gap-2 px-3 h-9">
-          <span className="text-sm whitespace-nowrap text-gray-600">Itens por página:</span>
-          <NativeSelect
-            className="border-0 text-sm bg-transparent font-medium cursor-pointer p-0 w-auto"
-            value={itensPorPagina}
-            onChange={(e) => {
-              setItensPorPagina(Number(e.target.value))
-              setPaginaAtual(1)
-            }}
-          >
-            {ITENS_POR_PAGINA_OPCOES.map((n) => (
-              <NativeSelectOption key={n} value={n}>{n}</NativeSelectOption>
-            ))}
-          </NativeSelect>
-        </div>
-
-        {/* Navegação */}
-        <div className="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="icon-sm"
-            className="h-10 w-10 bg-[#A7DCE4] hover:bg-[#7ECAD7] transition-colors"
-            onClick={() => irParaPagina(1)}
-            disabled={paginaSegura === 1}
-          >
-            <ChevronsLeftIcon className="h-4 w-4" />
-          </Button>
-
-          <Button
-            style={{ borderColor: "rgb(0, 153, 170, 0.3)" }}
-            variant="outline"
-            size="icon-sm"
-            className="h-10 w-10 bg-[#A7DCE4] hover:bg-[#7ECAD7] transition-colors"
-            onClick={() => irParaPagina(paginaSegura - 1)}
-            disabled={paginaSegura === 1}
-          >
-            <ChevronLeftIcon className="h-4 w-4" />
-          </Button>
-
-          <div
-            className="w-[140px] h-10 flex items-center justify-center rounded-md font-medium text-base"
-            style={{ backgroundColor: "#7ECAD7" }}
-          >
-            Página {paginaSegura} de {totalPaginas}
-          </div>
-
-          <Button
-            variant="outline"
-            size="icon-sm"
-            className="h-10 w-10 bg-[#A7DCE4] hover:bg-[#7ECAD7] transition-colors"
-            onClick={() => irParaPagina(paginaSegura + 1)}
-            disabled={paginaSegura === totalPaginas}
-          >
-            <ChevronRightIcon className="h-4 w-4" />
-          </Button>
-
-          <Button
-            variant="outline"
-            size="icon-sm"
-            className="h-10 w-10 bg-[#A7DCE4] hover:bg-[#7ECAD7] transition-colors"
-            onClick={() => irParaPagina(totalPaginas)}
-            disabled={paginaSegura === totalPaginas}
-          >
-            <ChevronsRightIcon className="h-4 w-4" />
-          </Button>
-        </div>
-
-        {/* Registros */}
-        <div className="w-[260px] border rounded-md px-4 h-9 flex items-center justify-center text-sm">
-          Mostrando {salasFiltradas.length === 0 ? 0 : inicio + 1} a{" "}
-          {Math.min(inicio + itensPorPagina, salasFiltradas.length)} de{" "}
-          {salasFiltradas.length} registros
-        </div>
+      <div className="overflow-x-auto">
+        <Pagination
+          totalItems={salasFiltradas.length}
+          currentPage={paginaAtual}
+          itemsPerPage={itensPorPagina}
+          onPageChange={setPaginaAtual}
+          onItemsPerPageChange={(novoValor) => {
+            setItensPorPagina(novoValor)
+            setPaginaAtual(1)
+          }}
+        />
       </div>
 
       {/* Modal Cadastro / Edição */}
@@ -470,6 +376,5 @@ export default function SalasPage() {
         mensagem={mensagemSucesso}
       />
     </div>
-    </TooltipProvider>
   )
 }

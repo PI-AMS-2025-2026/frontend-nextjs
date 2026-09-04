@@ -1,4 +1,4 @@
-import { Sala } from "../types"
+import { Sala } from "./types"
 import {
     Dialog,
     DialogContent,
@@ -6,7 +6,7 @@ import {
     DialogTitle,
     DialogFooter,
 } from "@/components/ui/dialog"
-import { PRIMARY, PRIMARY_FG } from "../constants"
+import { PRIMARY, PRIMARY_FG } from "./constants"
 
 type SalaExcluirDialogProps = {
     open: boolean

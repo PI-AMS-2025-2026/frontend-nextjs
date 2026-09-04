@@ -1,4 +1,4 @@
-import { Sala } from "../types"
+import { Sala } from "./types"
 import {
     Dialog,
     DialogContent,
