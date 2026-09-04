@@ -5,7 +5,8 @@ import { cn } from "@/lib/utils";
 
 interface TableColumn<T> {
   key: string;
-  label: string;
+  label: React.ReactNode;
+  headerClassName?: string;
   render?: (item: T, index: number) => React.ReactNode;
 }
 
@@ -32,9 +33,11 @@ function DataTable<T>({
   className,
 }: DataTableProps<T>) {
   return (
+    /* w-max + min-w-full: cresce até caber o conteúdo (permitindo o scroll
+       horizontal do pai), mas nunca fica menor que o container */
     <div
       className={cn(
-        "w-full overflow-hidden rounded-[10px] border border-[#C8CDD2]",
+        "w-max min-w-full overflow-hidden rounded-[10px] border border-[#C8CDD2]",
         className,
       )}
     >
@@ -45,14 +48,17 @@ function DataTable<T>({
             {columns.map((column) => (
               <th
                 key={column.key}
-                className="px-6 text-left text-[16px] font-semibold"
+                className={cn(
+                  "px-6 text-left text-[16px] font-semibold whitespace-nowrap",
+                  column.headerClassName,
+                )}
               >
                 {column.label}
               </th>
             ))}
 
             {actions.length > 0 && (
-              <th className="px-6 text-right text-[16px] font-semibold">
+              <th className="px-6 text-right text-[16px] font-semibold whitespace-nowrap">
                 Ações
               </th>
             )}
@@ -72,13 +78,13 @@ function DataTable<T>({
               {columns.map((column) => (
                 <td
                   key={column.key}
-                  className="px-6 text-[16px] text-[#171717]"
+                  className="px-6 text-[16px] whitespace-nowrap text-[#171717]"
                 >
                   {column.render
                     ? column.render(item, index)
                     : String(
-                        (item as Record<string, unknown>)[column.key] ?? "",
-                      )}
+                      (item as Record<string, unknown>)[column.key] ?? "",
+                    )}
                 </td>
               ))}
 
