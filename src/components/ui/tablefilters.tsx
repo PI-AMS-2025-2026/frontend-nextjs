@@ -16,6 +16,7 @@ type FilterField = {
   label?: string;
   showLabel?: boolean;
   type?: "input" | "select";
+  inputType?: React.HTMLInputTypeAttribute;
   placeholder?: string;
   options?: FilterOption[];
   defaultValue?: string;
@@ -29,6 +30,7 @@ interface TableFiltersProps {
   clearButtonLabel?: string;
   className?: string;
 }
+
 
 function TableFilters({
   fields,
@@ -111,6 +113,7 @@ function TableFilters({
               label={field.label}
               showLabel={field.showLabel ?? true}
               height="32px"
+              type={field.inputType ?? "text"} 
               placeholder={field.placeholder}
               value={filters[field.name] ?? ""}
               onChange={(event) => handleChange(field.name, event.target.value)}
