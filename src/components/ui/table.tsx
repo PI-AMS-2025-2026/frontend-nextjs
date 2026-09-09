@@ -5,7 +5,8 @@ import { cn } from "@/lib/utils";
 
 interface TableColumn<T> {
   key: string;
-  label: string;
+  label: React.ReactNode;
+  headerClassName?: string;
   render?: (item: T, index: number) => React.ReactNode;
 }
 
@@ -45,7 +46,10 @@ function DataTable<T>({
             {columns.map((column) => (
               <th
                 key={column.key}
-                className="px-6 text-left text-[16px] font-semibold"
+                className={cn(
+                  "px-6 text-left text-[16px] font-semibold whitespace-nowrap",
+                  column.headerClassName,
+                )}
               >
                 {column.label}
               </th>
@@ -77,8 +81,8 @@ function DataTable<T>({
                   {column.render
                     ? column.render(item, index)
                     : String(
-                        (item as Record<string, unknown>)[column.key] ?? "",
-                      )}
+                      (item as Record<string, unknown>)[column.key] ?? "",
+                    )}
                 </td>
               ))}
 
