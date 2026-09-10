@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 interface TableColumn<T> {
   key: string;
   label: React.ReactNode;
+  headerClassName?: string;
   render?: (item: T, index: number) => React.ReactNode;
 }
 

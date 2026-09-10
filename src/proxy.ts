@@ -57,5 +57,7 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     "/((?!api|_next/static|_next/image|images|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp)$).*)",
+    "/administrador/:path*",
+    "/coordenador/:path*",
   ],
 };
