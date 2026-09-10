@@ -6,6 +6,13 @@ export function Footer() {
       <div className="mx-auto flex max-w-6xl flex-col gap-8 lg:flex-row lg:items-center">
         <div className="flex items-center gap-5 border-white/50 lg:w-[300px] lg:border-r lg:pr-7">
           <Image
+            src="/images/logo_fatec_br.png"
+            alt="Logo da Fatec"
+            width={50}
+            height={50}
+            className="h-auto w-12"
+           />
+          <Image
             src="/images/administrator/institutional-logos.png"
             alt="Fatec, Centro Paula Souza e Governo do Estado de São Paulo"
             width={2170}
