@@ -201,7 +201,7 @@ export function TurmasListagem() {
                                 headerClassName: "min-w-[140px]",
                                 render: (t) =>
                                     t.status === "Ativo" ? (
-                                        <span className="inline-flex items-center gap-2 font-medium text-[#0099AA]">
+                                        <span className="inline-flex items-center gap-2 font-medium text-[#13B900]">
                                             <CircleCheck className="size-4" />
                                             Ativo
                                         </span>
