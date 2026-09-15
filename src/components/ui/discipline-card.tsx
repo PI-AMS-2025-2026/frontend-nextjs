@@ -3,6 +3,8 @@
 import { FaChalkboardTeacher } from "react-icons/fa";
 import { University } from "lucide-react";
 
+export const DISCIPLINE_DND_MIME = "application/x-discipline+json";
+
 type DisciplineCardProps = {
   id: string;
   disciplina: string;
@@ -25,18 +27,16 @@ export default function DisciplineCard({
   onDragEnd,
 }: DisciplineCardProps) {
   const handleDragStart = (event: React.DragEvent<HTMLDivElement>) => {
-    event.dataTransfer.clearData();
+    const payload = JSON.stringify({
+      id,
+      disciplina,
+      professor,
+      sala,
+      cor,
+    });
 
-    event.dataTransfer.setData(
-      "discipline",
-      JSON.stringify({
-        id,
-        disciplina,
-        professor,
-        sala,
-        cor,
-      }),
-    );
+    event.dataTransfer.setData(DISCIPLINE_DND_MIME, payload);
+    event.dataTransfer.setData("text/plain", payload);
 
     event.dataTransfer.effectAllowed = "move";
 

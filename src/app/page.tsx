@@ -47,6 +47,76 @@ const disciplinasIniciais: Discipline[] = [
     sala: "Laboratório 01",
     cor: "#FF9800",
   },
+  {
+    id: "6",
+    disciplina: "Estrutura de Dados",
+    professor: "Lucas Mendes",
+    sala: "Sala 20",
+    cor: "#795548",
+  },
+  {
+    id: "7",
+    disciplina: "Sistemas Operacionais",
+    professor: "Fernanda Costa",
+    sala: "Laboratório 03",
+    cor: "#607D8B",
+  },
+  {
+    id: "8",
+    disciplina: "Programação Orientada a Objetos",
+    professor: "Rafael Almeida",
+    sala: "Sala 18",
+    cor: "#3F51B5",
+  },
+  {
+    id: "9",
+    disciplina: "Inteligência Artificial",
+    professor: "Juliana Martins",
+    sala: "Laboratório 04",
+    cor: "#009688",
+  },
+  {
+    id: "10",
+    disciplina: "Desenvolvimento Mobile",
+    professor: "Gabriel Souza",
+    sala: "Sala 22",
+    cor: "#E91E63",
+  },
+  {
+    id: "11",
+    disciplina: "Redes de Computadores",
+    professor: "Marcos Oliveira",
+    sala: "Laboratório 01",
+    cor: "#FF5722",
+  },
+  {
+    id: "12",
+    disciplina: "Segurança da Informação",
+    professor: "Patrícia Lima",
+    sala: "Sala 25",
+    cor: "#8BC34A",
+  },
+  {
+    id: "13",
+    disciplina: "Banco de Dados Avançado",
+    professor: "André Santos",
+    sala: "Sala 09",
+    cor: "#673AB7",
+  },
+  {
+    id: "14",
+    disciplina: "Arquitetura de Software",
+    professor: "Camila Rocha",
+    sala: "Sala 14",
+    cor: "#00BCD4",
+  },
+  {
+    id: "15",
+    disciplina: "Computação em Nuvem",
+    professor: "Bruno Ferreira",
+    sala: "Laboratório 05",
+    cor: "#CDDC39",
+  },
 ];
 
 export default function Home() {
@@ -106,30 +176,40 @@ export default function Home() {
     setArrastando(false);
   };
 
+  const handleRemoveAll = () => {
+    setAulas([]);
+    setArrastando(false);
+  };
+
   const disciplinasDisponiveis = disciplinas.filter(
     (disciplina) => !aulas.some((aula) => aula.id === disciplina.id),
   );
 
   return (
-    <main className="flex h-screen w-screen items-center justify-center overflow-hidden p-4">
-      <div className="grid w-full max-w-[1800px] min-w-0 grid-cols-[1fr_3fr] gap-6">
-        {/* 25% - Lista de disciplinas */}
-        <div className="min-w-0">
-          <DisciplineList
-            disciplinas={disciplinasDisponiveis}
-            arrastando={arrastando}
-            onRemove={handleRemove}
-            onDragStateChange={setArrastando}
-          />
-        </div>
+    <main className="flex min-h-screen w-full flex-col justify-end p-4">
+      {/* Container responsável pela altura dos componentes */}
+      <div className="h-[860px] w-full">
+        {/* Container responsável pelo posicionamento lado a lado */}
+        <div className="grid h-full w-full grid-cols-[280px_minmax(0,1fr)] gap-6">
+          {/* Lista de disciplinas */}
+          <div className="h-[750px] min-h-0 min-w-0">
+            <DisciplineList
+              disciplinas={disciplinasDisponiveis}
+              arrastando={arrastando}
+              onRemove={handleRemove}
+              onRemoveAll={handleRemoveAll}
+              onDragStateChange={setArrastando}
+            />
+          </div>
 
-        {/* 75% - Grade */}
-        <div className="min-w-0">
-          <Timetable
-            aulas={aulas}
-            onAulaDrop={handleAulaDrop}
-            onDragStateChange={setArrastando}
-          />
+          {/* Grade */}
+          <div className="h-[750px] min-h-0 min-w-0">
+            <Timetable
+              aulas={aulas}
+              onAulaDrop={handleAulaDrop}
+              onDragStateChange={setArrastando}
+            />
+          </div>
         </div>
       </div>
     </main>

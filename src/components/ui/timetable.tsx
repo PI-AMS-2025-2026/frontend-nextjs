@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useState } from "react";
-import DisciplineCard from "./discipline-card";
+import DisciplineCard, { DISCIPLINE_DND_MIME } from "./discipline-card";
 import type { Discipline } from "./discipline-list";
 
 export type DiaSemana =
@@ -125,10 +125,27 @@ export default function Timetable({
 }: TimetableProps) {
   const [celulaHover, setCelulaHover] = useState<string | null>(null);
 
+  const getAula = (dia: DiaSemana, horario: Horario) => {
+    return aulas.find(
+      (aula) =>
+        aula.dia === dia &&
+        aula.inicio === horario.inicio &&
+        aula.fim === horario.fim,
+    );
+  };
+
   const handleDragOver = (
     event: React.DragEvent<HTMLTableCellElement>,
     celulaId: string,
+    aulaExiste: boolean,
   ) => {
+    // Se a célula já possui uma aula, ela fica bloqueada
+    if (aulaExiste) {
+      event.dataTransfer.dropEffect = "none";
+      setCelulaHover(null);
+      return;
+    }
+
     event.preventDefault();
 
     event.dataTransfer.dropEffect = "move";
@@ -147,7 +164,18 @@ export default function Timetable({
   ) => {
     event.preventDefault();
 
-    const data = event.dataTransfer.getData("discipline");
+    // Verifica novamente se a célula já está ocupada
+    const aulaExiste = getAula(dia, horario);
+
+    if (aulaExiste) {
+      setCelulaHover(null);
+      return;
+    }
+
+    const data =
+      event.dataTransfer.getData(DISCIPLINE_DND_MIME) ||
+      event.dataTransfer.getData("text/plain") ||
+      event.dataTransfer.getData("discipline");
 
     if (!data) {
       setCelulaHover(null);
@@ -164,15 +192,6 @@ export default function Timetable({
 
     setCelulaHover(null);
     onDragStateChange?.(false);
-  };
-
-  const getAula = (dia: DiaSemana, horario: Horario) => {
-    return aulas.find(
-      (aula) =>
-        aula.dia === dia &&
-        aula.inicio === horario.inicio &&
-        aula.fim === horario.fim,
-    );
   };
 
   const getIntervalo = (horario: Horario) => {
@@ -210,7 +229,7 @@ export default function Timetable({
             return (
               <Fragment key={`${horario.inicio}-${horario.fim}`}>
                 <tr>
-                  <td className="h-[80px] border-t border-[#0099AA] bg-[#D9F3F4] px-2 text-center align-middle text-sm font-bold text-[#0099AA]">
+                  <td className="h-[110px] border-t border-[#0099AA] bg-[#D9F3F4] px-2 text-center align-middle text-sm font-bold text-[#0099AA]">
                     {horario.inicio} - {horario.fim}
                   </td>
 
@@ -219,14 +238,22 @@ export default function Timetable({
 
                     const aula = getAula(dia.key, horario);
 
+                    const celulaOcupada = !!aula;
+
                     return (
                       <td
                         key={celulaId}
-                        onDragOver={(event) => handleDragOver(event, celulaId)}
+                        onDragOver={(event) =>
+                          handleDragOver(event, celulaId, celulaOcupada)
+                        }
                         onDragLeave={handleDragLeave}
                         onDrop={(event) => handleDrop(event, dia.key, horario)}
-                        className={`h-[80px] border-l border-t border-[#0099AA] p-2 align-middle transition ${
-                          celulaHover === celulaId ? "bg-[#E6F8F9]" : "bg-white"
+                        className={`h-[110px] border-l border-t border-[#0099AA] p-2 align-middle transition ${
+                          celulaOcupada
+                            ? "bg-[#F5F5F5]"
+                            : celulaHover === celulaId
+                              ? "bg-[#E6F8F9]"
+                              : "bg-white"
                         }`}
                       >
                         {aula && (
@@ -250,7 +277,7 @@ export default function Timetable({
                   <tr>
                     <td
                       colSpan={7}
-                      className="h-[24px] border-t border-[#0099AA] bg-[#EEEEEE] px-2 text-center text-xs font-medium text-[#777777]"
+                      className="h-[24px] border-t border-[#0099AA] bg-[#EEEEEE] px-2 text-center text-xs font-bold text-[#777777]"
                     >
                       {intervalo.inicio} — {intervalo.fim}
                     </td>
