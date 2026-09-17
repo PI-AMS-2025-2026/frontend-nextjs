@@ -249,188 +249,162 @@ export function DisciplinasListagem() {
                 </div>
             </div>
 
-            {pagina.length === 0 ? (
-                <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">
-                    Nenhuma disciplina encontrada.
-                </div>
-            ) : (
-                /* min-w-0 é o que permite este filho de flex encolher e ativar o scroll */
-                <div className="min-w-0 overflow-x-auto pb-2">
-                    <DataTable
-                        data={pagina}
-                        getRowKey={(d) => d.id}
-                        columns={[
-                            {
-                                key: "nome",
-                                label: (
-                                    <TableSortHead
-                                        label="Nome"
-                                        labels={["A-Z", "Z-A"]}
-                                        direcao={ordem.campo === "nome" ? ordem.direcao : null}
-                                        onSort={ordenar("nome")}
-                                    />
+            {/* sem ternário: a tabela é sempre renderizada, então o cabeçalho
+                permanece visível e o aviso de vazio aparece como linha dentro dela.
+                min-w-0 é o que permite este filho de flex encolher e ativar o scroll */}
+            <div className="min-w-0 overflow-x-auto pb-2">
+                <DataTable
+                    data={pagina}
+                    getRowKey={(d) => d.id}
+                    emptyMessage="Nenhuma disciplina encontrada."
+                    columns={[
+                        {
+                            key: "nome",
+                            label: ("Nome"),
+                        },
+                        {
+                            key: "cargaHoraria",
+                            label: ("Carga Horária"),
+                            render: (d) => `${d.cargaHoraria}h`,
+                        },
+                        {
+                            key: "tipo",
+                            label: (
+                                <TableFilterHead
+                                    label="Tipo"
+                                    value={fTipo}
+                                    onChange={filtrar(setFTipo)}
+                                    options={[
+                                        { label: "Teórica", value: "Teórica" },
+                                        { label: "Prática", value: "Prática" },
+                                        { label: "50/50", value: "50/50" },
+                                    ]}
+                                />
+                            ),
+                        },
+                        {
+                            key: "periodo",
+                            label: (
+                                <TableFilterHead
+                                    label="Período"
+                                    value={fPeriodo}
+                                    onChange={filtrar(setFPeriodo)}
+                                    options={[
+                                        { label: "Manhã", value: "Manhã" },
+                                        { label: "Tarde", value: "Tarde" },
+                                        { label: "Noite", value: "Noite" },
+                                    ]}
+                                />
+                            ),
+                        },
+                        {
+                            key: "modalidade",
+                            label: (
+                                <TableFilterHead
+                                    label="Modalidade"
+                                    allLabel="Todas"
+                                    value={fModalidade}
+                                    onChange={filtrar(setFModalidade)}
+                                    options={[
+                                        { label: "Presencial", value: "Presencial" },
+                                        { label: "EAD", value: "EAD" },
+                                    ]}
+                                />
+                            ),
+                        },
+                        {
+                            key: "codigo",
+                            label: ("Código")
+                        },
+                        {
+                            key: "cor",
+                            label: (
+                                <TableFilterHead
+                                    label="Cor"
+                                    allLabel="Todas"
+                                    value={fCor}
+                                    onChange={filtrar(setFCor)}
+                                    options={CORES_DISCIPLINA.map((c) => ({
+                                        label: c.nome,
+                                        value: c.hex,
+                                        cor: c.hex,
+                                    }))}
+                                />
+                            ),
+                            render: (d) => (
+                                <span
+                                    className="inline-block size-4 rounded-full"
+                                    style={{ backgroundColor: d.cor }}
+                                />
+                            ),
+                        },
+                        {
+                            key: "cursoVinculado",
+                            label: (
+                                <TableFilterHead
+                                    label="Curso vinculado"
+                                    value={fCurso}
+                                    onChange={filtrar(setFCurso)}
+                                    options={CURSOS_DISPONIVEIS.map((c) => ({
+                                        label: c,
+                                        value: c,
+                                    }))}
+                                />
+                            ),
+                        },
+                        {
+                            key: "tipoSala",
+                            label: (
+                                <TableFilterHead
+                                    label="Tipo de sala"
+                                    value={fTipoSala}
+                                    onChange={filtrar(setFTipoSala)}
+                                    options={[
+                                        { label: "Laboratório", value: "Laboratório" },
+                                        { label: "Sala", value: "Sala" },
+                                    ]}
+                                />
+                            ),
+                        },
+                        {
+                            key: "status",
+                            label: (
+                                <TableFilterHead
+                                    label="Status"
+                                    value={fStatus}
+                                    onChange={filtrar(setFStatus)}
+                                    options={[
+                                        { label: "Ativo", value: "Ativo" },
+                                        { label: "Inativo", value: "Inativo" },
+                                    ]}
+                                />
+                            ),
+                            render: (d) =>
+                                d.status === "Ativo" ? (
+                                    <span className="flex items-center gap-1.5 font-medium text-emerald-600">
+                                        <CheckCircle2 className="size-4" />
+                                        Ativo
+                                    </span>
+                                ) : (
+                                    <span className="flex items-center gap-1.5 font-medium text-[#BA1A1A]">
+                                        <XCircle className="size-4" />
+                                        Inativo
+                                    </span>
                                 ),
+                        },
+                    ]}
+                    actions={[
+                        {
+                            label: "Editar",
+                            icon: <Pencil className="size-[21px]" strokeWidth={2} />,
+                            onClick: (d) => {
+                                setSelecionada(d);
+                                setEditarAberto(true);
                             },
-                            {
-                                key: "cargaHoraria",
-                                label: (
-                                    <TableSortHead
-                                        label="Carga horária"
-                                        labels={["Menor para maior", "Maior para menor"]}
-                                        direcao={
-                                            ordem.campo === "cargaHoraria" ? ordem.direcao : null
-                                        }
-                                        onSort={ordenar("cargaHoraria")}
-                                    />
-                                ),
-                                render: (d) => `${d.cargaHoraria}h`,
-                            },
-                            {
-                                key: "tipo",
-                                label: (
-                                    <TableFilterHead
-                                        label="Tipo"
-                                        value={fTipo}
-                                        onChange={filtrar(setFTipo)}
-                                        options={[
-                                            { label: "Teórica", value: "Teórica" },
-                                            { label: "Prática", value: "Prática" },
-                                            { label: "50/50", value: "50/50" },
-                                        ]}
-                                    />
-                                ),
-                            },
-                            {
-                                key: "periodo",
-                                label: (
-                                    <TableFilterHead
-                                        label="Período"
-                                        value={fPeriodo}
-                                        onChange={filtrar(setFPeriodo)}
-                                        options={[
-                                            { label: "Manhã", value: "Manhã" },
-                                            { label: "Tarde", value: "Tarde" },
-                                            { label: "Noite", value: "Noite" },
-                                        ]}
-                                    />
-                                ),
-                            },
-                            {
-                                key: "modalidade",
-                                label: (
-                                    <TableFilterHead
-                                        label="Modalidade"
-                                        allLabel="Todas"
-                                        value={fModalidade}
-                                        onChange={filtrar(setFModalidade)}
-                                        options={[
-                                            { label: "Presencial", value: "Presencial" },
-                                            { label: "EAD", value: "EAD" },
-                                        ]}
-                                    />
-                                ),
-                            },
-                            {
-                                key: "codigo",
-                                label: (
-                                    <TableSortHead
-                                        label="Código"
-                                        labels={["Menor para maior", "Maior para menor"]}
-                                        direcao={ordem.campo === "codigo" ? ordem.direcao : null}
-                                        onSort={ordenar("codigo")}
-                                    />
-                                ),
-                            },
-                            {
-                                key: "cor",
-                                label: (
-                                    <TableFilterHead
-                                        label="Cor"
-                                        allLabel="Todas"
-                                        value={fCor}
-                                        onChange={filtrar(setFCor)}
-                                        options={CORES_DISCIPLINA.map((c) => ({
-                                            label: c.nome,
-                                            value: c.hex,
-                                            cor: c.hex,
-                                        }))}
-                                    />
-                                ),
-                                render: (d) => (
-                                    <span
-                                        className="inline-block size-4 rounded-full"
-                                        style={{ backgroundColor: d.cor }}
-                                    />
-                                ),
-                            },
-                            {
-                                key: "cursoVinculado",
-                                label: (
-                                    <TableFilterHead
-                                        label="Curso vinculado"
-                                        value={fCurso}
-                                        onChange={filtrar(setFCurso)}
-                                        options={CURSOS_DISPONIVEIS.map((c) => ({
-                                            label: c,
-                                            value: c,
-                                        }))}
-                                    />
-                                ),
-                            },
-                            {
-                                key: "tipoSala",
-                                label: (
-                                    <TableFilterHead
-                                        label="Tipo de sala"
-                                        value={fTipoSala}
-                                        onChange={filtrar(setFTipoSala)}
-                                        options={[
-                                            { label: "Laboratório", value: "Laboratório" },
-                                            { label: "Sala", value: "Sala" },
-                                        ]}
-                                    />
-                                ),
-                            },
-                            {
-                                key: "status",
-                                label: (
-                                    <TableFilterHead
-                                        label="Status"
-                                        value={fStatus}
-                                        onChange={filtrar(setFStatus)}
-                                        options={[
-                                            { label: "Ativo", value: "Ativo" },
-                                            { label: "Inativo", value: "Inativo" },
-                                        ]}
-                                    />
-                                ),
-                                render: (d) =>
-                                    d.status === "Ativo" ? (
-                                        <span className="flex items-center gap-1.5 font-medium text-emerald-600">
-                                            <CheckCircle2 className="size-4" />
-                                            Ativo
-                                        </span>
-                                    ) : (
-                                        <span className="flex items-center gap-1.5 font-medium text-[#BA1A1A]">
-                                            <XCircle className="size-4" />
-                                            Inativo
-                                        </span>
-                                    ),
-                            },
-                        ]}
-                        actions={[
-                            {
-                                label: "Editar",
-                                icon: <Pencil className="size-[21px]" strokeWidth={2} />,
-                                onClick: (d) => {
-                                    setSelecionada(d);
-                                    setEditarAberto(true);
-                                },
-                            },
-                        ]}
-                    />
-                </div>
-            )}
+                        },
+                    ]}
+                />
+            </div>
 
             <Pagination
                 totalItems={filtradas.length}
