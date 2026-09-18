@@ -12,29 +12,16 @@ import { Pagination } from "@/components/ui/pagination";
 import { Modal } from "@/components/ui/modal";
 
 import { TurmaFormModal } from "@/components/turmas/turma-form-modal";
-
-import {
-    carregarTurmasSalvas,
-    gerarTurmasMock,
-    salvarTurmas,
-    PERIODOS,
-    ANOS,
-    type Turma,
-    type Status,
-} from "@/lib/turmas";
+import { PERIODOS, ANOS, periodoLabel, mapTurmaResponseToView, type TurmaView } from "@/lib/turmas";
+import { turmasService } from "@/services/turmas.service";
+import { ApiError } from "@/lib/api";
+import type { TurmaRequest } from "@/types/api";
 
 export function TurmasListagem() {
-    const [turmas, setTurmas] = React.useState<Turma[] | null>(null);
-
-    React.useEffect(() => {
-        const salvas = carregarTurmasSalvas();
-        setTurmas(salvas ?? gerarTurmasMock());
-    }, []);
-
-    React.useEffect(() => {
-        if (turmas === null) return;
-        salvarTurmas(turmas);
-    }, [turmas]);
+    const [turmas, setTurmas] = React.useState<TurmaView[]>([]);
+    const [carregando, setCarregando] = React.useState(true);
+    const [erroCarregamento, setErroCarregamento] = React.useState<string | null>(null);
+    const [totalElementos, setTotalElementos] = React.useState(0);
 
     const [busca, setBusca] = React.useState("");
     const [fPeriodo, setFPeriodo] = React.useState("");
@@ -45,8 +32,35 @@ export function TurmasListagem() {
 
     const [cadastrarAberto, setCadastrarAberto] = React.useState(false);
     const [editarAberto, setEditarAberto] = React.useState(false);
-    const [selecionada, setSelecionada] = React.useState<Turma | null>(null);
+    const [selecionada, setSelecionada] = React.useState<TurmaView | null>(null);
     const [sucesso, setSucesso] = React.useState<string | null>(null);
+
+    const carregarTurmas = React.useCallback(() => {
+        setCarregando(true);
+        setErroCarregamento(null);
+
+        turmasService
+            .listar({
+                page: paginaAtual - 1,
+                size: itensPorPagina,
+                periodo: fPeriodo ? Number(fPeriodo) : undefined,
+                ano: fAno ? Number(fAno) : undefined,
+                codigo: busca || undefined,
+            })
+            .then((resposta) => {
+                setTurmas(resposta.content.map(mapTurmaResponseToView));
+                setTotalElementos(resposta.totalElements);
+            })
+            .catch((e) => {
+                setErroCarregamento(e instanceof ApiError ? e.message : "Erro ao carregar turmas.");
+                setTurmas([]);
+            })
+            .finally(() => setCarregando(false));
+    }, [paginaAtual, itensPorPagina, fPeriodo, fAno, busca]);
+
+    React.useEffect(() => {
+        carregarTurmas();
+    }, [carregarTurmas]);
 
     React.useEffect(() => {
         if (!sucesso) return;
@@ -54,59 +68,23 @@ export function TurmasListagem() {
         return () => clearTimeout(timer);
     }, [sucesso]);
 
-    const filtradas = React.useMemo(() => {
-        if (turmas === null) return [];
-        const b = busca.trim().toLowerCase();
-
-        return turmas.filter((t) => {
-            const buscaOk =
-                !b ||
-                t.curso.toLowerCase().includes(b) ||
-                t.periodo.toLowerCase().includes(b) ||
-                String(t.ano).includes(b);
-            const periodoOk = !fPeriodo || t.periodo === fPeriodo;
-            const anoOk = !fAno || String(t.ano) === fAno;
-            return buscaOk && periodoOk && anoOk;
-        });
-    }, [turmas, busca, fPeriodo, fAno]);
-
-    const totalPaginas = Math.max(1, Math.ceil(filtradas.length / itensPorPagina));
-    const paginaSegura = Math.min(paginaAtual, totalPaginas);
-    const inicioIndice = (paginaSegura - 1) * itensPorPagina;
-    const pagina = filtradas.slice(inicioIndice, inicioIndice + itensPorPagina);
-
-    function confirmarCadastro(dados: {
-        periodo: string;
-        curso: string;
-        qtdAlunos: number;
-        ano: number;
-        status: Status;
-    }) {
-        setTurmas((prev) => [
-            ...(prev ?? []),
-            { id: crypto.randomUUID(), ...dados },
-        ]);
+    async function confirmarCadastro(dados: TurmaRequest) {
+        await turmasService.criar(dados);
         setCadastrarAberto(false);
         setSucesso("Turma cadastrada com sucesso!");
+        carregarTurmas();
     }
 
-    function confirmarEdicao(dados: {
-        periodo: string;
-        curso: string;
-        qtdAlunos: number;
-        ano: number;
-        status: Status;
-    }) {
+    async function confirmarEdicao(dados: TurmaRequest) {
         if (!selecionada) return;
-        setTurmas((prev) =>
-            (prev ?? []).map((t) => (t.id === selecionada.id ? { ...t, ...dados } : t))
-        );
+        await turmasService.atualizar(selecionada.id, dados);
         setEditarAberto(false);
         setSelecionada(null);
         setSucesso("Turma editada com sucesso!");
+        carregarTurmas();
     }
 
-    if (turmas === null) {
+    if (carregando && turmas.length === 0 && !erroCarregamento) {
         return (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
                 <Loader2 className="size-6 animate-spin text-[#0099AA]" />
@@ -128,9 +106,7 @@ export function TurmasListagem() {
                     </Link>
                     <div>
                         <h1 className="text-3xl font-bold text-[#17264D]">Turmas</h1>
-                        <p className="text-sm text-[#17264D]/70">
-                            Gerencie as turmas da instituição
-                        </p>
+                        <p className="text-sm text-[#17264D]/70">Gerencie as turmas da instituição</p>
                     </div>
                 </div>
 
@@ -145,12 +121,7 @@ export function TurmasListagem() {
                             }}
                         />
                     </div>
-                    <Button
-                        variant="secondary"
-                        size="small"
-                        className="gap-2"
-                        onClick={() => setCadastrarAberto(true)}
-                    >
+                    <Button variant="secondary" size="small" className="gap-2" onClick={() => setCadastrarAberto(true)}>
                         <Plus className="size-5" />
                         Cadastrar
                     </Button>
@@ -164,7 +135,7 @@ export function TurmasListagem() {
                         label: "Período",
                         type: "select",
                         placeholder: "Selecione...",
-                        options: PERIODOS.map((p) => ({ label: p, value: p })),
+                        options: PERIODOS.map((p) => ({ label: p.label, value: String(p.value) })),
                     },
                     {
                         name: "ano",
@@ -181,26 +152,32 @@ export function TurmasListagem() {
                 }}
             />
 
-            {pagina.length === 0 ? (
+            {erroCarregamento && (
+                <div className="rounded-[10px] border border-[#BA1A1A] py-3 text-center text-sm text-[#BA1A1A]">
+                    {erroCarregamento}
+                </div>
+            )}
+
+            {turmas.length === 0 && !erroCarregamento ? (
                 <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">
                     Nenhuma turma encontrada.
                 </div>
             ) : (
                 <div className="min-w-0 overflow-x-auto pb-2">
                     <DataTable
-                        data={pagina}
+                        data={turmas}
                         getRowKey={(t) => t.id}
                         columns={[
-                            { key: "periodo", label: "Período", headerClassName: "min-w-[140px]" },
+                            { key: "periodo", label: "Período", headerClassName: "min-w-[140px]", render: (t) => periodoLabel(t.periodo) },
                             { key: "ano", label: "Ano", headerClassName: "min-w-[100px]" },
                             { key: "qtdAlunos", label: "Qtd. Alunos", headerClassName: "min-w-[120px]" },
-                            { key: "curso", label: "Curso", headerClassName: "min-w-[140px]" },
+                            { key: "cursoNome", label: "Curso", headerClassName: "min-w-[140px]" },
                             {
                                 key: "status",
                                 label: "Status",
                                 headerClassName: "min-w-[140px]",
                                 render: (t) =>
-                                    t.status === "Ativo" ? (
+                                    t.status === "ATIVO" ? (
                                         <span className="inline-flex items-center gap-2 font-medium text-[#13B900]">
                                             <CircleCheck className="size-4" />
                                             Ativo
@@ -228,8 +205,8 @@ export function TurmasListagem() {
             )}
 
             <Pagination
-                totalItems={filtradas.length}
-                currentPage={paginaSegura}
+                totalItems={totalElementos}
+                currentPage={paginaAtual}
                 itemsPerPage={itensPorPagina}
                 onPageChange={setPaginaAtual}
                 onItemsPerPageChange={(n) => {
@@ -256,12 +233,7 @@ export function TurmasListagem() {
                 onConfirm={confirmarEdicao}
             />
 
-            <Modal
-                open={sucesso !== null}
-                onClose={() => setSucesso(null)}
-                type="success"
-                message={sucesso ?? ""}
-            />
+            <Modal open={sucesso !== null} onClose={() => setSucesso(null)} type="success" message={sucesso ?? ""} />
         </div>
     );
 }

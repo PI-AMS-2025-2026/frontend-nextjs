@@ -5,47 +5,24 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { PERIODOS, CURSOS, type Status, type Turma } from "@/lib/turmas";
-
-interface DadosTurma {
-    periodo: string;
-    curso: string;
-    qtdAlunos: number;
-    ano: number;
-    status: Status;
-}
+import { PERIODOS, type TurmaView } from "@/lib/turmas";
+import { cursosService } from "@/services/cursos.service";
+import type { CursoResponse, TurmaRequest } from "@/types/api";
 
 interface TurmaFormModalProps {
     open: boolean;
     onClose: () => void;
     mode: "cadastrar" | "editar";
-    turma?: Turma | null;
-    onConfirm: (dados: DadosTurma) => void;
+    turma?: TurmaView | null;
+    onConfirm: (dados: TurmaRequest) => Promise<void>;
 }
 
-const opcoesPeriodo = PERIODOS.map((periodo) => ({ label: periodo, value: periodo }));
-const opcoesCurso = CURSOS.map((curso) => ({ label: curso, value: curso }));
-const opcoesStatus = [
-    { label: "Ativo", value: "Ativo" },
-    { label: "Inativo", value: "Inativo" },
-];
+const opcoesPeriodo = PERIODOS.map((p) => ({ label: p.label, value: String(p.value) }));
 
-export function TurmaFormModal({
-    open,
-    onClose,
-    mode,
-    turma,
-    onConfirm,
-}: TurmaFormModalProps) {
+export function TurmaFormModal({ open, onClose, mode, turma, onConfirm }: TurmaFormModalProps) {
     return (
         <Modal open={open} onClose={onClose} className="max-w-xl">
-            <TurmaFormConteudo
-                key={turma?.id ?? "novo"}
-                mode={mode}
-                turma={turma}
-                onCancel={onClose}
-                onConfirm={onConfirm}
-            />
+            <TurmaFormConteudo key={turma?.id ?? "novo"} mode={mode} turma={turma} onCancel={onClose} onConfirm={onConfirm} />
         </Modal>
     );
 }
@@ -57,33 +34,50 @@ function TurmaFormConteudo({
     onConfirm,
 }: {
     mode: "cadastrar" | "editar";
-    turma?: Turma | null;
+    turma?: TurmaView | null;
     onCancel: () => void;
-    onConfirm: (dados: DadosTurma) => void;
+    onConfirm: (dados: TurmaRequest) => Promise<void>;
 }) {
-    const [periodo, setPeriodo] = React.useState(turma?.periodo ?? "");
-    const [curso, setCurso] = React.useState(turma?.curso ?? "");
+    const [cursos, setCursos] = React.useState<CursoResponse[]>([]);
+    const [carregandoCursos, setCarregandoCursos] = React.useState(true);
+
+    React.useEffect(() => {
+        cursosService
+            .listar({ size: 100 })
+            .then((resposta) => setCursos(resposta.content))
+            .catch(() => setCursos([]))
+            .finally(() => setCarregandoCursos(false));
+    }, []);
+
+    const [periodo, setPeriodo] = React.useState(turma ? String(turma.periodo) : "");
+    const [cursoId, setCursoId] = React.useState(turma ? String(turma.cursoId) : "");
     const [qtdAlunos, setQtdAlunos] = React.useState(turma?.qtdAlunos ?? 0);
     const [ano, setAno] = React.useState(turma?.ano ?? new Date().getFullYear());
-    const [status, setStatus] = React.useState<Status | "">(turma?.status ?? "");
     const [erro, setErro] = React.useState("");
+    const [enviando, setEnviando] = React.useState(false);
 
+    const opcoesCurso = cursos.map((c) => ({ label: c.nome, value: String(c.id) }));
     const titulo = mode === "cadastrar" ? "Cadastro de Turma" : "Edição de Turma";
 
-    function handleConfirmar() {
+    async function handleConfirmar() {
         if (!periodo) return setErro("Selecione o período.");
-        if (!curso) return setErro("Selecione o curso.");
+        if (!cursoId) return setErro("Selecione o curso.");
         if (qtdAlunos <= 0) return setErro("A quantidade de alunos deve ser maior que zero.");
         if (!ano || ano < 1900) return setErro("Informe um ano válido.");
-        if (!status) return setErro("Selecione o status.");
 
-        onConfirm({
-            periodo,
-            curso,
-            qtdAlunos,
-            ano,
-            status,
-        });
+        setEnviando(true);
+        try {
+            await onConfirm({
+                periodo: Number(periodo),
+                ano,
+                numeroAlunos: qtdAlunos,
+                curso: { id: Number(cursoId) },
+            });
+        } catch {
+            setErro("Erro ao salvar a turma. Tente novamente.");
+        } finally {
+            setEnviando(false);
+        }
     }
 
     return (
@@ -108,12 +102,12 @@ function TurmaFormConteudo({
                     <label className="text-sm font-medium text-[#17264D]">Curso:</label>
                     <Select
                         options={opcoesCurso}
-                        value={curso}
+                        value={cursoId}
                         onChange={(valor) => {
-                            setCurso(valor);
+                            setCursoId(valor);
                             setErro("");
                         }}
-                        placeholder="Selecione..."
+                        placeholder={carregandoCursos ? "Carregando..." : "Selecione..."}
                     />
                 </div>
 
@@ -141,29 +135,16 @@ function TurmaFormConteudo({
                     }}
                     placeholder="Ex. 2026"
                 />
-
-                <div className="flex flex-col gap-1.5">
-                    <label className="text-sm font-medium text-[#17264D]">Status:</label>
-                    <Select
-                        options={opcoesStatus}
-                        value={status}
-                        onChange={(valor) => {
-                            setStatus(valor as Status);
-                            setErro("");
-                        }}
-                        placeholder="Selecione..."
-                    />
-                </div>
             </div>
 
             {erro && <p className="text-sm text-[#BA1A1A]">{erro}</p>}
 
             <div className="flex justify-end gap-3">
-                <Button variant="ghost" size="small" onClick={onCancel}>
+                <Button variant="ghost" size="small" onClick={onCancel} disabled={enviando}>
                     Cancelar
                 </Button>
-                <Button variant="secondary" size="small" onClick={handleConfirmar}>
-                    Confirmar
+                <Button variant="secondary" size="small" onClick={handleConfirmar} disabled={enviando}>
+                    {enviando ? "Salvando..." : "Confirmar"}
                 </Button>
             </div>
         </div>
