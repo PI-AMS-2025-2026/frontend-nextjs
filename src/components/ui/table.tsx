@@ -55,7 +55,9 @@ function DataTable<T>({
                   column.headerClassName,
                 )}
               >
-                {column.label}
+                <div className="flex items-center gap-2">
+                  {column.label}
+                </div>
               </th>
             ))}
 
@@ -83,7 +85,7 @@ function DataTable<T>({
             <tr
               key={getRowKey?.(item, index) ?? index}
               className={cn(
-                "h-[46px] border-b border-[#D0D4D8]",
+                "h-[50px] border-b border-[#D0D4D8]",
                 index % 2 === 0 ? "bg-white" : "bg-[#F0F0F0]",
               )}
             >
