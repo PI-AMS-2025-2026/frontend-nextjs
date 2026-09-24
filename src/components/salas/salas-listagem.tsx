@@ -97,30 +97,31 @@ export function SalasListagem() {
                 }}
             />
 
-            {pagina.length === 0 ? (
-                <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">
-                    Nenhuma sala encontrada.
-                </div>
-            ) : (
-                <div className="min-w-0 overflow-x-auto pb-2">
-                    <DataTable
-                        data={pagina}
-                        getRowKey={(s) => s.id}
-                        columns={[
-                            { key: "codigo", label: "Código", headerClassName: "min-w-[120px]" },
-                            { key: "capacidade", label: "Capacidade", headerClassName: "min-w-[120px]" },
-                            { key: "tipo", label: "Tipo", headerClassName: "min-w-[160px]" },
-                        ]}
-                        actions={[
-                            {
-                                label: "Ver Recursos",
-                                icon: <Wrench className="size-[21px]" strokeWidth={2} />,
-                                onClick: (s) => abrirDetalhes(s),
-                            },
-                        ]}
-                    />
-                </div>
-            )}
+            <div className="min-w-0 overflow-x-auto pb-2">
+                <DataTable
+                    data={pagina}
+                    className={pagina.length === 0 ? "rounded-b-none border-b-0" : undefined}
+                    getRowKey={(s) => s.id}
+                    columns={[
+                        { key: "codigo", label: "Código", headerClassName: "min-w-[120px]" },
+                        { key: "capacidade", label: "Capacidade", headerClassName: "min-w-[120px]" },
+                        { key: "tipo", label: "Tipo", headerClassName: "min-w-[160px]" },
+                    ]}
+                    actions={[
+                        {
+                            label: "Ver Recursos",
+                            icon: <Wrench className="size-[21px]" strokeWidth={2} />,
+                            onClick: (s) => abrirDetalhes(s),
+                        },
+                    ]}
+                />
+
+                {pagina.length === 0 && (
+                    <div className="rounded-b-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">
+                        Nenhuma sala encontrada.
+                    </div>
+                )}
+            </div>
 
             <Pagination
                 totalItems={filtradas.length}
