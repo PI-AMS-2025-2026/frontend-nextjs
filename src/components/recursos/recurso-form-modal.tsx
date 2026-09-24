@@ -34,7 +34,7 @@ export function RecursoFormModal({
     onConfirm,
 }: RecursoFormModalProps) {
     return (
-        <Modal open={open} onClose={onClose} className="max-w-xl">
+        <Modal open={open} onClose={onClose} className="max-w-xl overflow-visible">
             <RecursoFormConteudo
                 key={recurso?.id ?? "novo"}
                 mode={mode}
@@ -160,8 +160,7 @@ function RecursoFormConteudo({
                             </button>
 
                             {dropdownAberto && (
-                                <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-md border border-[#C8CDD2] bg-white shadow-lg">
-                                    <button
+                                <div className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-[#C8CDD2] bg-white shadow-lg">                                    <button
                                         type="button"
                                         onClick={() => handleSelecionarTipo(NOVO_TIPO_VALUE)}
                                         className="w-full border-b border-[#C8CDD2] px-3 py-2 text-left text-sm text-[#17264D] transition-colors hover:bg-[#F2F2F2]"
