@@ -13,13 +13,13 @@ import { Pagination } from "@/components/ui/pagination";
 import { Modal } from "@/components/ui/modal";
 
 import { DisciplinaFormModal } from "@/components/disciplinas/disciplina-form-modal";
+import { disciplinasService } from "@/services/disciplinas.service";
+import { ApiError } from "@/lib/api";
+import type { DisciplinaResponse } from "@/types/api";
 
 import {
-    carregarDisciplinasSalvas,
     CORES_DISCIPLINA,
     CURSOS_DISPONIVEIS,
-    gerarDisciplinasMock,
-    salvarDisciplinas,
     type Disciplina,
     type Modalidade,
     type Periodo,
@@ -43,19 +43,32 @@ type DadosDisciplina = {
 
 type CampoOrdenavel = "nome" | "cargaHoraria" | "codigo";
 
+function paraDisciplina(d: DisciplinaResponse): Disciplina {
+    return {
+        id: String(d.id),
+        nome: d.nome,
+        cargaHoraria: d.cargaHoraria,
+        tipo: d.tipoDisciplina as TipoDisciplina,
+        periodo: d.periodo as unknown as Periodo,
+        modalidade: d.modalidade as Modalidade,
+        codigo: Number(d.codDisciplina),
+        cor: d.cor ?? "#CBD5E1",
+        cursoVinculado: d.curso.nome,
+        tipoSala: d.tipoSala.nome as TipoSala,
+        status: "Ativo",
+    };
+}
+
 export function DisciplinasListagem() {
     const [disciplinas, setDisciplinas] = React.useState<Disciplina[] | null>(null);
+    const [erro, setErro] = React.useState<string | null>(null);
 
     React.useEffect(() => {
-        const salvas = carregarDisciplinasSalvas();
-        setDisciplinas(salvas ?? gerarDisciplinasMock());
+        disciplinasService
+            .listar({ page: 0, size: 1000 })
+            .then((res) => setDisciplinas(res.content.map(paraDisciplina)))
+            .catch((e) => setErro(e instanceof ApiError ? e.message : "Não foi possível conectar ao servidor."));
     }, []);
-
-    React.useEffect(() => {
-        if (disciplinas === null) return;
-        salvarDisciplinas(disciplinas);
-    }, [disciplinas]);
-
     const [busca, setBusca] = React.useState("");
 
     const [ordem, setOrdem] = React.useState<{
@@ -186,6 +199,8 @@ export function DisciplinasListagem() {
         setSelecionada(null);
         setSucesso("Disciplina editada com sucesso!");
     }
+
+    if (erro) return <p className="py-24 text-center text-sm text-[#BA1A1A]">{erro}</p>;
 
     if (disciplinas === null) {
         return (
