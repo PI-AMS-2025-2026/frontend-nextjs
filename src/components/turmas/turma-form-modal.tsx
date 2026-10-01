@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/select";
 import { PERIODOS, type TurmaView } from "@/lib/turmas";
 import { cursosService } from "@/services/cursos.service";
 import type { CursoResponse, TurmaRequest } from "@/types/api";
+import { ApiError } from "@/lib/api";
 
 interface TurmaFormModalProps {
     open: boolean;
@@ -73,8 +74,8 @@ function TurmaFormConteudo({
                 numeroAlunos: qtdAlunos,
                 curso: { id: Number(cursoId) },
             });
-        } catch {
-            setErro("Erro ao salvar a turma. Tente novamente.");
+        } catch (e) {
+            setErro(e instanceof ApiError ? e.message : "Erro ao salvar a turma. Tente novamente.");
         } finally {
             setEnviando(false);
         }

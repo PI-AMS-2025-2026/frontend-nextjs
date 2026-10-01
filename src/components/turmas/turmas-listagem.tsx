@@ -22,6 +22,7 @@ export function TurmasListagem() {
     const [carregando, setCarregando] = React.useState(true);
     const [erroCarregamento, setErroCarregamento] = React.useState<string | null>(null);
     const [totalElementos, setTotalElementos] = React.useState(0);
+    const [primeiraCarga, setPrimeiraCarga] = React.useState(true);
 
     const [busca, setBusca] = React.useState("");
     const [fPeriodo, setFPeriodo] = React.useState("");
@@ -35,6 +36,16 @@ export function TurmasListagem() {
     const [selecionada, setSelecionada] = React.useState<TurmaView | null>(null);
     const [sucesso, setSucesso] = React.useState<string | null>(null);
 
+    const [buscaDebounced, setBuscaDebounced] = React.useState("");
+
+    React.useEffect(() => {
+        const t = setTimeout(() => {
+            setBuscaDebounced(busca);
+            setPaginaAtual(1);
+        }, 400);
+        return () => clearTimeout(t);
+    }, [busca]);
+
     const carregarTurmas = React.useCallback(() => {
         setCarregando(true);
         setErroCarregamento(null);
@@ -45,7 +56,7 @@ export function TurmasListagem() {
                 size: itensPorPagina,
                 periodo: fPeriodo ? Number(fPeriodo) : undefined,
                 ano: fAno ? Number(fAno) : undefined,
-                codigo: busca || undefined,
+                codigo: buscaDebounced || undefined,
             })
             .then((resposta) => {
                 setTurmas(resposta.content.map(mapTurmaResponseToView));
@@ -55,8 +66,11 @@ export function TurmasListagem() {
                 setErroCarregamento(e instanceof ApiError ? e.message : "Erro ao carregar turmas.");
                 setTurmas([]);
             })
-            .finally(() => setCarregando(false));
-    }, [paginaAtual, itensPorPagina, fPeriodo, fAno, busca]);
+            .finally(() => {
+                setCarregando(false);
+                setPrimeiraCarga(false);
+            });
+    }, [paginaAtual, itensPorPagina, fPeriodo, fAno, buscaDebounced]);
 
     React.useEffect(() => {
         carregarTurmas();
@@ -84,7 +98,7 @@ export function TurmasListagem() {
         carregarTurmas();
     }
 
-    if (carregando && turmas.length === 0 && !erroCarregamento) {
+    if (primeiraCarga) {
         return (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
                 <Loader2 className="size-6 animate-spin text-[#0099AA]" />
@@ -115,10 +129,7 @@ export function TurmasListagem() {
                         <SearchInput
                             placeholder="Pesquisar..."
                             value={busca}
-                            onChange={(e) => {
-                                setBusca(e.target.value);
-                                setPaginaAtual(1);
-                            }}
+                            onChange={(e) => setBusca(e.target.value)}
                         />
                     </div>
                     <Button variant="secondary" size="small" className="gap-2" onClick={() => setCadastrarAberto(true)}>
@@ -163,7 +174,7 @@ export function TurmasListagem() {
                     Nenhuma turma encontrada.
                 </div>
             ) : (
-                <div className="min-w-0 overflow-x-auto pb-2">
+                <div className={`min-w-0 overflow-x-auto pb-2 transition-opacity ${carregando ? "pointer-events-none opacity-60" : ""}`}>
                     <DataTable
                         data={turmas}
                         getRowKey={(t) => t.id}
