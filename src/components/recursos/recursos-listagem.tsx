@@ -74,7 +74,7 @@ export function RecursosListagem() {
             const buscaOk =
                 !b || r.nome.toLowerCase().includes(b) || r.tipo.toLowerCase().includes(b);
             const nomeOk = !fNome || r.nome.toLowerCase().includes(fNome.toLowerCase());
-            const tipoOk = !fTipo || r.tipo.toLowerCase().includes(fTipo.toLowerCase());
+            const tipoOk = !fTipo || r.tipo === fTipo;
             return buscaOk && nomeOk && tipoOk;
         });
     }, [recursos, busca, fNome, fTipo]);
@@ -170,8 +170,14 @@ export function RecursosListagem() {
 
             <TableFilters
                 fields={[
-                    { name: "nome", label: "Nome", type: "text", placeholder: "Digite aqui..." },
-                    { name: "tipo", label: "Tipo", type: "text", placeholder: "Digite aqui..." },
+                    // { name: "nome", label: "Nome", type: "text", placeholder: "Digite aqui..." },
+                    {
+                        name: "tipo",
+                        label: "Tipo",
+                        type: "select",
+                        placeholder: "Selecione...",
+                        options: tiposDisponiveis.map((t) => ({ label: t, value: t })),
+                    },
                 ]}
                 onChange={(f) => {
                     setFNome(f.nome ?? "");
@@ -180,56 +186,55 @@ export function RecursosListagem() {
                 }}
             />
 
-            <div className="min-w-0 overflow-x-auto pb-2">
-                <DataTable
-                    data={pagina}
-                    className={pagina.length === 0 ? "rounded-b-none border-b-0" : undefined}
-                    getRowKey={(r) => r.id}
-                    columns={[
-                        { key: "nome", label: "Nome", headerClassName: "min-w-[160px]" },
-                        {
-                            key: "tipo",
-                            label: "Tipo",
-                            headerClassName: "min-w-[160px]",
-                            render: (r) => (
-                                <span className="inline-flex items-center gap-2">
-                                    {r.tipo}
-                                    {isTipoCustomizado(r.tipo) && (
-                                        <span className="rounded-full bg-[#0099AA] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                                            Novo
-                                        </span>
-                                    )}
-                                </span>
-                            ),
-                        },
-                    ]}
-                    actions={[
-                        {
-                            label: "Editar",
-                            icon: <Pencil className="size-[21px]" strokeWidth={2} />,
-                            onClick: (r) => {
-                                setSelecionado(r);
-                                setEditarAberto(true);
+            {pagina.length === 0 ? (
+                <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">
+                    Nenhum recurso encontrado.
+                </div>
+            ) : (
+                <div className="min-w-0 overflow-x-auto pb-2">
+                    <DataTable
+                        data={pagina}
+                        getRowKey={(r) => r.id}
+                        columns={[
+                            { key: "nome", label: "Nome", headerClassName: "min-w-[160px]" },
+                            {
+                                key: "tipo",
+                                label: "Tipo",
+                                headerClassName: "min-w-[160px]",
+                                render: (r) => (
+                                    <span className="inline-flex items-center gap-2">
+                                        {r.tipo}
+                                        {isTipoCustomizado(r.tipo) && (
+                                            <span className="rounded-full bg-[#0099AA] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                                                Novo
+                                            </span>
+                                        )}
+                                    </span>
+                                ),
                             },
-                        },
-                        {
-                            label: "Excluir",
-                            icon: <Trash2 className="size-[21px]" strokeWidth={2} />,
-                            className: "text-[#BA1A1A] hover:bg-[#BA1A1A]/10",
-                            onClick: (r) => {
-                                setSelecionado(r);
-                                setExcluirAberto(true);
+                        ]}
+                        actions={[
+                            {
+                                label: "Editar",
+                                icon: <Pencil className="size-[21px]" strokeWidth={2} />,
+                                onClick: (r) => {
+                                    setSelecionado(r);
+                                    setEditarAberto(true);
+                                },
                             },
-                        },
-                    ]}
-                />
-
-                {pagina.length === 0 && (
-                    <div className="rounded-b-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">
-                        Nenhum recurso encontrado.
-                    </div>
-                )}
-            </div>
+                            {
+                                label: "Excluir",
+                                icon: <Trash2 className="size-[21px]" strokeWidth={2} />,
+                                className: "text-[#BA1A1A] hover:bg-[#BA1A1A]/10",
+                                onClick: (r) => {
+                                    setSelecionado(r);
+                                    setExcluirAberto(true);
+                                },
+                            },
+                        ]}
+                    />
+                </div>
+            )}
 
             <Pagination
                 totalItems={filtrados.length}
