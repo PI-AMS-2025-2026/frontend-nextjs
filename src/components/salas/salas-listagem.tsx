@@ -11,29 +11,68 @@ import { TableFilters } from "@/components/ui/tablefilters";
 import { Pagination } from "@/components/ui/pagination";
 import { Modal } from "@/components/ui/modal";
 
-import { SalaFormModal } from "@/components/salas/sala-form-modal";
+import { SalaFormModal, type DadosSala } from "@/components/salas/sala-form-modal";
 import { ExcluirSalaModal } from "@/components/salas/excluir-sala-modal";
 import { RecursosSalaModal } from "@/components/salas/recursos-sala-modal";
 
-import {
-    carregarSalasSalvas,
-    gerarSalasMock,
-    salvarSalas,
-    type Sala,
-} from "@/lib/salas";
+import { ApiError } from "@/lib/api";
+import { salasService } from "@/services/salas.service";
+import { tiposSalaService } from "@/services/tipos-sala.service";
+import type { Id, SalaResponse, TipoSalaResponse } from "@/types/api";
+
+// Linha exibida na tabela (as chaves batem com as colunas do DataTable)
+interface SalaRow {
+    id: Id;
+    codigo: string;
+    capacidade: number;
+    tipo: string;
+}
+
+function paraRow(s: SalaResponse): SalaRow {
+    return {
+        id: s.id,
+        codigo: s.codigo,
+        capacidade: s.capacidade,
+        tipo: s.tipoSala?.nome ?? "",
+    };
+}
+
+function mensagemErro(e: unknown, padrao: string) {
+    if (e instanceof ApiError) {
+        if (e.status === 401) return "Sessão expirada. Faça login novamente.";
+        if (e.status === 403) return "Você não tem permissão para essa ação.";
+        if (e.status === 409)
+            return e.message || "Conflito: essa sala já existe ou está em uso.";
+    }
+    return e instanceof Error && e.message ? e.message : padrao;
+}
 
 export function SalasListagem() {
-    const [salas, setSalas] = React.useState<Sala[] | null>(null);
+    const [salas, setSalas] = React.useState<SalaResponse[] | null>(null);
+    const [tiposSala, setTiposSala] = React.useState<TipoSalaResponse[]>([]);
+    const [erro, setErro] = React.useState<string | null>(null);
+    const [erroForm, setErroForm] = React.useState<string | null>(null);
+    const [salvando, setSalvando] = React.useState(false);
 
-    React.useEffect(() => {
-        const salvas = carregarSalasSalvas();
-        setSalas(salvas ?? gerarSalasMock());
+    const carregar = React.useCallback(async () => {
+        try {
+            setErro(null);
+            const [pagina, tipos] = await Promise.all([
+                // busca tudo de uma vez; filtro e paginação continuam no cliente
+                salasService.listar({ page: 0, size: 1000 }),
+                tiposSalaService.listar(),
+            ]);
+            setSalas(pagina.content);
+            setTiposSala(tipos);
+        } catch (e) {
+            setErro(mensagemErro(e, "Não foi possível carregar as salas."));
+            setSalas((atual) => atual ?? []);
+        }
     }, []);
 
     React.useEffect(() => {
-        if (salas === null) return;
-        salvarSalas(salas);
-    }, [salas]);
+        carregar();
+    }, [carregar]);
 
     const [busca, setBusca] = React.useState("");
     const [fCodigo, setFCodigo] = React.useState("");
@@ -47,7 +86,7 @@ export function SalasListagem() {
     const [editarAberto, setEditarAberto] = React.useState(false);
     const [excluirAberto, setExcluirAberto] = React.useState(false);
     const [recursosAberto, setRecursosAberto] = React.useState(false);
-    const [selecionada, setSelecionada] = React.useState<Sala | null>(null);
+    const [selecionada, setSelecionada] = React.useState<SalaResponse | null>(null);
     const [sucesso, setSucesso] = React.useState<string | null>(null);
 
     React.useEffect(() => {
@@ -62,7 +101,7 @@ export function SalasListagem() {
         const c = fCodigo.trim().toLowerCase();
         const t = fTipo.trim().toLowerCase();
 
-        return salas.filter((s) => {
+        return salas.map(paraRow).filter((s) => {
             const buscaOk =
                 !b ||
                 s.codigo.toLowerCase().includes(b) ||
@@ -79,39 +118,68 @@ export function SalasListagem() {
     const inicioIndice = (paginaSegura - 1) * itensPorPagina;
     const pagina = filtradas.slice(inicioIndice, inicioIndice + itensPorPagina);
 
-    function confirmarCadastro(dados: {
-        codigo: string;
-        capacidade: number;
-        tipo: string;
-    }) {
-        setSalas((prev) => [
-            ...(prev ?? []),
-            { id: crypto.randomUUID(), ...dados, recursos: [] },
-        ]);
-        setCadastrarAberto(false);
-        setSucesso("Sala cadastrada com sucesso!");
+    function selecionar(row: SalaRow) {
+        setSelecionada(salas?.find((s) => s.id === row.id) ?? null);
     }
 
-    function confirmarEdicao(dados: {
-        codigo: string;
-        capacidade: number;
-        tipo: string;
-    }) {
-        if (!selecionada) return;
-        setSalas((prev) =>
-            (prev ?? []).map((s) => (s.id === selecionada.id ? { ...s, ...dados } : s))
-        );
-        setEditarAberto(false);
-        setSelecionada(null);
-        setSucesso("Sala editada com sucesso!");
+    async function confirmarCadastro(dados: DadosSala) {
+        try {
+            setSalvando(true);
+            setErroForm(null);
+            await salasService.criar({
+                codigo: dados.codigo,
+                capacidade: dados.capacidade,
+                tipoSala: { id: dados.tipoSalaId },
+            });
+            await carregar();
+            setCadastrarAberto(false);
+            setSucesso("Sala cadastrada com sucesso!");
+        } catch (e) {
+            setErroForm(mensagemErro(e, "Erro ao cadastrar a sala."));
+        } finally {
+            setSalvando(false);
+        }
     }
 
-    function confirmarExclusao() {
+    async function confirmarEdicao(dados: DadosSala) {
         if (!selecionada) return;
-        setSalas((prev) => (prev ?? []).filter((s) => s.id !== selecionada.id));
-        setExcluirAberto(false);
-        setSelecionada(null);
-        setSucesso("Sala excluída com sucesso!");
+        try {
+            setSalvando(true);
+            setErroForm(null);
+            await salasService.atualizar(selecionada.id, {
+                codigo: dados.codigo,
+                capacidade: dados.capacidade,
+                tipoSala: { id: dados.tipoSalaId },
+            });
+            await carregar();
+            setEditarAberto(false);
+            setSelecionada(null);
+            setSucesso("Sala editada com sucesso!");
+        } catch (e) {
+            setErroForm(mensagemErro(e, "Erro ao editar a sala."));
+        } finally {
+            setSalvando(false);
+        }
+    }
+
+    async function confirmarExclusao() {
+        if (!selecionada) return;
+        try {
+            setSalvando(true);
+            setErro(null);
+            await salasService.deletar(selecionada.id);
+            await carregar();
+            setExcluirAberto(false);
+            setSelecionada(null);
+            setSucesso("Sala excluída com sucesso!");
+        } catch (e) {
+            // fecha o modal e mostra o erro no banner da página
+            setExcluirAberto(false);
+            setSelecionada(null);
+            setErro(mensagemErro(e, "Erro ao excluir a sala."));
+        } finally {
+            setSalvando(false);
+        }
     }
 
     if (salas === null) {
@@ -157,13 +225,32 @@ export function SalasListagem() {
                         variant="secondary"
                         size="small"
                         className="gap-2"
-                        onClick={() => setCadastrarAberto(true)}
+                        onClick={() => {
+                            setErroForm(null);
+                            setCadastrarAberto(true);
+                        }}
                     >
                         <Plus className="size-5" />
                         Cadastrar
                     </Button>
                 </div>
             </div>
+
+            {erro && (
+                <div
+                    role="alert"
+                    className="flex items-center justify-between gap-3 rounded-[10px] border border-[#FF0000]/40 bg-red-50 px-4 py-3 text-sm text-[#FF0000]"
+                >
+                    <span>{erro}</span>
+                    <button
+                        type="button"
+                        onClick={carregar}
+                        className="font-semibold underline underline-offset-2"
+                    >
+                        Tentar novamente
+                    </button>
+                </div>
+            )}
 
             <TableFilters
                 fields={[
@@ -203,7 +290,7 @@ export function SalasListagem() {
                                 label: "Ver Recursos",
                                 icon: <Wrench className="size-[21px]" strokeWidth={2} />,
                                 onClick: (s) => {
-                                    setSelecionada(s);
+                                    selecionar(s);
                                     setRecursosAberto(true);
                                 },
                             },
@@ -211,7 +298,8 @@ export function SalasListagem() {
                                 label: "Editar",
                                 icon: <Pencil className="size-[21px]" strokeWidth={2} />,
                                 onClick: (s) => {
-                                    setSelecionada(s);
+                                    selecionar(s);
+                                    setErroForm(null);
                                     setEditarAberto(true);
                                 },
                             },
@@ -220,7 +308,7 @@ export function SalasListagem() {
                                 icon: <Trash2 className="size-[21px]" strokeWidth={2} />,
                                 className: "text-[#FF0000] hover:bg-red-50",
                                 onClick: (s) => {
-                                    setSelecionada(s);
+                                    selecionar(s);
                                     setExcluirAberto(true);
                                 },
                             },
@@ -244,6 +332,9 @@ export function SalasListagem() {
                 open={cadastrarAberto}
                 onClose={() => setCadastrarAberto(false)}
                 mode="cadastrar"
+                tiposSala={tiposSala}
+                salvando={salvando}
+                erroExterno={erroForm}
                 onConfirm={confirmarCadastro}
             />
 
@@ -255,6 +346,9 @@ export function SalasListagem() {
                 }}
                 mode="editar"
                 sala={selecionada}
+                tiposSala={tiposSala}
+                salvando={salvando}
+                erroExterno={erroForm}
                 onConfirm={confirmarEdicao}
             />
 
