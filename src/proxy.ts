@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
-type Role = "ADMIN" | "ADMINISTRADOR" | "COORDENADOR";
+type Role = "ADMIN" | "COORDENADOR";
 
-const permissions: Record<string, string[]> = {
-  ADMIN: ["/administrador", "/adminstrador"],
-  ADMINISTRADOR: ["/administrador", "/adminstrador"],
+const permissions: Record<Role, string[]> = {
+  ADMIN: ["/administrador"],
   COORDENADOR: ["/coordenador"],
 };
 
@@ -14,8 +13,8 @@ function isPublicRoute(pathname: string): boolean {
   return publicPaths.includes(pathname);
 }
 
-function hasPermission(pathname: string, role: string): boolean {
-  const allowedRoutes = permissions[role] || [];
+function hasPermission(pathname: string, role: Role): boolean {
+  const allowedRoutes = permissions[role];
 
   return allowedRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
@@ -23,6 +22,13 @@ function hasPermission(pathname: string, role: string): boolean {
 }
 
 export function proxy(request: NextRequest) {
+  // remover quando a autenticação estiver implementada
+  const authEnabled = false;
+
+  if (!authEnabled) {
+    return NextResponse.next();
+  }
+
   const { pathname } = request.nextUrl;
 
   // Permite rotas públicas
@@ -30,7 +36,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Obtém o papel do usuário
+  // Obtém o papel do usuário (obs: remover após a criação de um getSession afins de segurança)
   const role = request.cookies.get("role")?.value;
 
   // Verifica se o role é válido
@@ -38,8 +44,10 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
+  const userRole = role as Role;
+
   // Verifica permissão para acessar a rota
-  if (!hasPermission(pathname, role)) {
+  if (!hasPermission(pathname, userRole)) {
     return NextResponse.redirect(new URL("/403", request.url));
   }
 
@@ -48,10 +56,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/((?!api|_next/static|_next/image|images|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp)$).*)",
-    "/administrador/:path*",
-    "/adminstrador/:path*",
-    "/coordenador/:path*",
-  ],
+  matcher: ["/administrador/:path*", "/coordenador/:path*"],
 };
