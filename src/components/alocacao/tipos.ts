@@ -1,10 +1,10 @@
-export type DiaSemana =
-  | "segunda"
-  | "terca"
-  | "quarta"
-  | "quinta"
-  | "sexta"
-  | "sabado";
+
+import type {
+  Aula as AulaDoComponente,
+  DiaSemana as DiaDoComponente,
+} from "../ui/timetable";
+
+export type DiaSemana = DiaDoComponente;
 
 export type Horario = { inicio: string; fim: string };
 export type Intervalo = Horario & { depoisDoHorario: string };
@@ -13,7 +13,7 @@ export type Discipline = {
   id: string;
   disciplina: string;
   professor: string;
-  sala?: string;
+  sala: string;
   cor?: string;
 };
 
@@ -24,16 +24,10 @@ export type Sala = {
   recursos: string[];
 };
 
-export type Aula = Horario & {
+export type Aula = AulaDoComponente & {
   // id identifica a alocação. disciplinaId identifica o cadastro da disciplina.
-  id: string;
   disciplinaId: string;
   salaId: string;
-  dia: DiaSemana;
-  disciplina: string;
-  professor: string;
-  sala: string;
-  cor?: string;
 };
 
 export type Grade = {

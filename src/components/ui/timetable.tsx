@@ -1,183 +1,260 @@
 "use client";
 
-import { Fragment, useState, type DragEvent } from "react";
-import { Plus } from "lucide-react";
-import DisciplineCard from "./discipline-card";
-import {
-  ehDragDeDisciplina,
-  lerDisciplinaArrastada,
-} from "../alocacao/drag-and-drop";
-import {
-  DIAS,
-  HORARIOS_PADRAO,
-  INTERVALOS_PADRAO,
-  chaveCelula,
-  intervaloDepois,
-  type Aula,
-  type DiaSemana,
-  type Horario,
-  type Intervalo,
-  type DisciplineDragData,
-} from "../alocacao/tipos";
+import { Fragment, useState } from "react";
+import DisciplineCard, { DISCIPLINE_DND_MIME } from "./discipline-card";
+import type { Discipline } from "./discipline-list";
 
-export type { Aula, DiaSemana, Horario, Intervalo } from "../alocacao/tipos";
-
+export type DiaSemana =
+  | "segunda"
+  | "terca"
+  | "quarta"
+  | "quinta"
+  | "sexta"
+  | "sabado";
+export type Aula = {
+  id: string;
+  dia: DiaSemana;
+  inicio: string;
+  fim: string;
+  disciplina: string;
+  professor: string;
+  sala: string;
+  cor?: string;
+};
+type Horario = { inicio: string; fim: string };
+type Intervalo = Horario & { depoisDoHorario: string };
 type TimetableProps = {
   horarios?: Horario[];
   intervalos?: Intervalo[];
   aulas: Aula[];
   onAulaDrop: (
-    disciplina: DisciplineDragData,
+    disciplina: Discipline,
     dia: DiaSemana,
     horario: Horario,
   ) => void;
   onDragStateChange?: (arrastando: boolean) => void;
+  // Props opcionais: os usos anteriores do componente continuam compatíveis.
+  onDropOcupado?: (
+    disciplina: Discipline,
+    dia: DiaSemana,
+    horario: Horario,
+  ) => void;
   onAulaClick?: (aula: Aula) => void;
-  onCelulaClick?: (dia: DiaSemana, horario: Horario) => void;
-  disciplinaSelecionada?: boolean;
+  somenteLeitura?: boolean;
 };
+const dias: { key: DiaSemana; label: string }[] = [
+  { key: "segunda", label: "SEGUNDA" },
+  { key: "terca", label: "TERÇA" },
+  { key: "quarta", label: "QUARTA" },
+  { key: "quinta", label: "QUINTA" },
+  { key: "sexta", label: "SEXTA" },
+  { key: "sabado", label: "SÁBADO" },
+];
+const horariosPadrao: Horario[] = [
+  { inicio: "13:20", fim: "14:10" },
+  { inicio: "14:10", fim: "15:00" },
+  { inicio: "15:10", fim: "16:00" },
+  { inicio: "16:00", fim: "16:50" },
+  { inicio: "17:00", fim: "17:50" },
+  { inicio: "17:50", fim: "18:40" },
+];
+const intervalosPadrao: Intervalo[] = [
+  { inicio: "15:00", fim: "15:10", depoisDoHorario: "15:00" },
+  { inicio: "16:50", fim: "17:00", depoisDoHorario: "16:50" },
+];
 
 export default function Timetable({
-  horarios = HORARIOS_PADRAO,
-  intervalos = INTERVALOS_PADRAO,
+  horarios = horariosPadrao,
+  intervalos = intervalosPadrao,
   aulas,
   onAulaDrop,
   onDragStateChange,
+  onDropOcupado,
   onAulaClick,
-  onCelulaClick,
-  disciplinaSelecionada,
+  somenteLeitura = false,
 }: TimetableProps) {
   const [celulaHover, setCelulaHover] = useState<string | null>(null);
-  const porCelula = new Map(
-    aulas.map((aula) => [chaveCelula(aula.dia, aula), aula]),
-  );
-
+  const getAula = (dia: DiaSemana, horario: Horario) =>
+    aulas.find(
+      (aula) =>
+        aula.dia === dia &&
+        aula.inicio === horario.inicio &&
+        aula.fim === horario.fim,
+    );
   const handleDragOver = (
-    event: DragEvent<HTMLTableCellElement>,
+    event: React.DragEvent<HTMLTableCellElement>,
     celulaId: string,
+    aulaExiste: boolean,
   ) => {
-    if (!ehDragDeDisciplina(event.dataTransfer)) return;
-    // É necessário aceitar o evento mesmo na célula ocupada para mostrar o aviso.
-    // A alocação só é alterada depois da validação feita na tela pai.
+    if (somenteLeitura || (aulaExiste && !onDropOcupado)) {
+      event.dataTransfer.dropEffect = "none";
+      setCelulaHover(null);
+      return;
+    }
+    // O drop também precisa chegar à tela pai quando houver um aviso de conflito.
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
-    setCelulaHover(celulaId);
+    setCelulaHover(aulaExiste ? null : celulaId);
   };
   const handleDrop = (
-    event: DragEvent<HTMLTableCellElement>,
+    event: React.DragEvent<HTMLTableCellElement>,
     dia: DiaSemana,
     horario: Horario,
   ) => {
     event.preventDefault();
-    const disciplina = lerDisciplinaArrastada(event.dataTransfer);
-    if (disciplina) onAulaDrop(disciplina, dia, horario);
-    setCelulaHover(null);
-    onDragStateChange?.(false);
+    if (somenteLeitura) {
+      setCelulaHover(null);
+      return;
+    }
+    const data =
+      event.dataTransfer.getData(DISCIPLINE_DND_MIME) ||
+      event.dataTransfer.getData("text/plain") ||
+      event.dataTransfer.getData("discipline");
+    try {
+      if (!data || data.length > 16384) return;
+      const valor: unknown = JSON.parse(data);
+      if (
+        !valor ||
+        typeof valor !== "object" ||
+        typeof (valor as { id?: unknown }).id !== "string"
+      )
+        return;
+      const disciplina = valor as Discipline;
+      if (getAula(dia, horario)) {
+        // Não sobrescreve a aula. A tela decide apenas qual aviso mostrar.
+        onDropOcupado?.(disciplina, dia, horario);
+        return;
+      }
+      onAulaDrop(disciplina, dia, horario);
+    } catch (error) {
+      console.error("Erro ao interpretar disciplina:", error);
+    } finally {
+      setCelulaHover(null);
+      onDragStateChange?.(false);
+    }
   };
+  const getIntervalo = (horario: Horario) =>
+    intervalos.find((intervalo) => intervalo.depoisDoHorario === horario.fim);
 
   return (
-    <div className="w-full overflow-x-auto rounded-lg border border-[#0099AA] bg-white">
-      <table
-        className="w-full min-w-[970px] table-fixed border-collapse"
-        aria-label="Grade semanal de alocação"
-      >
+    <div
+      className={`w-full overflow-hidden rounded-lg border border-[#0099AA] bg-white ${
+        somenteLeitura
+          ? onAulaClick
+            ? "[&_[draggable]]:cursor-pointer [&_[draggable]]:active:cursor-pointer"
+            : "[&_[draggable]]:cursor-default [&_[draggable]]:active:cursor-default"
+          : ""
+      }`}
+      onDragStartCapture={(event) => {
+        if (somenteLeitura) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      }}
+    >
+      <table className="w-full table-fixed border-collapse">
         <thead>
           <tr>
-            <th
-              scope="col"
-              className="w-[130px] bg-[#0099AA] px-2 py-5 text-center text-xs font-semibold text-white"
-            >
+            <th className="w-[150px] bg-[#0099AA] px-2 py-4 text-center text-s font-semibold text-white">
               HORÁRIO
             </th>
-            {DIAS.map((dia) => (
+            {dias.map((dia) => (
               <th
-                scope="col"
                 key={dia.key}
-                className="bg-[#0099AA] px-2 py-5 text-center text-xs font-semibold text-white"
+                className="bg-[#0099AA] px-2 py-4 text-center text-s font-semibold text-white"
               >
-                {dia.label.toLocaleUpperCase("pt-BR")}
+                {dia.label}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
           {horarios.map((horario) => {
-            const intervalo = intervaloDepois(horario, intervalos);
+            const intervalo = getIntervalo(horario);
             return (
-              <Fragment key={`${horario.inicio}-${horario.fim}`}>
+              <Fragment key={horario.inicio + "-" + horario.fim}>
                 <tr>
-                  <th
-                    scope="row"
-                    className="h-[110px] border-t border-[#0099AA]/40 bg-[#D9F3F4] px-2 text-center align-middle text-xs font-semibold text-[#007A88]"
-                  >
+                  <td className="h-[110px] border-t border-[#0099AA] bg-[#D9F3F4] px-2 text-center align-middle text-sm font-bold text-[#0099AA]">
                     {horario.inicio} - {horario.fim}
-                  </th>
-                  {DIAS.map((dia) => {
-                    const celulaId = chaveCelula(dia.key, horario);
-                    const aula = porCelula.get(celulaId);
-                    const hover = celulaHover === celulaId;
+                  </td>
+                  {dias.map((dia) => {
+                    const celulaId = dia.key + "-" + horario.inicio;
+                    const aula = getAula(dia.key, horario);
+                    const celulaOcupada = !!aula;
                     return (
                       <td
                         key={celulaId}
-                        data-cell={celulaId}
-                        onDragOver={(event) => handleDragOver(event, celulaId)}
-                        onDragLeave={(event) => {
-                          if (
-                            !event.currentTarget.contains(
-                              event.relatedTarget as Node | null,
-                            )
-                          )
-                            setCelulaHover(null);
-                        }}
+                        onDragOver={(event) =>
+                          handleDragOver(event, celulaId, celulaOcupada)
+                        }
+                        onDragLeave={() => setCelulaHover(null)}
                         onDrop={(event) => handleDrop(event, dia.key, horario)}
-                        className={`h-[110px] border-l border-t border-[#0099AA]/30 p-2 align-middle transition ${hover ? (aula ? "bg-red-50 ring-2 ring-inset ring-red-300" : "bg-[#E6F8F9] ring-2 ring-inset ring-[#0099AA]") : "bg-white"}`}
+                        className={`h-[110px] border-l border-t border-[#0099AA] p-2 align-middle transition ${
+                          celulaOcupada
+                            ? "bg-[#F5F5F5]"
+                            : !somenteLeitura && celulaHover === celulaId
+                              ? "bg-[#E6F8F9]"
+                              : "bg-white"
+                        }`}
                       >
-                        {aula ? (
-                          <DisciplineCard
-                            id={aula.disciplinaId}
-                            aulaId={aula.id}
-                            disciplina={aula.disciplina}
-                            professor={aula.professor}
-                            sala={aula.sala}
-                            cor={aula.cor}
-                            dentroDaTabela
-                            onClick={
-                              onAulaClick ? () => onAulaClick(aula) : undefined
+                        {aula && (
+                          <div
+                            role={onAulaClick ? "button" : undefined}
+                            tabIndex={onAulaClick ? 0 : undefined}
+                            aria-label={
+                              onAulaClick
+                                ? "Ver detalhes de " + aula.disciplina
+                                : undefined
                             }
-                            onDragStart={() => {
-                              setCelulaHover(null);
+                            className={
+                              onAulaClick
+                                ? "rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#17264D]"
+                                : undefined
+                            }
+                            onClick={() => onAulaClick?.(aula)}
+                            onDragStart={(event) => {
+                              // O ID da ocorrência acompanha o card até o destino do drop.
+                              const payload = JSON.stringify({
+                                ...aula,
+                                aulaId: aula.id,
+                              });
+                              event.dataTransfer.setData(DISCIPLINE_DND_MIME, payload);
+                              event.dataTransfer.setData("text/plain", payload);
+                              event.dataTransfer.effectAllowed = "move";
                               onDragStateChange?.(true);
                             }}
-                            onDragEnd={() => {
-                              setCelulaHover(null);
-                              onDragStateChange?.(false);
+                            onDragEnd={() => onDragStateChange?.(false)}
+                            onKeyDown={(event) => {
+                              if (
+                                onAulaClick &&
+                                (event.key === "Enter" || event.key === " ")
+                              ) {
+                                event.preventDefault();
+                                onAulaClick(aula);
+                              }
                             }}
-                          />
-                        ) : (
-                          <button
-                            type="button"
-                            aria-label={`Adicionar disciplina em ${dia.label}, ${horario.inicio} a ${horario.fim}`}
-                            onClick={() => onCelulaClick?.(dia.key, horario)}
-                            className={`flex min-h-[85px] w-full items-center justify-center rounded-md transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0099AA] ${disciplinaSelecionada ? "text-[#0099AA] hover:bg-[#E6F8F9]" : "text-[#B3B3B3] hover:bg-[#F5FAFA] hover:text-[#0099AA]"}`}
                           >
-                            <Plus
-                              className="h-4 w-4"
-                              strokeWidth={1.4}
-                              aria-hidden="true"
+                            <DisciplineCard
+                              id={aula.id}
+                              disciplina={aula.disciplina}
+                              professor={aula.professor}
+                              sala={aula.sala}
+                              cor={aula.cor}
+                              dentroDaTabela
                             />
-                          </button>
+                          </div>
                         )}
                       </td>
                     );
                   })}
                 </tr>
                 {intervalo && (
-                  <tr data-testid="interval-row">
+                  <tr>
                     <td
-                      colSpan={DIAS.length + 1}
-                      className="h-[26px] border-t border-[#0099AA]/30 bg-[#F0F0F0] text-center text-[10px] font-medium tracking-wide text-[#777777]"
+                      colSpan={7}
+                      className="h-[24px] border-t border-[#0099AA] bg-[#EEEEEE] px-2 text-center text-xs font-bold text-[#777777]"
                     >
-                      INTERVALO · {intervalo.inicio} - {intervalo.fim}
+                      {intervalo.inicio} — {intervalo.fim}
                     </td>
                   </tr>
                 )}

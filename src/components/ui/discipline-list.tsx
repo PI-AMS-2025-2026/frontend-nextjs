@@ -1,118 +1,123 @@
 "use client";
 
-import { useState, type DragEvent } from "react";
+import { useState } from "react";
 import { TbBulb } from "react-icons/tb";
-import { Trash2 } from "lucide-react";
-import DisciplineCard from "./discipline-card";
-import {
-  ehDragDeDisciplina,
-  lerDisciplinaArrastada,
-} from "../alocacao/drag-and-drop";
-import type { Discipline } from "../alocacao/tipos";
+import DisciplineCard, { DISCIPLINE_DND_MIME } from "./discipline-card";
 
-export type { Discipline } from "../alocacao/tipos";
+export type Discipline = {
+  id: string;
+  disciplina: string;
+  professor: string;
+  sala: string;
+  cor?: string;
+};
 
 type DisciplineListProps = {
   disciplinas: Discipline[];
   arrastando: boolean;
-  onRemove: (aulaId: string) => void;
+  // aulaId identifica a ocorrência na grade; callbacks antigos de um argumento continuam válidos.
+  onRemove: (id: string, aulaId?: string) => void;
   onRemoveAll?: () => void;
   onDragStateChange?: (arrastando: boolean) => void;
-  onSelect?: (id: string) => void;
-  disciplinaSelecionada?: string | null;
 };
 
 export default function DisciplineList({
   disciplinas,
   arrastando,
   onRemove,
+  onRemoveAll,
   onDragStateChange,
-  onSelect,
-  disciplinaSelecionada,
 }: DisciplineListProps) {
   const [hoverRemover, setHoverRemover] = useState(false);
-  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
-    if (!ehDragDeDisciplina(event.dataTransfer)) return;
+  const handleDragOver = (event: React.DragEvent<HTMLElement>) => {
     event.preventDefault();
+    event.stopPropagation();
     event.dataTransfer.dropEffect = "move";
     setHoverRemover(true);
   };
-  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const dados = lerDisciplinaArrastada(event.dataTransfer);
-    // Arrastar um cadastro da lista não remove o cadastro da disciplina.
-    if (dados?.aulaId) onRemove(dados.aulaId);
+  const handleDragLeave = (event: React.DragEvent<HTMLElement>) => {
+    if (
+      event.relatedTarget instanceof Node &&
+      event.currentTarget.contains(event.relatedTarget)
+    ) return;
     setHoverRemover(false);
-    onDragStateChange?.(false);
+  };
+  const handleDrop = (event: React.DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const data =
+      event.dataTransfer.getData(DISCIPLINE_DND_MIME) ||
+      event.dataTransfer.getData("text/plain") ||
+      event.dataTransfer.getData("discipline");
+    try {
+      if (!data || data.length > 16384) return;
+      const valor: unknown = JSON.parse(data);
+      if (!valor || typeof valor !== "object") return;
+      const payload = valor as { id?: unknown; aulaId?: unknown };
+      if (typeof payload.id !== "string" || !payload.id) return;
+      const aulaId =
+        typeof payload.aulaId === "string" && payload.aulaId
+          ? payload.aulaId
+          : undefined;
+      onRemove(aulaId ?? payload.id, aulaId);
+    } catch (error) {
+      console.error("Erro ao ler disciplina:", error);
+    } finally {
+      setHoverRemover(false);
+      onDragStateChange?.(false);
+    }
   };
 
   return (
-    <aside className="flex min-h-0 min-w-0 w-full flex-col md:h-[780px] md:border-r md:border-[#D9D9D9] md:pr-5">
-      <h2 className="mb-3 shrink-0 text-xl font-semibold text-[#17264D]">
+    <aside
+      className="flex h-full min-h-0 w-full flex-col rounded-lg p-4"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      <h2 className="mb-4 shrink-0 text-3xl font-semibold text-[#17264D]">
         Disciplinas
       </h2>
-      <div className="mb-4 shrink-0 border-t border-[#D9D9D9]" />
+      <div className="mb-4 w-full max-w-[280px] shrink-0 border-t border-[#D9D9D9]" />
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="min-h-0 overflow-auto p-1 md:pr-3">
-          <div className="flex gap-3 md:flex-col">
+        <div className="min-h-0 overflow-y-auto pr-4">
+          <div className="flex flex-col gap-3">
             {disciplinas.map((disciplina) => (
-              <div key={disciplina.id} className="w-[220px] shrink-0 md:w-full">
+              <div key={disciplina.id} className="w-full max-w-[280px]">
                 <DisciplineCard
-                  {...disciplina}
-                  selecionado={disciplinaSelecionada === disciplina.id}
-                  onClick={onSelect ? () => onSelect(disciplina.id) : undefined}
+                  id={disciplina.id}
+                  disciplina={disciplina.disciplina}
+                  professor={disciplina.professor}
+                  sala={disciplina.sala}
+                  cor={disciplina.cor}
                   onDragStart={() => onDragStateChange?.(true)}
                   onDragEnd={() => onDragStateChange?.(false)}
                 />
               </div>
             ))}
-            {disciplinas.length === 0 && (
-              <p className="text-sm text-[#777777]">
-                Nenhuma disciplina cadastrada para esta grade.
-              </p>
-            )}
           </div>
         </div>
         {arrastando && (
           <div
-            data-testid="removal-zone"
-            onDragOver={handleDragOver}
-            onDragLeave={(event) => {
-              if (
-                !event.currentTarget.contains(
-                  event.relatedTarget as Node | null,
-                )
-              )
-                setHoverRemover(false);
-            }}
-            onDrop={handleDrop}
-            className={`mt-4 flex min-h-[88px] flex-1 flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-3 text-center text-sm font-medium transition ${
+            className={`mt-3 flex min-h-[72px] flex-1 items-center justify-center rounded-lg border-2 border-dashed px-4 text-center text-sm font-medium transition ${
               hoverRemover
                 ? "border-red-400 bg-red-50 text-red-600"
-                : "border-[#BDBDBD] bg-[#F5F5F5] text-[#777777]"
+                : "border-[#BDBDBD] bg-[#EEEEEE] text-[#777777]"
             }`}
           >
-            <Trash2 className="h-5 w-5" aria-hidden="true" />
             {hoverRemover
-              ? "Solte aqui para remover da grade"
-              : "Arraste aqui para remover da grade"}
+              ? "Solte aqui para remover"
+              : "Arraste aqui para remover"}
           </div>
         )}
       </div>
-      <div className="mt-5 shrink-0 border-t border-[#D9D9D9]" />
-      <div className="flex shrink-0 items-start gap-2 pt-3 text-xs text-[#777777]">
-        <TbBulb
-          className="mt-0.5 h-5 w-5 shrink-0 text-[#CAAA00]"
-          aria-hidden="true"
-        />
+      <div className="mt-3 w-full max-w-[280px] shrink-0 border-t border-[#D9D9D9]" />
+      <div className="flex w-full max-w-[280px] shrink-0 items-start gap-2 pt-1 text-sm text-[#777777]">
+        <TbBulb className="mt-0.5 h-5 w-5 shrink-0 border-[#000000] text-[#FAD207]" />
         <p className="leading-relaxed">
           <span className="font-semibold text-[#17264D]">Dica:</span> arraste
-          uma disciplina para a grade. Para remover, arraste o card de volta
-          para a área de remoção.
-          <span className="mt-2 block">
-            Você também pode selecionar uma disciplina e clicar em um horário
-            vazio.
-          </span>
+          uma disciplina para a grade para adicioná-la. Para remover, arraste-a
+          de volta para a área de remoção.
         </p>
       </div>
     </aside>

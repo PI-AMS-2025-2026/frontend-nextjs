@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
-  CheckCircle2,
   FileDown,
-  FileSpreadsheet,
+  Pencil,
   Save,
   Trash2,
   University,
@@ -13,8 +12,10 @@ import {
 } from "lucide-react";
 import DisciplineList from "../ui/discipline-list";
 import Timetable from "../ui/timetable";
+import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/modal";
+import { Select } from "@/components/ui/select";
 import GradeList from "./alocacao-listagem";
-import Modal from "./alocacao-modal";
 import RoomSelect from "./alocacao-salas";
 import {
   DIAS,
@@ -38,20 +39,12 @@ import {
   salvarAlocacaoLocal,
 } from "./dados-exemplo";
 
-export type FormatoExportacao = "excel" | "pdf";
-
 export type AlocacaoScreenProps = {
   grades: Grade[];
   disciplinas: Discipline[];
   salas: Sala[];
   // O projeto fornece a implementação real da API. Não há endpoint inventado aqui.
   salvarAlocacao: (gradeId: string, aulas: Aula[]) => Promise<void>;
-  // Essa função chama o backend e inicia o download do arquivo recebido.
-  exportarAlocacao?: (
-    gradeId: string,
-    aulas: Aula[],
-    formato: FormatoExportacao,
-  ) => Promise<void>;
 };
 
 type EstadoModal =
@@ -60,43 +53,63 @@ type EstadoModal =
   | { tipo: "aviso"; titulo: string; texto?: string; sucesso?: boolean }
   | null;
 
-const BOTAO =
-  "inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0099AA] focus-visible:ring-offset-2 disabled:cursor-default disabled:opacity-50";
-const PRIMARIO = `${BOTAO} bg-[#0099AA] text-white hover:bg-[#008494]`;
-const SECUNDARIO = `${BOTAO} border border-[#C8D9DD] bg-white text-[#17264D] hover:bg-[#F4FBFC]`;
-
 export function TelaAlocacao({
   grades,
   disciplinas,
   salas,
   salvarAlocacao,
-  exportarAlocacao,
 }: AlocacaoScreenProps) {
   const [gradeId, setGradeId] = useState<string | null>(null);
+  const [editando, setEditando] = useState(false);
   const [rascunhos, setRascunhos] = useState<Record<string, Aula[]>>({});
   const [salvas, setSalvas] = useState<Record<string, Aula[]>>({});
   const [arrastando, setArrastando] = useState(false);
+  const origemDoArraste = useRef<"lista" | "grade" | null>(null);
   const [selecionada, setSelecionada] = useState<string | null>(null);
+  const [mostrarSelecao, setMostrarSelecao] = useState(false);
+  const [diaSelecionado, setDiaSelecionado] = useState<DiaSemana>("segunda");
+  const [horarioSelecionado, setHorarioSelecionado] = useState("0");
   const [modal, setModal] = useState<EstadoModal>(null);
   const [salaId, setSalaId] = useState("");
   const [erroSala, setErroSala] = useState(false);
   const [salvando, setSalvando] = useState(false);
-  const [exportando, setExportando] = useState<FormatoExportacao | null>(null);
   const [mensagem, setMensagem] = useState("");
   const grade = grades.find((item) => item.id === gradeId);
-  const aulas = grade
-    ? (rascunhos[grade.id] ?? salvas[grade.id] ?? grade.aulas)
-    : [];
+  const aulasSalvas = grade ? salvas[grade.id] ?? grade.aulas : [];
+  const aulas = grade && editando
+    ? rascunhos[grade.id] ?? aulasSalvas
+    : aulasSalvas;
   const disciplinasDaGrade = grade
     ? disciplinas.filter((item) => grade.disciplinaIds.includes(item.id))
     : [];
   const salasDaGrade = grade
     ? salas.filter((item) => grade.salaIds.includes(item.id))
     : [];
-  const bloqueado = salvando || exportando !== null;
+  const bloqueado = salvando;
+
+  useEffect(() => {
+    if (!modal) return;
+    const overflowAnterior = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const fecharComEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setModal(null);
+    };
+    document.addEventListener("keydown", fecharComEscape);
+    return () => {
+      document.body.style.overflow = overflowAnterior;
+      document.removeEventListener("keydown", fecharComEscape);
+    };
+  }, [modal]);
 
   function atualizarAulas(proximas: Aula[]) {
-    if (grade) setRascunhos((atual) => ({ ...atual, [grade.id]: proximas }));
+    if (grade && editando && !bloqueado)
+      setRascunhos((atual) => ({ ...atual, [grade.id]: proximas }));
+  }
+
+  function alterarArraste(origem: "lista" | "grade", ativo: boolean) {
+    if (ativo && (!editando || bloqueado)) return;
+    origemDoArraste.current = ativo ? origem : null;
+    setArrastando(ativo);
   }
 
   function avisoOcupada() {
@@ -112,8 +125,24 @@ export function TelaAlocacao({
     horario: Horario,
   ) {
     setArrastando(false);
-    if (!grade || bloqueado) return;
-    const disciplina = disciplinasDaGrade.find((item) => item.id === dados.id);
+    if (!grade || !editando || bloqueado) {
+      origemDoArraste.current = null;
+      return;
+    }
+    // O card da lista envia o id da disciplina; o card da grade envia o id da aula.
+    // Este adaptador mantém o payload e as props dos componentes originais.
+    const veioDaGrade = !!dados.aulaId || origemDoArraste.current === "grade";
+    const origem = veioDaGrade
+      ? aulas.find((item) => item.id === (dados.aulaId ?? dados.id))
+      : undefined;
+    origemDoArraste.current = null;
+    if (veioDaGrade && !origem) return;
+    const dadosCanonicos: DisciplineDragData = origem
+      ? { id: origem.disciplinaId, aulaId: origem.id }
+      : dados;
+    const disciplina = disciplinasDaGrade.find(
+      (item) => item.id === dadosCanonicos.id,
+    );
     // Usar os cadastros recebidos, nunca os nomes ou cores trazidos pelo payload externo.
     if (
       !disciplina ||
@@ -123,14 +152,14 @@ export function TelaAlocacao({
       )
     )
       return;
-    const status = verificarDrop(aulas, dados, dia, horario);
+    const status = verificarDrop(aulas, dadosCanonicos, dia, horario);
     if (status === "ocupada") {
       avisoOcupada();
       return;
     }
     if (status === "invalida" || status === "mesma-celula") return;
     if (status === "mover") {
-      const origem = aulas.find((item) => item.id === dados.aulaId)!;
+      if (!origem) return;
       const sala = salasDaGrade.find((item) => item.id === origem.salaId);
       if (!sala) return;
       const resultado = alocarAula({
@@ -154,7 +183,7 @@ export function TelaAlocacao({
   }
 
   function confirmarSala() {
-    if (modal?.tipo !== "sala" || !grade || bloqueado) return;
+    if (modal?.tipo !== "sala" || !grade || !editando || bloqueado) return;
     const sala = salasDaGrade.find((item) => item.id === salaId);
     const disciplina = disciplinasDaGrade.find(
       (item) => item.id === modal.disciplinaId,
@@ -184,7 +213,7 @@ export function TelaAlocacao({
   }
 
   function excluirAula(id: string) {
-    if (bloqueado) return;
+    if (!editando || bloqueado || !aulas.some((aula) => aula.id === id)) return;
     atualizarAulas(removerAula(aulas, id));
     setMensagem("Disciplina removida da grade.");
     setArrastando(false);
@@ -192,7 +221,7 @@ export function TelaAlocacao({
   }
 
   async function salvar() {
-    if (!grade || bloqueado) return;
+    if (!grade || !editando || bloqueado) return;
     if (!aulas.length) {
       setModal({
         tipo: "aviso",
@@ -212,8 +241,10 @@ export function TelaAlocacao({
         return proximo;
       });
       setGradeId(null);
+      setEditando(false);
       setSelecionada(null);
       setArrastando(false);
+      origemDoArraste.current = null;
       setModal({
         tipo: "aviso",
         titulo: "Alocação salva com sucesso!",
@@ -227,25 +258,6 @@ export function TelaAlocacao({
       });
     } finally {
       setSalvando(false);
-    }
-  }
-
-  async function exportar(formato: FormatoExportacao) {
-    if (!grade || bloqueado || !aulas.length || !exportarAlocacao) return;
-    setExportando(formato);
-    try {
-      await exportarAlocacao(grade.id, aulas, formato);
-      setMensagem(
-        `Download de ${formato === "excel" ? "Excel" : "PDF"} solicitado.`,
-      );
-    } catch {
-      setModal({
-        tipo: "aviso",
-        titulo: "Não foi possível exportar a grade",
-        texto: "Tente novamente. Suas alocações foram preservadas.",
-      });
-    } finally {
-      setExportando(null);
     }
   }
 
@@ -267,19 +279,24 @@ export function TelaAlocacao({
         <header className="mb-7 flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-start gap-3">
             {grade && (
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="small"
                 aria-label="Voltar para a listagem de grades"
                 disabled={bloqueado}
                 onClick={() => {
                   setGradeId(null);
+                  setEditando(false);
                   setSelecionada(null);
                   setArrastando(false);
+                  setMostrarSelecao(false);
+                  origemDoArraste.current = null;
                 }}
-                className="mt-1 rounded p-1 text-[#17264D] hover:bg-[#F4FBFC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0099AA] disabled:opacity-50"
+                className="mt-1 h-9 w-9 rounded p-1 text-[#17264D]"
               >
                 <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-              </button>
+              </Button>
             )}
             <div>
               <h1 className="text-2xl font-semibold tracking-tight text-[#17264D]">
@@ -287,99 +304,188 @@ export function TelaAlocacao({
               </h1>
               <p className="mt-1 text-xs text-[#777777]">
                 {grade
-                  ? "Realize as alocações desta grade"
-                  : "Selecione uma grade cadastrada para realizar a alocação"}
+                  ? editando
+                    ? "Realize as alocações desta grade"
+                    : "Visualize as alocações desta grade"
+                  : "Selecione uma grade cadastrada para abrir"}
               </p>
               {grade && (
-                <p className="mt-3 text-xs font-medium text-[#404040]">
-                  {grade.curso} · {grade.periodoLetivo} · Versão{" "}
-                  {String(grade.versao).padStart(2, "0")}
-                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <p className="text-xs font-medium text-[#404040]">
+                    {grade.curso} · {grade.periodoLetivo} · Versão{" "}
+                    {String(grade.versao).padStart(2, "0")}
+                  </p>
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                      editando
+                        ? "bg-[#D9F3F4] text-[#007A88]"
+                        : "bg-[#F2F2F2] text-[#555555]"
+                    }`}
+                  >
+                    {editando ? "Edição" : "Visualização"}
+                  </span>
+                </div>
               )}
             </div>
           </div>
           {grade && (
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                disabled={bloqueado || !aulas.length || !exportarAlocacao}
-                onClick={() => void exportar("excel")}
-                className={SECUNDARIO}
-                title={
-                  exportarAlocacao
-                    ? "Exportar a grade para Excel"
-                    : "Exportação indisponível no momento"
-                }
-              >
-                <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
-                {exportando === "excel" ? "Exportando…" : "Excel"}
-              </button>
-              <button
-                type="button"
-                disabled={bloqueado || !aulas.length || !exportarAlocacao}
-                onClick={() => void exportar("pdf")}
-                className={SECUNDARIO}
-                title={
-                  exportarAlocacao
-                    ? "Exportar a grade para PDF"
-                    : "Exportação indisponível no momento"
-                }
-              >
-                <FileDown className="h-4 w-4" aria-hidden="true" />
-                {exportando === "pdf" ? "Exportando…" : "PDF"}
-              </button>
-              <button
+              {!editando && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="small"
+                  title="Editar"
+                  aria-label="Editar"
+                  onClick={() => {
+                    setEditando(true);
+                    setMensagem("Modo de edição ativado.");
+                  }}
+                  className="h-10 w-10 rounded-lg p-2 text-[#17264D]"
+                >
+                  <Pencil className="h-5 w-5" aria-hidden="true" />
+                </Button>
+              )}
+              {/* Apenas visual: a exportação será conectada posteriormente. */}
+              <Button
                 type="button"
                 disabled={bloqueado}
-                onClick={() => void salvar()}
-                className={PRIMARIO}
+                variant="primary"
+                size="small"
+                className="gap-2"
               >
-                <Save className="h-4 w-4" aria-hidden="true" />
-                {salvando ? "Salvando…" : "Salvar"}
-              </button>
+                <FileDown className="h-4 w-4" aria-hidden="true" />
+                Exportar
+              </Button>
+              {editando && (
+                <Button
+                  type="button"
+                  disabled={bloqueado}
+                  onClick={() => void salvar()}
+                  variant="secondary"
+                  size="small"
+                  className="gap-2"
+                >
+                  <Save className="h-4 w-4" aria-hidden="true" />
+                  {salvando ? "Salvando…" : "Salvar"}
+                </Button>
+              )}
             </div>
           )}
         </header>
         {grade ? (
           <div
-            className={`grid grid-cols-1 items-start gap-5 md:grid-cols-[235px_minmax(0,1fr)] ${bloqueado ? "pointer-events-none opacity-75" : ""}`}
+            className={`grid grid-cols-1 items-start gap-5 ${editando ? "md:grid-cols-[235px_minmax(0,1fr)]" : ""} ${bloqueado ? "pointer-events-none opacity-75" : ""}`}
           >
-            <DisciplineList
-              disciplinas={disciplinasDaGrade}
-              arrastando={arrastando}
-              onRemove={excluirAula}
-              onDragStateChange={setArrastando}
-              disciplinaSelecionada={selecionada}
-              onSelect={(id) => {
-                if (!bloqueado)
-                  setSelecionada((atual) => (atual === id ? null : id));
-              }}
-            />
-            <section className="min-w-0" aria-label="Alocação na grade">
-              <Timetable
-                horarios={grade.horarios}
-                intervalos={grade.intervalos}
-                aulas={aulas}
-                onAulaDrop={handleDrop}
-                onDragStateChange={setArrastando}
-                onAulaClick={(aula) => {
-                  if (!bloqueado)
-                    setModal({ tipo: "detalhes", aulaId: aula.id });
-                }}
-                disciplinaSelecionada={selecionada !== null}
-                onCelulaClick={(dia, horario) => {
-                  if (bloqueado) return;
-                  if (selecionada)
-                    handleDrop({ id: selecionada }, dia, horario);
-                  else
-                    setModal({
-                      tipo: "aviso",
-                      titulo: "Selecione uma disciplina",
-                      texto:
-                        "Clique em um card da lista e depois no horário em que deseja alocá-lo.",
-                    });
-                }}
-              />
+            {editando && (
+              <div className="h-[540px] min-w-0 md:h-[780px]">
+                <DisciplineList
+                  disciplinas={disciplinasDaGrade}
+                  arrastando={arrastando}
+                  onRemove={(id, aulaId) => {
+                    if (aulaId || origemDoArraste.current === "grade")
+                      excluirAula(aulaId ?? id);
+                  }}
+                  onDragStateChange={(ativo) => alterarArraste("lista", ativo)}
+                />
+              </div>
+            )}
+            <section
+              className="min-w-0 space-y-3"
+              aria-label="Alocação na grade"
+            >
+              {editando && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="small"
+                  className="h-9 px-3 text-sm"
+                  aria-expanded={mostrarSelecao}
+                  aria-controls="alocacao-por-selecao"
+                  onClick={() => setMostrarSelecao((atual) => !atual)}
+                >
+                  Alocar por seleção
+                </Button>
+              )}
+              {editando && mostrarSelecao && (
+                <div
+                  id="alocacao-por-selecao"
+                  className="grid gap-3 rounded-lg border border-[#D9D9D9] bg-[#F2F2F2] p-3 lg:grid-cols-[2fr_1fr_1fr_auto]"
+                >
+                  <Select
+                    options={disciplinasDaGrade.map((disciplina) => ({
+                      label: disciplina.disciplina,
+                      value: disciplina.id,
+                    }))}
+                    value={selecionada ?? ""}
+                    onChange={setSelecionada}
+                    placeholder="Selecione uma disciplina"
+                    className="[&>div]:bg-white"
+                  />
+                  <Select
+                    options={DIAS.map((dia) => ({
+                      label: dia.label,
+                      value: dia.key,
+                    }))}
+                    value={diaSelecionado}
+                    onChange={(valor) => {
+                      const dia = DIAS.find((item) => item.key === valor);
+                      if (dia) setDiaSelecionado(dia.key);
+                    }}
+                    placeholder="Selecione o dia"
+                    className="[&>div]:bg-white"
+                  />
+                  <Select
+                    options={grade.horarios.map((horario, indice) => ({
+                      label: horario.inicio + " - " + horario.fim,
+                      value: String(indice),
+                    }))}
+                    value={horarioSelecionado}
+                    onChange={setHorarioSelecionado}
+                    placeholder="Selecione o horário"
+                    className="[&>div]:bg-white"
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="small"
+                    className="h-9 text-sm"
+                    disabled={
+                      !selecionada ||
+                      !grade.horarios[Number(horarioSelecionado)]
+                    }
+                    onClick={() => {
+                      const horario =
+                        grade.horarios[Number(horarioSelecionado)];
+                      if (selecionada && horario)
+                        handleDrop(
+                          { id: selecionada },
+                          diaSelecionado,
+                          horario,
+                        );
+                    }}
+                  >
+                    Alocar
+                  </Button>
+                </div>
+              )}
+              <div className="max-w-full overflow-x-auto">
+                <div className="min-w-[1050px]">
+                  <Timetable
+                    horarios={grade.horarios}
+                    intervalos={grade.intervalos}
+                    aulas={aulas}
+                    somenteLeitura={!editando || bloqueado}
+                    onAulaDrop={handleDrop}
+                    onDragStateChange={(ativo) => alterarArraste("grade", ativo)}
+                    onAulaClick={(aula) => {
+                      if (!bloqueado)
+                        setModal({ tipo: "detalhes", aulaId: aula.id });
+                    }}
+                    onDropOcupado={handleDrop}
+                  />
+                </div>
+              </div>
               <p
                 className="mt-3 text-right text-xs text-[#777777]"
                 aria-live="polite"
@@ -392,10 +498,16 @@ export function TelaAlocacao({
         ) : (
           <GradeList
             grades={grades}
-            onAlocar={(id) => {
+            onAbrir={(id) => {
               setGradeId(id);
+              setEditando(false);
               setSelecionada(null);
               setArrastando(false);
+              setMostrarSelecao(false);
+              setDiaSelecionado("segunda");
+              setHorarioSelecionado("0");
+              origemDoArraste.current = null;
+              setMensagem("Grade aberta para visualização.");
             }}
           />
         )}
@@ -405,7 +517,12 @@ export function TelaAlocacao({
       </div>
 
       {modal?.tipo === "sala" && (
-        <Modal titulo="Escolha a sala" onClose={() => setModal(null)}>
+        <Modal
+          open
+          onClose={() => setModal(null)}
+          className="max-w-xl overflow-visible [&>img]:rounded-[20px]"
+        >
+          <h2 className="pr-10 text-xl font-semibold">Escolha a sala</h2>
           <p className="mt-3 text-sm text-[#777777]">
             {disciplinaPendente?.disciplina}
             <span className="mt-1 block text-xs">
@@ -425,26 +542,32 @@ export function TelaAlocacao({
             />
           </div>
           <div className="mt-7 flex justify-end gap-3">
-            <button
+            <Button
               type="button"
               onClick={() => setModal(null)}
-              className={`${BOTAO} text-[#404040] hover:bg-gray-100`}
+              variant="ghost"
+              size="small"
             >
               Cancelar
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               disabled={!salasDaGrade.length}
               onClick={confirmarSala}
-              className={PRIMARIO}
+              variant="secondary"
+              size="small"
+              className="gap-2"
             >
               Confirmar
-            </button>
+            </Button>
           </div>
         </Modal>
       )}
       {modal?.tipo === "detalhes" && aulaDetalhe && (
-        <Modal titulo={aulaDetalhe.disciplina} onClose={() => setModal(null)}>
+        <Modal open onClose={() => setModal(null)}>
+          <h2 className="pr-10 text-xl font-semibold">
+            {aulaDetalhe.disciplina}
+          </h2>
           <div className="mt-5 space-y-4 border-t border-[#D9D9D9] pt-4 text-sm">
             <p className="flex items-start gap-2">
               <UserRound
@@ -468,48 +591,29 @@ export function TelaAlocacao({
               {aulaDetalhe.inicio} - {aulaDetalhe.fim}
             </p>
           </div>
-          <div className="mt-6 flex justify-end">
-            <button
-              type="button"
-              onClick={() => excluirAula(aulaDetalhe.id)}
-              className={PRIMARIO}
-            >
-              <Trash2 className="h-4 w-4" aria-hidden="true" />
-              Excluir
-            </button>
-          </div>
+          {editando && (
+            <div className="mt-6 flex justify-end">
+              <Button
+                type="button"
+                onClick={() => excluirAula(aulaDetalhe.id)}
+                variant="danger"
+                size="small"
+                className="gap-2"
+              >
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
+                Excluir
+              </Button>
+            </div>
+          )}
         </Modal>
       )}
       {modal?.tipo === "aviso" && (
         <Modal
-          titulo={modal.titulo}
-          compacto
-          alerta={!modal.sucesso}
+          open
           onClose={() => setModal(null)}
-        >
-          {modal.sucesso && (
-            <CheckCircle2
-              className="mx-auto mt-5 h-12 w-12 text-[#0099AA]"
-              strokeWidth={1.5}
-              aria-hidden="true"
-            />
-          )}
-          {modal.texto && (
-            <p className="mt-4 text-center text-sm leading-relaxed text-[#777777]">
-              {modal.texto}
-            </p>
-          )}
-          <div className="mt-6 flex justify-center">
-            <button
-              type="button"
-              data-autofocus
-              onClick={() => setModal(null)}
-              className={PRIMARIO}
-            >
-              Entendi
-            </button>
-          </div>
-        </Modal>
+          type={modal.sucesso ? "success" : "error"}
+          message={[modal.titulo, modal.texto].filter(Boolean).join(" ")}
+        />
       )}
     </main>
   );
