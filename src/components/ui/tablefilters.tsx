@@ -5,6 +5,7 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 
 type FilterOption = {
   label: string;
@@ -21,6 +22,8 @@ type FilterField = {
   options?: FilterOption[];
   defaultValue?: string;
   width?: string;
+  /** Usa o dropdown customizado (com scroll) em vez do select nativo */
+  maxVisibleOptions?: number;
 };
 
 interface TableFiltersProps {
@@ -89,6 +92,19 @@ function TableFilters({
                   {field.label}
                 </label>
               )}
+              {field.maxVisibleOptions ? (
+                <Select
+                  options={[
+                    { label: field.placeholder ?? "", value: "" },
+                    ...(field.options ?? []),
+                  ]}
+                  value={filters[field.name] ?? ""}
+                  onChange={(value) => handleChange(field.name, value)}
+                  maxVisibleOptions={field.maxVisibleOptions}
+                  buttonClassName="h-[36px] py-0"
+                  slimScrollbar
+                />
+              ) : (
               <div className="relative w-full">
               <select
                 value={filters[field.name] ?? ""}
@@ -109,6 +125,7 @@ function TableFilters({
                 ))}
               </select>
             </div>
+              )}
             </div>
           ) : (
             <Input
