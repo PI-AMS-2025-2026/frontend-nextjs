@@ -12,7 +12,10 @@ import { Pagination } from "@/components/ui/pagination";
 import { Modal } from "@/components/ui/modal";
 
 import { ProfessorDisciplinaFormModal } from "@/components/professor-disciplina/professor-disciplina-form-modal";
-import { ProfessorDisciplinaExclusaoModal } from "@/components/professor-disciplina/professor-disciplina-exclusao-modal";
+import {
+    ProfessorDisciplinaExclusaoModal,
+    type VinculoComNomes,
+} from "@/components/professor-disciplina/professor-disciplina-exclusao-modal";
 
 import {
     disciplinasService,
@@ -42,26 +45,29 @@ export function ProfessorDisciplinaListagem() {
     const [paginaAtual, setPaginaAtual] = React.useState(1);
 
     const [vincularAberto, setVincularAberto] = React.useState(false);
-    const [selecionado, setSelecionado] = React.useState<ProfessorDisciplinaResponse | null>(null);
+    const [selecionado, setSelecionado] = React.useState<VinculoComNomes | null>(null);
     const [feedback, setFeedback] = React.useState<Feedback | null>(null);
+    const [erroCarga, setErroCarga] = React.useState(false);
 
     const carregarVinculos = React.useCallback(async () => {
         const resposta = await professoresDisciplinasService.listar({ size: TAMANHO_MAXIMO });
-        setVinculos(resposta.content);
+        return resposta.content;
     }, []);
 
     React.useEffect(() => {
         async function carregar() {
             try {
-                const [, profs, discs] = await Promise.all([
+                const [vins, profs, discs] = await Promise.all([
                     carregarVinculos(),
                     professoresService.listar({ size: TAMANHO_MAXIMO }),
                     disciplinasService.listar({ size: TAMANHO_MAXIMO }),
                 ]);
+                setVinculos(vins);
                 setProfessores(profs.content);
                 setDisciplinas(discs.content);
             } catch {
                 setVinculos([]);
+                setErroCarga(true);
                 setFeedback({ tipo: "error", mensagem: "Não foi possível carregar os vínculos!" });
             }
         }
@@ -74,21 +80,35 @@ export function ProfessorDisciplinaListagem() {
         return () => clearTimeout(timer);
     }, [feedback]);
 
-    const filtrados = React.useMemo(() => {
+    // A API devolve apenas os ids; os nomes vêm das listas de professores e disciplinas.
+    const vinculosComNomes = React.useMemo<VinculoComNomes[]>(() => {
         if (vinculos === null) return [];
+        const professoresPorId = new Map(professores.map((p) => [p.id, p.nome]));
+        const disciplinasPorId = new Map(disciplinas.map((d) => [d.id, d.nome]));
+
+        return vinculos.map((v) => ({
+            ...v,
+            professorNome:
+                professoresPorId.get(v.professorId) ?? `Professor #${v.professorId} (não encontrado)`,
+            disciplinaNome:
+                disciplinasPorId.get(v.disciplinaId) ?? `Disciplina #${v.disciplinaId} (não encontrada)`,
+        }));
+    }, [vinculos, professores, disciplinas]);
+
+    const filtrados = React.useMemo(() => {
         const b = busca.trim().toLowerCase();
         const p = filtroProfessor.trim().toLowerCase();
         const d = filtroDisciplina.trim().toLowerCase();
 
-        return vinculos.filter((v) => {
-            const professor = v.professor.nome.toLowerCase();
-            const disciplina = v.disciplina.nome.toLowerCase();
+        return vinculosComNomes.filter((v) => {
+            const professor = v.professorNome.toLowerCase();
+            const disciplina = v.disciplinaNome.toLowerCase();
             const buscaOk = !b || professor.includes(b) || disciplina.includes(b);
             const professorOk = !p || professor.includes(p);
             const disciplinaOk = !d || disciplina.includes(d);
             return buscaOk && professorOk && disciplinaOk;
         });
-    }, [vinculos, busca, filtroProfessor, filtroDisciplina]);
+    }, [vinculosComNomes, busca, filtroProfessor, filtroDisciplina]);
 
     const totalPaginas = Math.max(1, Math.ceil(filtrados.length / itensPorPagina));
     const paginaSegura = Math.min(paginaAtual, totalPaginas);
@@ -101,7 +121,7 @@ export function ProfessorDisciplinaListagem() {
                 professor: { id: dados.professorId },
                 disciplina: { id: dados.disciplinaId },
             });
-            await carregarVinculos();
+            setVinculos(await carregarVinculos());
             setFeedback({ tipo: "success", mensagem: "Professor Vinculado à Disciplina com sucesso!" });
         } catch {
             setFeedback({ tipo: "error", mensagem: "Não foi possível vincular o professor!" });
@@ -113,7 +133,7 @@ export function ProfessorDisciplinaListagem() {
         if (!selecionado) return;
         try {
             await professoresDisciplinasService.deletar(selecionado.id);
-            await carregarVinculos();
+            setVinculos(await carregarVinculos());
             setFeedback({ tipo: "success", mensagem: "Vínculo excluído com sucesso!" });
         } catch {
             setFeedback({ tipo: "error", mensagem: "Não foi possível excluir o vínculo!" });
@@ -200,7 +220,9 @@ export function ProfessorDisciplinaListagem() {
 
             {pagina.length === 0 ? (
                 <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">
-                    Nenhum vínculo encontrado.
+                    {erroCarga
+                        ? "Não foi possível carregar os vínculos. Verifique se a API está disponível e recarregue a página."
+                        : "Nenhum vínculo encontrado."}
                 </div>
             ) : (
                 <DataTable
@@ -210,12 +232,12 @@ export function ProfessorDisciplinaListagem() {
                         {
                             key: "professor",
                             label: "Professor",
-                            render: (v) => v.professor.nome,
+                            render: (v) => v.professorNome,
                         },
                         {
                             key: "disciplina",
                             label: "Disciplina",
-                            render: (v) => v.disciplina.nome,
+                            render: (v) => v.disciplinaNome,
                         },
                     ]}
                     actions={[

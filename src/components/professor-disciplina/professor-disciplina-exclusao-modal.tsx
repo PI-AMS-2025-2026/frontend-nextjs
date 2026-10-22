@@ -5,10 +5,15 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import type { ProfessorDisciplinaResponse } from "@/types/api";
 
+export type VinculoComNomes = ProfessorDisciplinaResponse & {
+    professorNome: string;
+    disciplinaNome: string;
+};
+
 interface ProfessorDisciplinaExclusaoModalProps {
     open: boolean;
     onClose: () => void;
-    vinculo: ProfessorDisciplinaResponse | null;
+    vinculo: VinculoComNomes | null;
     onConfirm: () => void | Promise<void>;
 }
 
@@ -38,8 +43,8 @@ export function ProfessorDisciplinaExclusaoModal({
 
                 <p className="text-sm text-[#17264D]">
                     Tem certeza que deseja excluir este vínculo entre o professor{" "}
-                    <strong>{vinculo?.professor.nome}</strong> e a disciplina{" "}
-                    <strong>{vinculo?.disciplina.nome}</strong>?
+                    <strong>{vinculo?.professorNome}</strong> e a disciplina{" "}
+                    <strong>{vinculo?.disciplinaNome}</strong>?
                 </p>
 
                 <p className="text-sm text-[#17264D]/80">A ação será irreversível.</p>
