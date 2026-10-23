@@ -17,14 +17,12 @@ function getToken(): string | null {
   return localStorage.getItem("access_token");
 }
 
-function buildUrl(endpoint: string, params?: object) {
-  const url = new URL(endpoint, API_URL.endsWith("/") ? API_URL : `${API_URL}/`);
 function getRefreshToken(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("refresh_token");
 }
 
-function buildUrl(endpoint: string, params?: Record<string, any>) {
+function buildUrl(endpoint: string, params?: Record<string, unknown>) {
   const url = new URL(
     endpoint,
     API_URL.endsWith("/") ? API_URL : `${API_URL}/`,
@@ -56,7 +54,7 @@ async function parseResponse(response: Response): Promise<unknown> {
 async function request<T>(
   endpoint: string,
   options: RequestInit = {},
-  params?: Record<string, any>,
+  params?: Record<string, unknown>,
   authenticated = true,
   isRetry = false,
 ): Promise<T> {
@@ -135,7 +133,11 @@ async function request<T>(
 }
 
 export const api = {
-  get<T>(endpoint: string, params?: Record<string, any>, authenticated = true) {
+  get<T>(
+    endpoint: string,
+    params?: Record<string, unknown>,
+    authenticated = true,
+  ) {
     return request<T>(endpoint, { method: "GET" }, params, authenticated);
   },
 
