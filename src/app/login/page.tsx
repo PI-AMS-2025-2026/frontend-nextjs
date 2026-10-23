@@ -1,14 +1,48 @@
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Mail } from "lucide-react";
+import { Mail, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input, PasswordInput } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
+import { ApiError } from "@/lib/api";
 
 export default function LoginPage() {
+  const { login } = useAuth();
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !senha) {
+      setError("Por favor, preencha todos os campos.");
+      return;
+    }
+
+    setError(null);
+    setSubmitting(true);
+
+    try {
+      await login({ email, senha });
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message || "Credenciais inválidas. Tente novamente.");
+      } else {
+        setError("Erro ao se conectar com o servidor.");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <main
       className={cn(
@@ -78,9 +112,16 @@ export default function LoginPage() {
         </header>
 
         <form
+          onSubmit={handleSubmit}
           className="mt-9 w-full max-w-[380px]"
           aria-label="Acesso ao sistema"
         >
+          {error && (
+            <div className="mb-4 rounded-md bg-red-500/20 border border-red-400 p-3 text-sm text-red-100 text-center">
+              {error}
+            </div>
+          )}
+
           <div className="space-y-[7px]">
             <Label
               htmlFor="email"
@@ -101,6 +142,8 @@ export default function LoginPage() {
                 autoComplete="email"
                 placeholder="Digite o seu e-mail"
                 height="50px"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className={cn(
                   "border-[1.5px] border-[#B1C9D1] bg-[#C9C9C9]/26 pl-[43px] text-base text-white",
                   "placeholder:text-white/56 focus:border-white focus-visible:ring-2 focus-visible:ring-white/50",
@@ -122,6 +165,8 @@ export default function LoginPage() {
               autoComplete="current-password"
               placeholder="Digite sua senha"
               height="50px"
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
               className={cn(
                 "border-[1.5px] border-[#B1C9D1] bg-[#C9C9C9]/26 text-base text-white",
                 "placeholder:text-white/56 focus:border-white focus-visible:ring-2 focus-visible:ring-white/50",
@@ -153,16 +198,18 @@ export default function LoginPage() {
           </div>
 
           <Button
-            type="button"
+            type="submit"
             size="medium"
+            disabled={submitting}
             className={cn(
               "mt-[54px] h-[50px] w-full rounded-[15px] border-[#AAC1C9]",
               "bg-[linear-gradient(90deg,#17264D_0%,#0099AA_100%)] text-[28px] font-medium text-white",
               "hover:border-white hover:bg-[linear-gradient(90deg,#223565_0%,#00A8BA_100%)] hover:text-white",
-              "focus-visible:ring-white/70",
+              "focus-visible:ring-white/70 flex items-center justify-center gap-2",
             )}
           >
-            Entrar
+            {submitting && <Loader2 className="h-6 w-6 animate-spin" />}
+            {submitting ? "Entrando..." : "Entrar"}
           </Button>
         </form>
       </section>

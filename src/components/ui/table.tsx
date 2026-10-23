@@ -5,7 +5,8 @@ import { cn } from "@/lib/utils";
 
 interface TableColumn<T> {
   key: string;
-  label: string;
+  label: React.ReactNode;
+  headerClassName?: string;
   render?: (item: T, index: number) => React.ReactNode;
 }
 
@@ -22,6 +23,7 @@ interface DataTableProps<T> {
   actions?: TableAction<T>[];
   getRowKey?: (item: T, index: number) => React.Key;
   className?: string;
+  emptyMessage?: string;
 }
 
 function DataTable<T>({
@@ -30,11 +32,14 @@ function DataTable<T>({
   actions = [],
   getRowKey,
   className,
+  emptyMessage = "Nenhum registro encontrado.",
 }: DataTableProps<T>) {
   return (
+    /* w-max + min-w-full: cresce até caber o conteúdo (permitindo o scroll
+       horizontal do pai), mas nunca fica menor que o container */
     <div
       className={cn(
-        "w-full overflow-hidden rounded-[10px] border border-[#C8CDD2]",
+        "w-max min-w-full overflow-hidden rounded-[10px] border border-[#C8CDD2]",
         className,
       )}
     >
@@ -45,14 +50,19 @@ function DataTable<T>({
             {columns.map((column) => (
               <th
                 key={column.key}
-                className="px-6 text-left text-[16px] font-semibold"
+                className={cn(
+                  "px-6 text-left text-[16px] font-semibold whitespace-nowrap",
+                  column.headerClassName,
+                )}
               >
-                {column.label}
+                <div className="flex items-center gap-2">
+                  {column.label}
+                </div>
               </th>
             ))}
 
             {actions.length > 0 && (
-              <th className="px-6 text-right text-[16px] font-semibold">
+              <th className="px-6 text-right text-[16px] font-semibold whitespace-nowrap">
                 Ações
               </th>
             )}
@@ -61,24 +71,34 @@ function DataTable<T>({
 
         {/* Corpo */}
         <tbody>
+          {data.length === 0 && (
+            <tr className="border-b border-[#D0D4D8] bg-white">
+              <td
+                colSpan={columns.length + (actions.length > 0 ? 1 : 0)}
+                className="px-6 py-10 text-center text-[16px] text-[#17264D]/70"
+              >
+                {emptyMessage}
+              </td>
+            </tr>
+          )}
           {data.map((item, index) => (
             <tr
               key={getRowKey?.(item, index) ?? index}
               className={cn(
-                "h-[46px] border-b border-[#D0D4D8]",
+                "h-[50px] border-b border-[#D0D4D8]",
                 index % 2 === 0 ? "bg-white" : "bg-[#F0F0F0]",
               )}
             >
               {columns.map((column) => (
                 <td
                   key={column.key}
-                  className="px-6 text-[16px] text-[#171717]"
+                  className="px-6 text-[16px] whitespace-nowrap text-[#171717]"
                 >
                   {column.render
                     ? column.render(item, index)
                     : String(
-                        (item as Record<string, unknown>)[column.key] ?? "",
-                      )}
+                      (item as Record<string, unknown>)[column.key] ?? "",
+                    )}
                 </td>
               ))}
 
