@@ -2,12 +2,12 @@
 
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
-import { type Recurso } from "@/lib/recursos";
+import type { RecursoResponse } from "@/types/api";
 
 interface RecursoExcluirModalProps {
     open: boolean;
     onClose: () => void;
-    recurso: Recurso | null;
+    recurso: RecursoResponse | null;
     onConfirm: () => void;
 }
 

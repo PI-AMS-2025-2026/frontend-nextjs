@@ -13,27 +13,37 @@ import { Modal } from "@/components/ui/modal";
 
 import { RecursoFormModal } from "@/components/recursos/recurso-form-modal";
 import { RecursoExcluirModal } from "@/components/recursos/recurso-excluir-modal";
+import { ApiError } from "@/lib/api";
+import { recursosService } from "@/services/recursos.service";
+import { tiposRecursoService } from "@/services/tipos-recurso.service";
+import type { RecursoResponse, TipoRecursoResponse } from "@/types/api";
+import type { DadosRecurso } from "@/components/recursos/recurso-form-modal";
 
-import {
-    carregarRecursosSalvos,
-    gerarRecursosMock,
-    salvarRecursos,
-    TIPOS_PADRAO,
-    type Recurso,
-} from "@/lib/recursos";
+function mensagemErro(e: unknown, padrao: string) {
+    if (e instanceof ApiError) {
+        if (e.status === 401) return "Sessão expirada. Faça login novamente.";
+        if (e.status === 403) return "Você não tem permissão para essa ação.";
+        const mensagemApi = e.message.toLowerCase();
+        if (
+            (e.status === 400 || e.status === 409) &&
+            (mensagemApi.includes("integridade") ||
+                mensagemApi.includes("foreign key") ||
+                mensagemApi.includes("recurso_sala") ||
+                mensagemApi.includes("vinculado"))
+        ) {
+            return "Não é possível excluir este recurso porque ele está vinculado a uma ou mais salas. Remova os vínculos com as salas antes de tentar novamente.";
+        }
+        if (e.status === 409) return e.message || "Conflito ao salvar o recurso.";
+    }
+    return e instanceof Error && e.message ? e.message : padrao;
+}
 
 export function RecursosListagem() {
-    const [recursos, setRecursos] = React.useState<Recurso[] | null>(null);
-
-    React.useEffect(() => {
-        const salvos = carregarRecursosSalvos();
-        setRecursos(salvos ?? gerarRecursosMock());
-    }, []);
-
-    React.useEffect(() => {
-        if (recursos === null) return;
-        salvarRecursos(recursos);
-    }, [recursos]);
+    const [recursos, setRecursos] = React.useState<RecursoResponse[] | null>(null);
+    const [tiposDisponiveis, setTiposDisponiveis] = React.useState<TipoRecursoResponse[]>([]);
+    const [erro, setErro] = React.useState<string | null>(null);
+    const [erroForm, setErroForm] = React.useState<string | null>(null);
+    const [salvando, setSalvando] = React.useState(false);
 
     const [busca, setBusca] = React.useState("");
     const [fNome, setFNome] = React.useState("");
@@ -45,20 +55,28 @@ export function RecursosListagem() {
     const [cadastrarAberto, setCadastrarAberto] = React.useState(false);
     const [editarAberto, setEditarAberto] = React.useState(false);
     const [excluirAberto, setExcluirAberto] = React.useState(false);
-    const [selecionado, setSelecionado] = React.useState<Recurso | null>(null);
+    const [selecionado, setSelecionado] = React.useState<RecursoResponse | null>(null);
     const [sucesso, setSucesso] = React.useState<string | null>(null);
 
-    // Tipos criados pelo usuário via "+ Novo tipo" (exibem a etiqueta "Novo")
-    const [tiposCustomizados, setTiposCustomizados] = React.useState<string[]>([]);
+    const carregar = React.useCallback(async () => {
+        try {
+            setErro(null);
+            const [pagina, tipos] = await Promise.all([
+                recursosService.listar({ page: 0, size: 1000 }),
+                tiposRecursoService.listar(),
+            ]);
+            setRecursos(pagina.content);
+            setTiposDisponiveis(tipos);
+        } catch (e) {
+            setErro(mensagemErro(e, "Não foi possível carregar os recursos."));
+            setRecursos((atual) => atual ?? []);
+        }
+    }, []);
 
-    const tiposDisponiveis = React.useMemo(() => {
-        const doAcervo = (recursos ?? []).map((r) => r.tipo);
-        return Array.from(new Set([...TIPOS_PADRAO, ...doAcervo, ...tiposCustomizados]));
-    }, [recursos, tiposCustomizados]);
-
-    function isTipoCustomizado(tipo: string) {
-        return tiposCustomizados.includes(tipo);
-    }
+    React.useEffect(() => {
+        const timer = window.setTimeout(() => { void carregar(); }, 0);
+        return () => window.clearTimeout(timer);
+    }, [carregar]);
 
     React.useEffect(() => {
         if (!sucesso) return;
@@ -72,9 +90,9 @@ export function RecursosListagem() {
 
         return recursos.filter((r) => {
             const buscaOk =
-                !b || r.nome.toLowerCase().includes(b) || r.tipo.toLowerCase().includes(b);
+                !b || r.nome.toLowerCase().includes(b) || (r.tipo?.nome ?? "").toLowerCase().includes(b);
             const nomeOk = !fNome || r.nome.toLowerCase().includes(fNome.toLowerCase());
-            const tipoOk = !fTipo || r.tipo === fTipo;
+            const tipoOk = !fTipo || r.tipo?.nome === fTipo;
             return buscaOk && nomeOk && tipoOk;
         });
     }, [recursos, busca, fNome, fTipo]);
@@ -84,37 +102,30 @@ export function RecursosListagem() {
     const inicioIndice = (paginaSegura - 1) * itensPorPagina;
     const pagina = filtrados.slice(inicioIndice, inicioIndice + itensPorPagina);
 
-    function registrarTipoSeNovo(tipo: string) {
-        const jaExiste = TIPOS_PADRAO.includes(tipo) || (recursos ?? []).some((r) => r.tipo === tipo);
-        if (!jaExiste) {
-            setTiposCustomizados((prev) => (prev.includes(tipo) ? prev : [...prev, tipo]));
-        }
+    async function salvar(dados: DadosRecurso, modo: "criar" | "editar") {
+        try {
+            setSalvando(true); setErroForm(null);
+            const tipo = dados.novoTipo
+                ? await tiposRecursoService.criar({ nome: dados.novoTipo })
+                : tiposDisponiveis.find((t) => t.id === dados.tipoRecursoId);
+            if (!tipo) throw new Error("Tipo de recurso inválido.");
+            const request = { nome: dados.nome, tipoRecurso: { id: tipo.id } };
+            if (modo === "criar") await recursosService.criar(request);
+            else if (selecionado) await recursosService.atualizar(selecionado.id, request);
+            await carregar();
+            setCadastrarAberto(false); setEditarAberto(false); setSelecionado(null);
+            setSucesso(modo === "criar" ? "Recurso cadastrado com sucesso!" : "Recurso editado com sucesso!");
+        } catch (e) { setErroForm(mensagemErro(e, "Não foi possível salvar o recurso.")); }
+        finally { setSalvando(false); }
     }
 
-    function confirmarCadastro(dados: { nome: string; tipo: string }) {
-        registrarTipoSeNovo(dados.tipo);
-        setRecursos((prev) => [...(prev ?? []), { id: crypto.randomUUID(), ...dados }]);
-        setCadastrarAberto(false);
-        setSucesso("Recurso cadastrado com sucesso!");
-    }
-
-    function confirmarEdicao(dados: { nome: string; tipo: string }) {
+    async function confirmarExclusao() {
         if (!selecionado) return;
-        registrarTipoSeNovo(dados.tipo);
-        setRecursos((prev) =>
-            (prev ?? []).map((r) => (r.id === selecionado.id ? { ...r, ...dados } : r))
-        );
-        setEditarAberto(false);
-        setSelecionado(null);
-        setSucesso("Recurso editado com sucesso!");
-    }
-
-    function confirmarExclusao() {
-        if (!selecionado) return;
-        setRecursos((prev) => (prev ?? []).filter((r) => r.id !== selecionado.id));
-        setExcluirAberto(false);
-        setSelecionado(null);
-        setSucesso("Recurso excluído com sucesso!");
+        try {
+            setSalvando(true); await recursosService.deletar(selecionado.id); await carregar();
+            setExcluirAberto(false); setSelecionado(null); setSucesso("Recurso excluído com sucesso!");
+        } catch (e) { setErro(mensagemErro(e, "Não foi possível excluir o recurso.")); }
+        finally { setSalvando(false); }
     }
 
     if (recursos === null) {
@@ -170,13 +181,13 @@ export function RecursosListagem() {
 
             <TableFilters
                 fields={[
-                    // { name: "nome", label: "Nome", type: "text", placeholder: "Digite aqui..." },
+                    { name: "nome", label: "Nome", type: "input", placeholder: "Digite aqui..." },
                     {
                         name: "tipo",
                         label: "Tipo",
                         type: "select",
                         placeholder: "Selecione...",
-                        options: tiposDisponiveis.map((t) => ({ label: t, value: t })),
+                        options: tiposDisponiveis.map((t) => ({ label: t.nome, value: t.nome })),
                     },
                 ]}
                 onChange={(f) => {
@@ -185,6 +196,8 @@ export function RecursosListagem() {
                     setPaginaAtual(1);
                 }}
             />
+
+            {erro && <div role="alert" className="rounded-[10px] border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">{erro} <button type="button" className="font-semibold underline" onClick={() => void carregar()}>Tentar novamente</button></div>}
 
             {pagina.length === 0 ? (
                 <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">
@@ -203,12 +216,7 @@ export function RecursosListagem() {
                                 headerClassName: "min-w-[160px]",
                                 render: (r) => (
                                     <span className="inline-flex items-center gap-2">
-                                        {r.tipo}
-                                        {isTipoCustomizado(r.tipo) && (
-                                            <span className="rounded-full bg-[#0099AA] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                                                Novo
-                                            </span>
-                                        )}
+                                        {r.tipo?.nome ?? "-"}
                                     </span>
                                 ),
                             },
@@ -252,8 +260,9 @@ export function RecursosListagem() {
                 onClose={() => setCadastrarAberto(false)}
                 mode="cadastrar"
                 tiposDisponiveis={tiposDisponiveis}
-                isTipoCustomizado={isTipoCustomizado}
-                onConfirm={confirmarCadastro}
+                onConfirm={(dados) => void salvar(dados, "criar")}
+                salvando={salvando}
+                erroExterno={erroForm}
             />
 
             <RecursoFormModal
@@ -265,8 +274,9 @@ export function RecursosListagem() {
                 mode="editar"
                 recurso={selecionado}
                 tiposDisponiveis={tiposDisponiveis}
-                isTipoCustomizado={isTipoCustomizado}
-                onConfirm={confirmarEdicao}
+                onConfirm={(dados) => void salvar(dados, "editar")}
+                salvando={salvando}
+                erroExterno={erroForm}
             />
 
             <RecursoExcluirModal
@@ -276,7 +286,7 @@ export function RecursosListagem() {
                     setSelecionado(null);
                 }}
                 recurso={selecionado}
-                onConfirm={confirmarExclusao}
+                onConfirm={() => void confirmarExclusao()}
             />
 
             <Modal

@@ -5,23 +5,25 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChevronDown } from "lucide-react";
-import { type Recurso } from "@/lib/recursos";
+import type { Id, RecursoResponse, TipoRecursoResponse } from "@/types/api";
 
 export const NOVO_TIPO_VALUE = "__novo__";
 
-interface DadosRecurso {
+export interface DadosRecurso {
     nome: string;
-    tipo: string;
+    tipoRecursoId?: Id;
+    novoTipo?: string;
 }
 
 interface RecursoFormModalProps {
     open: boolean;
     onClose: () => void;
     mode: "cadastrar" | "editar";
-    recurso?: Recurso | null;
-    tiposDisponiveis: string[];
-    isTipoCustomizado: (tipo: string) => boolean;
+    recurso?: RecursoResponse | null;
+    tiposDisponiveis: TipoRecursoResponse[];
     onConfirm: (dados: DadosRecurso) => void;
+    salvando?: boolean;
+    erroExterno?: string | null;
 }
 
 export function RecursoFormModal({
@@ -30,8 +32,9 @@ export function RecursoFormModal({
     mode,
     recurso,
     tiposDisponiveis,
-    isTipoCustomizado,
     onConfirm,
+    salvando,
+    erroExterno,
 }: RecursoFormModalProps) {
     return (
         <Modal open={open} onClose={onClose} className="max-w-xl overflow-visible">
@@ -40,9 +43,10 @@ export function RecursoFormModal({
                 mode={mode}
                 recurso={recurso}
                 tiposDisponiveis={tiposDisponiveis}
-                isTipoCustomizado={isTipoCustomizado}
                 onCancel={onClose}
                 onConfirm={onConfirm}
+                salvando={salvando}
+                erroExterno={erroExterno}
             />
         </Modal>
     );
@@ -52,19 +56,21 @@ function RecursoFormConteudo({
     mode,
     recurso,
     tiposDisponiveis,
-    isTipoCustomizado,
     onCancel,
     onConfirm,
+    salvando,
+    erroExterno,
 }: {
     mode: "cadastrar" | "editar";
-    recurso?: Recurso | null;
-    tiposDisponiveis: string[];
-    isTipoCustomizado: (tipo: string) => boolean;
+    recurso?: RecursoResponse | null;
+    tiposDisponiveis: TipoRecursoResponse[];
     onCancel: () => void;
     onConfirm: (dados: DadosRecurso) => void;
+    salvando?: boolean;
+    erroExterno?: string | null;
 }) {
     const [nome, setNome] = React.useState(recurso?.nome ?? "");
-    const [tipo, setTipo] = React.useState(recurso?.tipo ?? "");
+    const [tipoId, setTipoId] = React.useState(String(recurso?.tipo?.id ?? ""));
     const [modoNovoTipo, setModoNovoTipo] = React.useState(false);
     const [novoTipo, setNovoTipo] = React.useState("");
     const [erro, setErro] = React.useState<{ nome?: string; tipo?: string }>({});
@@ -86,18 +92,18 @@ function RecursoFormConteudo({
     function handleSelecionarTipo(valor: string) {
         if (valor === NOVO_TIPO_VALUE) {
             setModoNovoTipo(true);
-            setTipo("");
+            setTipoId("");
             setErro((p) => ({ ...p, tipo: undefined }));
             setDropdownAberto(false);
             return;
         }
-        setTipo(valor);
+        setTipoId(valor);
         setErro((p) => ({ ...p, tipo: undefined }));
         setDropdownAberto(false);
     }
 
     function handleConfirmar() {
-        const tipoFinal = modoNovoTipo ? novoTipo.trim() : tipo;
+        const tipoFinal = modoNovoTipo ? novoTipo.trim() : tipoId;
         const novoErro: { nome?: string; tipo?: string } = {};
 
         if (!nome.trim()) novoErro.nome = "Informe o nome do recurso.";
@@ -108,7 +114,11 @@ function RecursoFormConteudo({
             return;
         }
 
-        onConfirm({ nome: nome.trim(), tipo: tipoFinal });
+        onConfirm(
+            modoNovoTipo
+                ? { nome: nome.trim(), novoTipo: tipoFinal }
+                : { nome: nome.trim(), tipoRecursoId: Number(tipoFinal) },
+        );
     }
 
     return (
@@ -149,12 +159,9 @@ function RecursoFormConteudo({
                                 className="flex h-11 w-full items-center justify-between rounded-md border border-[#C8CDD2] px-3 text-sm text-[#17264D] transition-colors hover:border-[#0099AA]"
                             >
                                 <span className="flex items-center gap-2 truncate">
-                                    {tipo === "" ? "Selecione..." : tipo}
-                                    {tipo !== "" && isTipoCustomizado(tipo) && (
-                                        <span className="rounded-full bg-[#0099AA] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                                            Novo
-                                        </span>
-                                    )}
+                                    {tipoId === ""
+                                        ? "Selecione..."
+                                        : tiposDisponiveis.find((t) => String(t.id) === tipoId)?.nome}
                                 </span>
                                 <ChevronDown className="size-4 shrink-0 text-[#17264D]/60" />
                             </button>
@@ -170,16 +177,11 @@ function RecursoFormConteudo({
                                     {tiposDisponiveis.map((t) => (
                                         <button
                                             type="button"
-                                            key={t}
-                                            onClick={() => handleSelecionarTipo(t)}
+                                            key={t.id}
+                                            onClick={() => handleSelecionarTipo(String(t.id))}
                                             className="flex w-full items-center justify-between border-b border-[#C8CDD2] px-3 py-2 text-left text-sm text-[#17264D] transition-colors last:border-b-0 hover:bg-[#F2F2F2]"
                                         >
-                                            {t}
-                                            {isTipoCustomizado(t) && (
-                                                <span className="ml-2 rounded-full bg-[#0099AA] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                                                    Novo
-                                                </span>
-                                            )}
+                                            {t.nome}
                                         </button>
                                     ))}
                                 </div>
@@ -188,14 +190,15 @@ function RecursoFormConteudo({
                     )}
                     {erro.tipo && <p className="text-sm text-[#BA1A1A]">{erro.tipo}</p>}
                 </div>
+                {erroExterno && <p className="text-sm text-[#BA1A1A]">{erroExterno}</p>}
             </div>
 
             <div className="flex justify-end gap-3">
                 <Button variant="ghost" size="small" onClick={onCancel}>
                     Cancelar
                 </Button>
-                <Button variant="secondary" size="small" onClick={handleConfirmar}>
-                    Confirmar
+                <Button variant="secondary" size="small" onClick={handleConfirmar} disabled={salvando}>
+                    {salvando ? "Salvando..." : "Confirmar"}
                 </Button>
             </div>
         </div>
