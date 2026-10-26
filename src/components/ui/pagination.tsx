@@ -49,7 +49,7 @@ function Pagination({
   };
 
   const buttonClass = cn(
-    "flex h-[42px] min-w-[42px] items-center justify-center",
+    "flex h-[42px] min-w-[42px] shrink-0 items-center justify-center",
     "rounded-[8px] border border-[#9FC8D1]",
     "bg-[#A8DCE5] text-[#17264D]",
     "text-base",
@@ -61,14 +61,14 @@ function Pagination({
   return (
     <div className={cn("mt-8 flex w-full justify-center px-4", className)}>
       <div className="flex w-[80%] min-w-[700px] items-center gap-2 text-[16px]">
-        {/* Itens por página */}
-        <div className="flex h-[42px] shrink-0 items-center overflow-hidden rounded-[8px] border border-[#D0D7DB] bg-white">
-          <span className="px-4 whitespace-nowrap">Itens por página:</span>
+        {/* Itens por página — largura fixa pra não ser espremido */}
+        <div className="flex h-[42px] w-[190px] shrink-0 items-center overflow-hidden rounded-[8px] border border-[#D0D7DB] bg-white">
+          <span className="flex-1 px-4 whitespace-nowrap">Itens por página:</span>
 
           <select
             value={itemsPerPage}
             onChange={handleItemsPerPageChange}
-            className="h-full w-[45px] appearance-none border-l border-[#D0D7DB] bg-white text-center text-base outline-none"
+            className="h-full w-[45px] shrink-0 appearance-none border-l border-[#D0D7DB] bg-white text-center text-base outline-none"
             aria-label="Itens por página"
           >
             <option value={6}>6</option>
@@ -101,8 +101,8 @@ function Pagination({
           <ChevronLeft className="size-6" />
         </button>
 
-        {/* Página atual */}
-        <div className="flex h-[42px] flex-1 items-center justify-center rounded-[8px] border border-[#82C4D0] bg-[#9DD5DF] px-6 whitespace-nowrap text-base text-[#17264D]">
+        {/* Página atual — único bloco flexível, absorve toda a sobra */}
+        <div className="flex h-[42px] flex-1 items-center justify-center rounded-[8px] border border-[#82C4D0] bg-[#9DD5DF] px-6 whitespace-nowrap text-base tabular-nums text-[#17264D]">
           Página {page} de {totalPages}
         </div>
 
@@ -128,8 +128,9 @@ function Pagination({
           <ChevronsRight className="size-6" />
         </button>
 
-        {/* Registros */}
-        <div className="flex h-[42px] shrink-0 items-center justify-center rounded-[8px] border border-[#D0D7DB] bg-white px-4 whitespace-nowrap text-base">
+        {/* Registros — largura fixa: o texto muda de tamanho conforme a página
+            ("1 a 6" vira "25 a 30") e não pode empurrar os vizinhos */}
+        <div className="flex h-[42px] w-[300px] shrink-0 items-center justify-center rounded-[8px] border border-[#D0D7DB] bg-white px-4 whitespace-nowrap text-base tabular-nums">
           Mostrando {startItem} a {endItem} de {totalItems} registros
         </div>
       </div>
