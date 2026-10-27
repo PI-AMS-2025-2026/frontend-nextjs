@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-type Role = "ADMIN" | "ADMINISTRADOR" | "COORDENADOR";
-
 const permissions: Record<string, string[]> = {
   ADMIN: ["/administrador", "/adminstrador"],
   ADMINISTRADOR: ["/administrador", "/adminstrador"],
@@ -9,6 +7,10 @@ const permissions: Record<string, string[]> = {
 };
 
 const publicPaths = ["/", "/login", "/403"];
+
+function homeForRole(role: string): string {
+  return role === "COORDENADOR" ? "/coordenador/home" : "/adminstrador/home";
+}
 
 function isPublicRoute(pathname: string): boolean {
   return publicPaths.includes(pathname);
@@ -24,6 +26,21 @@ function hasPermission(pathname: string, role: string): boolean {
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const role = request.cookies.get("role")?.value;
+
+  // A raiz e a tela de login são públicas somente para usuários deslogados.
+  // Com sessão válida, encaminha para o painel correspondente ao perfil.
+  if (pathname === "/" || pathname === "/login") {
+    if (role && role in permissions) {
+      return NextResponse.redirect(new URL(homeForRole(role), request.url));
+    }
+
+    if (pathname === "/login") {
+      return NextResponse.next();
+    }
+
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
 
   // Permite rotas públicas
   if (isPublicRoute(pathname)) {
@@ -31,8 +48,6 @@ export function proxy(request: NextRequest) {
   }
 
   // Obtém o papel do usuário
-  const role = request.cookies.get("role")?.value;
-
   // Verifica se o role é válido
   if (!role || !(role in permissions)) {
     return NextResponse.redirect(new URL("/login", request.url));

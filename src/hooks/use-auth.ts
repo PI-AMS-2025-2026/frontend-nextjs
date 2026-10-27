@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth.service";
-import type { LoginRequest, TipoUsuario } from "@/types/api";
+import type { LoginRequest, TipoUsuario, UsuarioResponse } from "@/types/api";
 
 export interface JwtPayload {
   sub?: string;
@@ -45,17 +45,57 @@ function deleteCookie(name: string) {
 export function useAuth() {
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
-  const [user, setUser] = useState<JwtPayload | null>(null);
+  const [user, setUser] = useState<UsuarioResponse | JwtPayload | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    const storedToken = authService.getToken();
-    if (storedToken) {
-      setToken(storedToken);
-      const decoded = parseJwt(storedToken);
-      setUser(decoded);
+    let ativo = true;
+
+    async function restaurarSessao() {
+      const storedToken = authService.getToken();
+      const refreshToken = authService.getRefreshToken();
+
+      if (!storedToken || !refreshToken) {
+        authService.clearSession();
+        if (ativo) setIsLoading(false);
+        return;
+      }
+
+      try {
+        // Valida o refresh token mesmo quando ainda existe um access token salvo.
+        const response = await authService.refreshToken();
+        const refreshedUser = response.usuario ?? authService.getUser() ?? parseJwt(response.accessToken);
+        const role = String(
+          refreshedUser && "tipoUsuario" in refreshedUser
+            ? refreshedUser.tipoUsuario
+            : (parseJwt(response.accessToken)?.role ?? parseJwt(response.accessToken)?.tipoUsuario),
+        ).toUpperCase();
+
+        if (!["ADMIN", "ADMINISTRADOR", "COORDENADOR"].includes(role)) {
+          throw new Error("Sessão sem perfil válido");
+        }
+
+        setCookie("role", role);
+        if (ativo) {
+          setToken(response.accessToken);
+          setUser(refreshedUser);
+        }
+      } catch {
+        // Refresh inválido/expirado: a sessão inteira deixa de ser confiável.
+        authService.clearSession();
+        if (ativo) {
+          setToken(null);
+          setUser(null);
+        }
+      } finally {
+        if (ativo) setIsLoading(false);
+      }
     }
-    setIsLoading(false);
+
+    void restaurarSessao();
+    return () => {
+      ativo = false;
+    };
   }, []);
 
   const login = useCallback(
@@ -67,19 +107,26 @@ export function useAuth() {
         setToken(newToken);
 
         const decoded = parseJwt(newToken);
-        setUser(decoded);
+        const loggedUser = res.usuario;
+        setUser(loggedUser ?? decoded);
 
-        // Determine user role (role or tipoUsuario from payload or fallback)
-        const roleRaw = decoded?.role || decoded?.tipoUsuario || "ADMINISTRADOR";
+        // The API response is authoritative; JWT is only a compatibility fallback.
+        const roleRaw = loggedUser?.tipoUsuario || decoded?.role || decoded?.tipoUsuario;
         const role = String(roleRaw).toUpperCase();
+
+        if (!role || role === "UNDEFINED") {
+          throw new Error("O login não retornou o tipo de usuário.");
+        }
 
         setCookie("role", role);
 
         // Redirect based on role
         if (role === "COORDENADOR") {
-          router.push("/coordenador/listagens/sala");
-        } else {
+          router.push("/coordenador/home");
+        } else if (role === "ADMIN" || role === "ADMINISTRADOR") {
           router.push("/adminstrador/home");
+        } else {
+          throw new Error("Tipo de usuário não autorizado.");
         }
 
         return res;
