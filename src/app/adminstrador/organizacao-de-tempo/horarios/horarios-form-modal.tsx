@@ -4,14 +4,14 @@ import * as React from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { BlocoHorarioResponse } from "@/types/api";
+import type { Horario } from "@/lib/horarios";
 
 interface HorarioFormModalProps {
     open: boolean;
     onClose: () => void;
     mode: "cadastrar" | "editar";
-    horario?: BlocoHorarioResponse | null;
-    onConfirm: (dados: { horaInicio: string; horaFim: string }) => Promise<void> | void;
+    horario?: Horario | null;
+    onConfirm: (dados: { inicio: string; fim: string }) => void;
 }
 
 export function HorarioFormModal({
@@ -23,6 +23,8 @@ export function HorarioFormModal({
 }: HorarioFormModalProps) {
     return (
         <Modal open={open} onClose={onClose} className="max-w-lg">
+            {/* o Modal retorna null quando fechado, então o conteúdo desmonta
+          e os campos já nascem limpos. o key é só garantia extra na edição */}
             <HorarioFormConteudo
                 key={horario?.id ?? "novo"}
                 mode={mode}
@@ -41,39 +43,31 @@ function HorarioFormConteudo({
     onConfirm,
 }: {
     mode: "cadastrar" | "editar";
-    horario?: BlocoHorarioResponse | null;
+    horario?: Horario | null;
     onCancel: () => void;
-    onConfirm: (dados: { horaInicio: string; horaFim: string }) => Promise<void> | void;
+    onConfirm: (dados: { inicio: string; fim: string }) => void;
 }) {
-    const [horaInicio, setHoraInicio] = React.useState(horario?.horaInicio ?? "");
-    const [horaFim, setHoraFim] = React.useState(horario?.horaFim ?? "");
-    const [submitting, setSubmitting] = React.useState(false);
+    const [inicio, setInicio] = React.useState(horario?.inicio ?? "");
+    const [fim, setFim] = React.useState(horario?.fim ?? "");
     const [erro, setErro] = React.useState("");
 
     const titulo = mode === "cadastrar" ? "Cadastrar Horário" : "Editar Horário";
 
-    async function handleConfirmar() {
-        if (!horaInicio || !horaFim) {
+    function handleConfirmar() {
+        if (!inicio || !fim) {
             setErro("Preencha os horários de início e fim.");
             return;
         }
-        if (horaInicio === horaFim) {
+        if (inicio === fim) {
             setErro("O horário de início e fim não podem ser iguais.");
             return;
         }
-
-        setSubmitting(true);
-        try {
-            await onConfirm({ horaInicio, horaFim });
-        } catch (err: unknown) {
-            setErro(err instanceof Error ? err.message : "Erro ao salvar horário.");
-        } finally {
-            setSubmitting(false);
-        }
+        onConfirm({ inicio, fim });
     }
 
     return (
         <div className="flex flex-col gap-5">
+            {/* pr-12 pra não passar por baixo do X do Modal */}
             <h2 className="pr-12 text-xl font-semibold text-[#17264D]">{titulo}</h2>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -81,26 +75,26 @@ function HorarioFormConteudo({
                     label="Início"
                     showLabel
                     type="time"
-                    value={horaInicio}
-                    onChange={(e) => setHoraInicio(e.target.value)}
+                    value={inicio}
+                    onChange={(e) => setInicio(e.target.value)}
                 />
                 <Input
                     label="Fim"
                     showLabel
                     type="time"
-                    value={horaFim}
-                    onChange={(e) => setHoraFim(e.target.value)}
+                    value={fim}
+                    onChange={(e) => setFim(e.target.value)}
                 />
             </div>
 
             {erro && <p className="text-sm text-[#BA1A1A]">{erro}</p>}
 
             <div className="flex justify-end gap-3">
-                <Button variant="ghost" size="small" onClick={onCancel} disabled={submitting}>
+                <Button variant="ghost" size="small" onClick={onCancel}>
                     Cancelar
                 </Button>
-                <Button variant="secondary" size="small" onClick={handleConfirmar} disabled={submitting}>
-                    {submitting ? "Salvando..." : "Confirmar"}
+                <Button variant="secondary" size="small" onClick={handleConfirmar}>
+                    Confirmar
                 </Button>
             </div>
         </div>

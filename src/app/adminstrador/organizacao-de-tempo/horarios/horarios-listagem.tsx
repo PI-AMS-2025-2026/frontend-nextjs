@@ -13,19 +13,26 @@ import { Modal } from "@/components/ui/modal";
 import { HorarioFormModal } from "./horarios-form-modal";
 import { ExcluirHorarioModal } from "./excluir-horario-modal";
 
-import { blocoHorariosService } from "@/services/bloco-horarios.service";
-import type { BlocoHorarioResponse, PageResponse } from "@/types/api";
-import { ApiError } from "@/lib/api";
+import {
+    calcDuracao,
+    carregarHorariosSalvos,
+    gerarHorariosMock,
+    salvarHorarios,
+    type Horario,
+} from "@/lib/horarios";
 
 export function HorariosListagem() {
-    const [pageData, setPageData] = React.useState<PageResponse<BlocoHorarioResponse>>({
-        content: [],
-        page: 0,
-        size: 6,
-        totalElements: 0,
-        totalPages: 0,
-    });
-    const [loading, setLoading] = React.useState(true);
+    const [horarios, setHorarios] = React.useState<Horario[] | null>(null);
+
+    React.useEffect(() => {
+        const salvos = carregarHorariosSalvos();
+        setHorarios(salvos ?? gerarHorariosMock());
+    }, []);
+
+    React.useEffect(() => {
+        if (horarios === null) return;
+        salvarHorarios(horarios);
+    }, [horarios]);
 
     const [busca, setBusca] = React.useState("");
     const [filtroInicio, setFiltroInicio] = React.useState("");
@@ -37,80 +44,71 @@ export function HorariosListagem() {
     const [cadastrarAberto, setCadastrarAberto] = React.useState(false);
     const [editarAberto, setEditarAberto] = React.useState(false);
     const [excluirAberto, setExcluirAberto] = React.useState(false);
-    const [selecionado, setSelecionado] = React.useState<BlocoHorarioResponse | null>(null);
+    const [selecionado, setSelecionado] = React.useState<Horario | null>(null);
     const [sucesso, setSucesso] = React.useState<string | null>(null);
 
-    const carregarHorarios = React.useCallback(async () => {
-        setLoading(true);
-        try {
-            const res = await blocoHorariosService.listar({
-                page: paginaAtual - 1,
-                size: itensPorPagina,
-                hora_inicio: filtroInicio || undefined,
-                hora_fim: filtroFim || undefined,
-            });
-            setPageData(res);
-        } catch (err) {
-            console.error("Erro ao carregar horários:", err);
-        } finally {
-            setLoading(false);
-        }
-    }, [paginaAtual, itensPorPagina, filtroInicio, filtroFim]);
-
-    React.useEffect(() => {
-        carregarHorarios();
-    }, [carregarHorarios]);
-
+    // fecha o modal de sucesso sozinho
     React.useEffect(() => {
         if (!sucesso) return;
         const timer = setTimeout(() => setSucesso(null), 1800);
         return () => clearTimeout(timer);
     }, [sucesso]);
 
-    async function confirmarCadastro(dados: { horaInicio: string; horaFim: string }) {
-        try {
-            await blocoHorariosService.criar(dados);
-            setCadastrarAberto(false);
-            setSucesso("Horário cadastrado com sucesso!");
-            carregarHorarios();
-        } catch (err) {
-            throw new Error(err instanceof ApiError ? err.message : "Erro ao cadastrar horário.");
-        }
+    const filtrados = React.useMemo(() => {
+        if (horarios === null) return [];
+        return horarios.filter((h) => {
+            const buscaOk =
+                !busca || h.inicio.includes(busca) || h.fim.includes(busca);
+            const inicioOk = !filtroInicio || h.inicio >= filtroInicio;
+            const fimOk = !filtroFim || h.fim <= filtroFim;
+            return buscaOk && inicioOk && fimOk;
+        });
+    }, [horarios, busca, filtroInicio, filtroFim]);
+
+    const totalPaginas = Math.max(1, Math.ceil(filtrados.length / itensPorPagina));
+    const paginaSegura = Math.min(paginaAtual, totalPaginas);
+    const inicioIndice = (paginaSegura - 1) * itensPorPagina;
+    const pagina = filtrados.slice(inicioIndice, inicioIndice + itensPorPagina);
+
+    function confirmarCadastro(dados: { inicio: string; fim: string }) {
+        setHorarios((prev) => [
+            ...(prev ?? []),
+            { id: crypto.randomUUID(), ...dados },
+        ]);
+        setCadastrarAberto(false);
+        setSucesso("Horário cadastrado com sucesso!");
     }
 
-    async function confirmarEdicao(dados: { horaInicio: string; horaFim: string }) {
+    function confirmarEdicao(dados: { inicio: string; fim: string }) {
         if (!selecionado) return;
-        try {
-            await blocoHorariosService.atualizar(selecionado.id, dados);
-            setEditarAberto(false);
-            setSelecionado(null);
-            setSucesso("Horário editado com sucesso!");
-            carregarHorarios();
-        } catch (err) {
-            throw new Error(err instanceof ApiError ? err.message : "Erro ao editar horário.");
-        }
-    }
-
-    async function confirmarExclusao() {
-        if (!selecionado) return;
-        try {
-            await blocoHorariosService.deletar(selecionado.id);
-            setExcluirAberto(false);
-            setSelecionado(null);
-            setSucesso("Horário excluído com sucesso!");
-            carregarHorarios();
-        } catch (err) {
-            alert(err instanceof ApiError ? err.message : "Erro ao excluir horário.");
-        }
-    }
-
-    const exibidos = React.useMemo(() => {
-        if (!busca.trim()) return pageData.content;
-        const b = busca.trim();
-        return pageData.content.filter(
-            (h) => h.horaInicio.includes(b) || h.horaFim.includes(b)
+        setHorarios((prev) =>
+            (prev ?? []).map((h) =>
+                h.id === selecionado.id ? { ...h, ...dados } : h
+            )
         );
-    }, [pageData.content, busca]);
+        setEditarAberto(false);
+        setSelecionado(null);
+        setSucesso("Horário editado com sucesso!");
+    }
+
+    function confirmarExclusao() {
+        if (!selecionado) return;
+        setHorarios((prev) => (prev ?? []).filter((h) => h.id !== selecionado.id));
+        setExcluirAberto(false);
+        setSelecionado(null);
+        setSucesso("Horário excluído com sucesso!");
+    }
+
+    if (horarios === null) {
+        return (
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
+                <Loader2 className="size-6 animate-spin text-[#0099AA]" />
+                <span className="text-sm text-[#17264D]/70">
+                    Carregando horários...
+                </span>
+            </div>
+        );
+    }
 
     return (
         <div className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-6 px-4 py-8 sm:px-6">
@@ -126,6 +124,7 @@ export function HorariosListagem() {
                             value={busca}
                             onChange={(e) => {
                                 setBusca(e.target.value);
+                                setPaginaAtual(1);
                             }}
                         />
                     </div>
@@ -154,28 +153,21 @@ export function HorariosListagem() {
                 }}
             />
 
-            {loading ? (
-                <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
-                    <Loader2 className="size-6 animate-spin text-[#0099AA]" />
-                    <span className="text-sm text-[#17264D]/70">
-                        Carregando horários...
-                    </span>
-                </div>
-            ) : exibidos.length === 0 ? (
+            {pagina.length === 0 ? (
                 <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">
                     Nenhum horário encontrado.
                 </div>
             ) : (
                 <DataTable
-                    data={exibidos}
+                    data={pagina}
                     getRowKey={(h) => h.id}
                     columns={[
-                        { key: "horaInicio", label: "Início" },
-                        { key: "horaFim", label: "Fim" },
+                        { key: "inicio", label: "Início" },
+                        { key: "fim", label: "Fim" },
                         {
                             key: "duracao",
-                            label: "Duração (min)",
-                            render: (h) => h.duracao ? `${h.duracao} min` : "-",
+                            label: "Duração",
+                            render: (h) => calcDuracao(h.inicio, h.fim),
                         },
                     ]}
                     actions={[
@@ -201,8 +193,8 @@ export function HorariosListagem() {
             )}
 
             <Pagination
-                totalItems={pageData.totalElements}
-                currentPage={paginaAtual}
+                totalItems={filtrados.length}
+                currentPage={paginaSegura}
                 itemsPerPage={itensPorPagina}
                 onPageChange={setPaginaAtual}
                 onItemsPerPageChange={(n) => {
