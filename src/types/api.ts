@@ -190,8 +190,8 @@ export interface ProfessorDisciplinaRequest {
 }
 export interface ProfessorDisciplinaResponse {
   id: Id;
-  professor: ProfessorResponse;
-  disciplina: DisciplinaResponse;
+  professorId: Id;
+  disciplinaId: Id;
 }
 
 export interface BlocoHorarioRequest {

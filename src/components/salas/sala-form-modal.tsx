@@ -4,19 +4,22 @@ import * as React from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { Sala } from "@/lib/salas";
+import type { Id, SalaResponse, TipoSalaResponse } from "@/types/api";
 
-interface DadosSala {
+export interface DadosSala {
     codigo: string;
     capacidade: number;
-    tipo: string;
+    tipoSalaId: Id;
 }
 
 interface SalaFormModalProps {
     open: boolean;
     onClose: () => void;
     mode: "cadastrar" | "editar";
-    sala?: Sala | null;
+    sala?: SalaResponse | null;
+    tiposSala: TipoSalaResponse[];
+    salvando?: boolean;
+    erroExterno?: string | null;
     onConfirm: (dados: DadosSala) => void;
 }
 
@@ -25,6 +28,9 @@ export function SalaFormModal({
     onClose,
     mode,
     sala,
+    tiposSala,
+    salvando = false,
+    erroExterno,
     onConfirm,
 }: SalaFormModalProps) {
     return (
@@ -33,6 +39,9 @@ export function SalaFormModal({
                 key={sala?.id ?? "novo"}
                 mode={mode}
                 sala={sala}
+                tiposSala={tiposSala}
+                salvando={salvando}
+                erroExterno={erroExterno}
                 onCancel={onClose}
                 onConfirm={onConfirm}
             />
@@ -43,17 +52,25 @@ export function SalaFormModal({
 function SalaFormConteudo({
     mode,
     sala,
+    tiposSala,
+    salvando,
+    erroExterno,
     onCancel,
     onConfirm,
 }: {
     mode: "cadastrar" | "editar";
-    sala?: Sala | null;
+    sala?: SalaResponse | null;
+    tiposSala: TipoSalaResponse[];
+    salvando: boolean;
+    erroExterno?: string | null;
     onCancel: () => void;
     onConfirm: (dados: DadosSala) => void;
 }) {
     const [codigo, setCodigo] = React.useState(sala?.codigo ?? "");
     const [capacidade, setCapacidade] = React.useState(sala?.capacidade ?? 0);
-    const [tipo, setTipo] = React.useState(sala?.tipo ?? "");
+    const [tipoSalaId, setTipoSalaId] = React.useState<string>(
+        sala ? String(sala.tipoSala.id) : ""
+    );
     const [erro, setErro] = React.useState("");
 
     const titulo = mode === "cadastrar" ? "Cadastro de Sala" : "Edição de Sala";
@@ -61,12 +78,12 @@ function SalaFormConteudo({
     function handleConfirmar() {
         if (!codigo.trim()) return setErro("Informe o código da sala.");
         if (capacidade <= 0) return setErro("A capacidade deve ser maior que zero.");
-        if (!tipo.trim()) return setErro("Informe o tipo de sala.");
+        if (!tipoSalaId) return setErro("Selecione o tipo de sala.");
 
         onConfirm({
             codigo: codigo.trim(),
             capacidade,
-            tipo: tipo.trim(),
+            tipoSalaId: Number(tipoSalaId),
         });
     }
 
@@ -98,26 +115,47 @@ function SalaFormConteudo({
                     }}
                 />
 
-                <Input
-                    label="Tipo de Sala:"
-                    showLabel
-                    value={tipo}
-                    onChange={(e) => {
-                        setTipo(e.target.value);
-                        setErro("");
-                    }}
-                    placeholder="Digite aqui..."
-                />
+                <div className="flex flex-col gap-1.5 sm:col-span-2">
+                    <label
+                        htmlFor="tipo-sala"
+                        className="text-sm font-medium text-[#17264D]"
+                    >
+                        Tipo de Sala:
+                    </label>
+                    <select
+                        id="tipo-sala"
+                        value={tipoSalaId}
+                        onChange={(e) => {
+                            setTipoSalaId(e.target.value);
+                            setErro("");
+                        }}
+                        className="h-11 w-full rounded-[10px] border border-[#C8CDD2] bg-white px-3 text-sm text-[#17264D] outline-none focus:border-[#0099AA]"
+                    >
+                        <option value="">Selecione...</option>
+                        {tiposSala.map((t) => (
+                            <option key={t.id} value={t.id}>
+                                {t.nome}
+                            </option>
+                        ))}
+                    </select>
+                </div>
             </div>
 
-            {erro && <p className="text-sm text-[#BA1A1A]">{erro}</p>}
+            {(erro || erroExterno) && (
+                <p className="text-sm text-[#BA1A1A]">{erro || erroExterno}</p>
+            )}
 
             <div className="flex justify-end gap-3">
-                <Button variant="ghost" size="small" onClick={onCancel}>
+                <Button variant="ghost" size="small" onClick={onCancel} disabled={salvando}>
                     Cancelar
                 </Button>
-                <Button variant="secondary" size="small" onClick={handleConfirmar}>
-                    Confirmar
+                <Button
+                    variant="secondary"
+                    size="small"
+                    onClick={handleConfirmar}
+                    disabled={salvando}
+                >
+                    {salvando ? "Salvando..." : "Confirmar"}
                 </Button>
             </div>
         </div>
