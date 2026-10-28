@@ -22,7 +22,7 @@ function getRefreshToken(): string | null {
   return localStorage.getItem("refresh_token");
 }
 
-function buildUrl(endpoint: string, params?: Record<string, unknown>) {
+function buildUrl(endpoint: string, params?: object) {
   const url = new URL(
     endpoint,
     API_URL.endsWith("/") ? API_URL : `${API_URL}/`,
@@ -54,7 +54,7 @@ async function parseResponse(response: Response): Promise<unknown> {
 async function request<T>(
   endpoint: string,
   options: RequestInit = {},
-  params?: Record<string, unknown>,
+  params?: object,
   authenticated = true,
   isRetry = false,
 ): Promise<T> {
@@ -135,7 +135,7 @@ async function request<T>(
 export const api = {
   get<T>(
     endpoint: string,
-    params?: Record<string, unknown>,
+    params?: object,
     authenticated = true,
   ) {
     return request<T>(endpoint, { method: "GET" }, params, authenticated);
