@@ -1,0 +1,300 @@
+.page {
+  padding: 24px 32px;
+  background: var(--color-bg-page);
+  min-height: 100%;
+}
+
+.title {
+  margin: 0 0 20px;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  max-width: 420px;
+  height: 42px;
+  padding: 0 14px;
+  color: var(--color-text-muted);
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.search:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  color: var(--color-text);
+  background: transparent;
+  border: 0;
+  outline: none;
+}
+
+.addButton {
+  height: 42px;
+  padding: 0 22px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--color-primary);
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.addButton:hover {
+  background: var(--color-primary-dark);
+}
+
+.filters {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  background: var(--color-bg-filter);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+
+.filterField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filterField label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.filterField select {
+  min-width: 180px;
+  height: 38px;
+  padding: 0 34px 0 12px;
+  font-size: 14px;
+  color: var(--color-text);
+  background-color: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 14px;
+  cursor: pointer;
+}
+
+.filterField select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+.clearButton {
+  height: 38px;
+  padding: 0 18px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-accent-blue);
+  background: #fff;
+  border: 1px solid var(--color-accent-blue);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.clearButton:hover:not(:disabled) {
+  color: #fff;
+  background: var(--color-accent-blue);
+}
+
+.clearButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: var(--shadow-card);
+}
+
+.table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.table thead th {
+  padding: 14px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+  color: #fff;
+  background: var(--color-primary);
+}
+
+.table tbody td {
+  padding: 14px 16px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.table tbody tr:nth-child(even) {
+  background: var(--color-row-alt);
+}
+
+.table tbody tr:hover {
+  background: var(--color-primary-light);
+}
+
+.colId {
+  width: 72px;
+}
+
+.colActions {
+  width: 96px;
+  text-align: center !important;
+}
+
+.colCourse {
+  width: 34%;
+}
+
+.course {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thWithFilter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.funnel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: #fff;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.funnel:hover,
+.funnelActive {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.popover {
+  position: fixed;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  width: 160px;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+}
+
+.popoverItem {
+  padding: 9px 12px;
+  font-size: 14px;
+  text-align: left;
+  color: var(--color-text);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.popoverItem:hover {
+  background: var(--color-bg-filter);
+}
+
+.popoverItemActive {
+  font-weight: 700;
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.badgeActive,
+.badgeInactive {
+  display: inline-block;
+  min-width: 68px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  border-radius: 999px;
+}
+
+.badgeActive {
+  color: #1b7a3d;
+  background: #dff5e6;
+}
+
+.badgeInactive {
+  color: var(--color-danger);
+  background: #fde6e6;
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  color: var(--color-accent-blue);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.iconButton:hover {
+  color: var(--color-accent-blue-dark);
+  background: var(--color-primary-light);
+}
+
+.empty {
+  padding: 32px 16px !important;
+  text-align: center !important;
+  color: var(--color-text-muted);
+}
