@@ -235,7 +235,7 @@ export interface AlocacaoRequest {
   sala: LongDTO;
   professor: LongDTO;
   diaSemana: DiaSemana;
-  horario: LongDTO;
+  blocoHorario: LongDTO;
   quadroHorario: LongDTO;
   justificativaAlteracao?: string;
   usuarioAlteracao: LongDTO;
