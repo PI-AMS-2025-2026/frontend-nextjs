@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   FileDown,
@@ -346,13 +346,13 @@ export function TelaAlocacao({
                   <Pencil className="h-5 w-5" aria-hidden="true" />
                 </Button>
               )}
-              {/* Apenas visual: a exportação será conectada posteriormente. */}
               <Button
                 type="button"
                 disabled={bloqueado}
                 variant="primary"
                 size="small"
                 className="gap-2"
+                onClick={() => window.print()}
               >
                 <FileDown className="h-4 w-4" aria-hidden="true" />
                 Exportar
@@ -374,6 +374,27 @@ export function TelaAlocacao({
           )}
         </header>
         {grade ? (
+          <>
+          <section className="pdf-export" aria-label="Grade para exportação">
+            <h1>Grade horária</h1>
+            <p>{grade.curso} · {grade.periodoLetivo} · Versão {String(grade.versao).padStart(2, "0")}</p>
+            <table>
+              <thead><tr><th>Horário</th>{DIAS.map((dia) => <th key={dia.key}>{dia.label}</th>)}</tr></thead>
+              <tbody>
+                {grade.horarios.map((horario) => <Fragment key={horario.inicio}>
+                  <tr key={horario.inicio}>
+                    <th>{horario.inicio} – {horario.fim}</th>
+                    {DIAS.map((dia) => {
+                      const aula = aulas.find((item) => item.dia === dia.key && item.inicio === horario.inicio && item.fim === horario.fim);
+                      return <td key={dia.key}>{aula ? <><strong>{aula.disciplina}</strong><br />{aula.professor}<br />Sala: {aula.sala}</> : "—"}</td>;
+                    })}
+                  </tr>
+                  {grade.intervalos.filter((intervalo) => intervalo.depoisDoHorario === horario.fim).map((intervalo) => <tr className="pdf-break" key={`intervalo-${intervalo.inicio}`}><td colSpan={7}>Intervalo: {intervalo.inicio} – {intervalo.fim}</td></tr>)}
+                </Fragment>)}
+              </tbody>
+            </table>
+            <p className="pdf-count">{aulas.length} {aulas.length === 1 ? "aula alocada" : "aulas alocadas"}</p>
+          </section>
           <div
             className={`grid grid-cols-1 items-start gap-5 ${editando ? "md:grid-cols-[235px_minmax(0,1fr)]" : ""} ${bloqueado ? "pointer-events-none opacity-75" : ""}`}
           >
@@ -495,6 +516,7 @@ export function TelaAlocacao({
               </p>
             </section>
           </div>
+          </>
         ) : (
           <GradeList
             grades={grades}

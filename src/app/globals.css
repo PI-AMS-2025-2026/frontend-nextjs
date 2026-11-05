@@ -121,3 +121,80 @@
     @apply font-sans;
   }
 }
+
+.pdf-export {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: landscape;
+    margin: 12mm;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .pdf-export,
+  .pdf-export * {
+    visibility: visible !important;
+  }
+
+  .pdf-export {
+    display: block !important;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    color: #17264d;
+    font-family: Arial, sans-serif;
+  }
+
+  .pdf-export h1 {
+    margin: 0 0 4px;
+    font-size: 20pt;
+  }
+
+  .pdf-export p {
+    margin: 0 0 14px;
+    font-size: 10pt;
+  }
+
+  .pdf-export table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 9pt;
+  }
+
+  .pdf-export th,
+  .pdf-export td {
+    border: 1px solid #8b949e;
+    padding: 7px 5px;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  .pdf-export thead th {
+    background: #d9f3f4 !important;
+    print-color-adjust: exact;
+  }
+
+  .pdf-export tbody th {
+    width: 100px;
+    background: #f2f2f2 !important;
+    print-color-adjust: exact;
+  }
+
+  .pdf-export .pdf-break td {
+    padding: 3px;
+    background: #eeeeee !important;
+    font-weight: 600;
+    print-color-adjust: exact;
+  }
+
+  .pdf-export .pdf-count {
+    margin-top: 10px;
+    text-align: right;
+  }
+}
