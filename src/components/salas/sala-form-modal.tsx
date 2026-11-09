@@ -71,6 +71,12 @@ function SalaFormConteudo({
     const [tipoSalaId, setTipoSalaId] = React.useState<string>(
         sala ? String(sala.tipoSala.id) : ""
     );
+    const [recursoId, setRecursoId] = React.useState("");
+
+    const [recursosDisponiveis] = React.useState<
+        { id: number; nome: string }[]
+    >([]);
+
     const [erro, setErro] = React.useState("");
 
     const titulo = mode === "cadastrar" ? "Cadastro de Sala" : "Edição de Sala";
@@ -91,7 +97,7 @@ function SalaFormConteudo({
         <div className="flex flex-col gap-5">
             <h2 className="pr-12 text-xl font-semibold text-[#17264D]">{titulo}</h2>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-4">
                 <Input
                     label="Código da Sala:"
                     showLabel
@@ -115,7 +121,7 @@ function SalaFormConteudo({
                     }}
                 />
 
-                <div className="flex flex-col gap-1.5 sm:col-span-2">
+                <div className="flex flex-col gap-1.5">
                     <label
                         htmlFor="tipo-sala"
                         className="text-sm font-medium text-[#17264D]"
@@ -139,7 +145,37 @@ function SalaFormConteudo({
                         ))}
                     </select>
                 </div>
+
+
+                <div className="flex flex-col gap-1.5">
+                    <label
+                        htmlFor="recursos-sala"
+                        className="text-sm font-medium text-[#17264D]"
+                    >
+                        Recursos:
+                    </label>
+
+                    <select
+                        id="recursos-sala"
+                        value={recursoId}
+                        onChange={(e) => {
+                            setRecursoId(e.target.value);
+                            setErro("");
+                        }}
+                        className="h-11 w-full rounded-[10px] border border-[#C8CDD2] bg-white px-3 text-sm text-[#17264D] outline-none focus:border-[#0099AA]"
+                    >
+                        <option value="">Selecione...</option>
+
+                        {recursosDisponiveis.map((recurso) => (
+                            <option key={recurso.id} value={recurso.id}>
+                                {recurso.nome}
+                            </option>
+                        ))}
+                    </select>
+                </div>
             </div>
+
+           
 
             {(erro || erroExterno) && (
                 <p className="text-sm text-[#BA1A1A]">{erro || erroExterno}</p>

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/input";
 import { DataTable } from "@/components/ui/table";
 import { TableFilters } from "@/components/ui/tablefilters";
-import { Pagination } from "@/components/ui/pagination";
+import { Pagination } from "@/components/ui/pagination";   
 import { Modal } from "@/components/ui/modal";
 
 import { SalaFormModal, type DadosSala } from "@/components/salas/sala-form-modal";
