@@ -161,7 +161,7 @@ export function TelaAlocacao({
       if (!sala) return;
       setProcessando(true);
       try {
-        const validacao = await validar(grade, disciplina, sala.id, dia, horario);
+        const validacao = await validar(grade, disciplina, sala.id, dia, horario, origem.id);
         if (!validacao.valido) {
           setModal({ tipo: "sala", disciplinaId: disciplina.id, dia, horario, aulaId: origem.id });
           setSalaId(sala.id);
@@ -186,11 +186,21 @@ export function TelaAlocacao({
       );
       return;
     }
-    setSalaId("");
+    // Se a aula original foi removida apenas do rascunho e está sendo recolocada
+    // no mesmo dia/bloco, preserve o ID dela. A API então valida como edição e
+    // desconsidera a alocação que ainda existe no servidor.
+    const aulaOriginalRemovida = grade.aulas.find((aula) =>
+      aula.disciplinaId === disciplina.id &&
+      aula.dia === dia &&
+      aula.inicio === horario.inicio &&
+      aula.fim === horario.fim &&
+      !aulas.some((rascunho) => rascunho.id === aula.id),
+    );
+    setSalaId(aulaOriginalRemovida?.salaId ?? "");
     setSugestoes([]);
     setErroValidacao("");
     setErroSala(false);
-    setModal({ tipo: "sala", disciplinaId: disciplina.id, dia, horario });
+    setModal({ tipo: "sala", disciplinaId: disciplina.id, dia, horario, aulaId: aulaOriginalRemovida?.id });
   }
 
   async function confirmarSala() {
@@ -206,7 +216,7 @@ export function TelaAlocacao({
     if (!disciplina) return;
     setProcessando(true);
     try {
-      const validacao = await validar(grade, disciplina, sala.id, modal.dia, modal.horario);
+      const validacao = await validar(grade, disciplina, sala.id, modal.dia, modal.horario, modal.aulaId);
       if (!validacao.valido) {
         setSugestoes(validacao.sugestoes.flatMap(s => { const item = interpretarSugestao(grade, s); return item ? [item] : []; }));
         setMensagem(validacao.mensagem);
@@ -266,11 +276,7 @@ export function TelaAlocacao({
         sucesso: true,
       });
     } catch (error) {
-      setSalvas({});
-      setRascunhos({});
-      setEditando(false);
-      setGradeId(null);
-      setModal({ tipo: "aviso", titulo: "N\u00e3o foi poss\u00edvel salvar a aloca\u00e7\u00e3o", texto: `${erroAlocacao(error)} A grade foi atualizada, pois algumas altera\u00e7\u00f5es podem ter sido salvas.` });
+      setModal({ tipo: "aviso", titulo: "Não foi possível salvar a alocação", texto: `${erroAlocacao(error)} Sua edição continua aberta para você corrigir o horário ou escolher uma sugestão.` });
     } finally {
       setSalvando(false);
     }
@@ -539,7 +545,9 @@ export function TelaAlocacao({
           onClose={() => { if (!bloqueado) setModal(null); }}
           className="max-w-xl overflow-visible [&>img]:rounded-[20px]"
         >
-          <h2 className="pr-10 text-xl font-semibold">Escolha a sala</h2>
+          <h2 className="pr-10 text-xl font-semibold">
+            {erroValidacao ? "Alocação não permitida" : "Escolha a sala"}
+          </h2>
           <p className="mt-3 text-sm text-[#777777]">
             {disciplinaPendente?.disciplina}
             <span className="mt-1 block text-xs">
@@ -547,7 +555,7 @@ export function TelaAlocacao({
               {modal.horario.inicio} - {modal.horario.fim}
             </span>
           </p>
-          <div className="mb-8 mt-6">
+          {!erroValidacao && <div className="mb-8 mt-6">
             <RoomSelect
               salas={salasDaGrade}
               value={salaId}
@@ -557,8 +565,8 @@ export function TelaAlocacao({
                 setErroSala(false);
               }}
             />
-          </div>
-          {erroValidacao && <p role="alert" className="text-sm text-red-700">{erroValidacao} {sugestoes.length === 0 && "Escolha outro horário, sala ou professor."}</p>}
+          </div>}
+          {erroValidacao && <p role="alert" className="mt-6 text-sm text-red-700">{erroValidacao}</p>}
           {sugestoes.length > 0 && <div className="mt-3 space-y-2"><p className="text-sm">Sugestões disponíveis:</p>{sugestoes.map((item, i) => <Button key={i} type="button" variant="ghost" size="small" disabled={bloqueado} onClick={() => { setModal({ tipo: "sala", disciplinaId: modal.disciplinaId, aulaId: modal.aulaId, dia: item.dia, horario: item.horario }); setSalaId(item.salaId); setErroValidacao(""); setSugestoes([]); }}>{DIAS.find(d => d.key === item.dia)?.label} {item.horario.inicio} - {salasDaGrade.find(s => s.id === item.salaId)?.nome ?? item.salaId}</Button>)}</div>}
           <div className="mt-7 flex justify-end gap-3">
             <Button
@@ -568,9 +576,9 @@ export function TelaAlocacao({
               variant="ghost"
               size="small"
             >
-              Cancelar
+              {erroValidacao ? "Voltar à grade" : "Cancelar"}
             </Button>
-            <Button
+            {!erroValidacao && <Button
               type="button"
               disabled={bloqueado || !salasDaGrade.length}
               onClick={() => void confirmarSala()}
@@ -579,7 +587,7 @@ export function TelaAlocacao({
               className="gap-2"
             >
               Confirmar
-            </Button>
+            </Button>}
           </div>
         </Modal>
       )}

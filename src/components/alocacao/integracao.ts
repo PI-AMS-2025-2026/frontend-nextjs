@@ -5,13 +5,16 @@ import type { Aula, DiaSemana, Discipline, Grade, Horario, Sala } from "./tipos"
 
 type Motor = { quadroHorario: { id: number }; blocos: { id: number; horaInicio: string; horaFim: string }[]; turmas: { id: number; codigo: string }[] };
 type Sugestao = { sala: { id: number }; diaSemana: string; blocoHorario: { id: number } };
-type Sugestoes = { sugestoes: Sugestao[]; mensagem?: string };
+type Sugestoes = { sugestoes: Sugestao[]; mensagem?: string; motivo?: string };
 const lista = <T,>(value: PageResponse<T> | T[]): T[] => Array.isArray(value) ? value : value.content;
 const tempo = (value: string) => value.slice(0, 5);
 const dias: Record<DiaSemana, string> = { segunda: "SEGUNDA", terca: "TERÇA", quarta: "QUARTA", quinta: "QUINTA", sexta: "SEXTA", sabado: "SÁBADO" };
 const diaVisual = (value: string): DiaSemana | undefined => (Object.keys(dias) as DiaSemana[]).find(key => dias[key].normalize("NFD").replace(/[\u0300-\u036f]/g, "") === value.normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
 export function erroAlocacao(error: unknown) {
-  if (error instanceof ApiError) return ({ 400: "Dados inválidos para esta operação.", 401: "Sua sessão expirou. Entre novamente.", 403: "Você não tem permissão para esta operação.", 404: "Os dados solicitados não foram encontrados.", 409: "Há um conflito com outra alocação. Atualize a grade e tente novamente." } as Record<number, string>)[error.status] ?? "Não foi possível concluir a operação. Tente novamente.";
+  if (error instanceof ApiError) {
+    if (error.status === 409 && error.message) return error.message;
+    return ({ 400: "Dados inválidos para esta operação.", 401: "Sua sessão expirou. Entre novamente.", 403: "Você não tem permissão para esta operação.", 404: "Os dados solicitados não foram encontrados." } as Record<number, string>)[error.status] ?? "Não foi possível concluir a operação. Tente novamente.";
+  }
   return error instanceof Error && error.message.startsWith("ALOCACAO:") ? error.message.slice(9) : "Não foi possível conectar ao serviço. Tente novamente.";
 }
 export async function carregarDados() {
@@ -40,12 +43,13 @@ function dados(grade: Grade, disciplina: Discipline, salaId: string, dia: DiaSem
   if (!bloco?.id || !grade.turmaId || !grade.quadroId || !Number(salaId)) throw new Error("ALOCACAO:Não foi possível identificar a turma, sala ou horário.");
   return { turma: { id: grade.turmaId }, disciplina: { id: Number(disciplina.id) }, sala: { id: Number(salaId) }, professor: { id: disciplina.professorId }, diaSemana: dias[dia], horario: { id: bloco.id }, quadroHorario: { id: grade.quadroId } };
 }
-export async function validar(grade: Grade, disciplina: Discipline, salaId: string, dia: DiaSemana, horario: Horario) {
+export async function validar(grade: Grade, disciplina: Discipline, salaId: string, dia: DiaSemana, horario: Horario, alocacaoId?: string) {
   const payload = dados(grade, disciplina, salaId, dia, horario);
-  const resultado = await api.post<{ valido: boolean; mensagem: string }>("/alocacoes/validar-carga-horaria", { professor: payload.professor, diaSemana: payload.diaSemana, horario: payload.horario });
+  const idExistente = alocacaoId && /^\d+$/.test(alocacaoId) ? Number(alocacaoId) : undefined;
+  const resultado = await api.post<{ valido: boolean; mensagem: string }>("/alocacoes/validar-carga-horaria", { professor: payload.professor, diaSemana: payload.diaSemana, horario: payload.horario, alocacaoId: idExistente });
   if (resultado.valido) return { valido: true, mensagem: resultado.mensagem, sugestoes: [] as Sugestao[] };
-  const sugestoes = await api.post<Sugestoes>("/alocacoes/sugestoes", payload);
-  return { valido: false, mensagem: resultado.mensagem, sugestoes: sugestoes.sugestoes ?? [] };
+  const sugestoes = await api.post<Sugestoes>("/alocacoes/sugestoes", { ...payload, alocacaoId: idExistente });
+  return { valido: false, mensagem: sugestoes.mensagem ?? resultado.mensagem, sugestoes: sugestoes.sugestoes ?? [] };
 }
 export function interpretarSugestao(grade: Grade, sugestao: Sugestao) {
   const dia = diaVisual(sugestao.diaSemana); const horario = grade.blocos?.find(b => b.id === sugestao.blocoHorario?.id);
