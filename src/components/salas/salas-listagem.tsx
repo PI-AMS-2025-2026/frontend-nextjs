@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Plus, Pencil, Trash2, Wrench, ArrowLeft, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,8 @@ function mensagemErro(e: unknown, padrao: string) {
 }
 
 export function SalasListagem() {
+    const pathname = usePathname();
+    const isCoordinatorRoute = pathname.startsWith("/coordenador/");
     const [salas, setSalas] = React.useState<SalaResponse[] | null>(null);
     const [tiposSala, setTiposSala] = React.useState<TipoSalaResponse[]>([]);
     const [erro, setErro] = React.useState<string | null>(null);
@@ -196,7 +199,7 @@ export function SalasListagem() {
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                     <Link
-                        href="/adminstrador/home"
+                        href={isCoordinatorRoute ? "/coordenador/estrutura-academica" : "/adminstrador/home"}
                         aria-label="Voltar"
                         className="flex size-9 items-center justify-center rounded-lg text-[#17264D]/70 transition-colors hover:bg-[#F2F2F2]"
                     >
@@ -205,7 +208,9 @@ export function SalasListagem() {
                     <div>
                         <h1 className="text-3xl font-bold text-[#17264D]">Salas</h1>
                         <p className="text-sm text-[#17264D]/70">
-                            Gerencie as salas da instituição
+                            {isCoordinatorRoute
+                                ? "Visualize as salas da instituição"
+                                : "Gerencie as salas da instituição"}
                         </p>
                     </div>
                 </div>

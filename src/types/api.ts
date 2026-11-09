@@ -200,8 +200,8 @@ export interface ProfessorDisciplinaRequest {
 }
 export interface ProfessorDisciplinaResponse {
   id: Id;
-  professor: ProfessorResponse;
-  disciplina: DisciplinaResponse;
+  professorId: Id;
+  disciplinaId: Id;
 }
 
 export interface BlocoHorarioRequest {
@@ -235,7 +235,7 @@ export interface AlocacaoRequest {
   sala: LongDTO;
   professor: LongDTO;
   diaSemana: DiaSemana;
-  horario: LongDTO;
+  blocoHorario: LongDTO;
   quadroHorario: LongDTO;
   justificativaAlteracao?: string;
   usuarioAlteracao: LongDTO;
@@ -261,6 +261,7 @@ export interface LoginRequest {
 export interface LoginResponse {
   accessToken: string;
   refreshToken: string;
+  usuario: UsuarioResponse;
 }
 
 export interface RefreshTokenRequest {

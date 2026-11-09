@@ -22,7 +22,7 @@ function getRefreshToken(): string | null {
   return localStorage.getItem("refresh_token");
 }
 
-function buildUrl(endpoint: string, params?: Record<string, any>) {
+function buildUrl(endpoint: string, params?: object) {
   const url = new URL(
     endpoint,
     API_URL.endsWith("/") ? API_URL : `${API_URL}/`,
@@ -41,6 +41,7 @@ function buildUrl(endpoint: string, params?: Record<string, any>) {
 
 async function parseResponse(response: Response): Promise<unknown> {
   if (response.status === 204) return undefined;
+  if (response.ok && response.headers.get("content-type")?.includes("application/pdf")) return response.blob();
 
   const contentType = response.headers.get("content-type") ?? "";
   if (contentType.includes("application/json")) {
@@ -54,9 +55,10 @@ async function parseResponse(response: Response): Promise<unknown> {
 async function request<T>(
   endpoint: string,
   options: RequestInit = {},
-  params?: Record<string, any>,
+  params?: object,
   authenticated = true,
   isRetry = false,
+  responseBlob = false,
 ): Promise<T> {
   const token = authenticated ? getToken() : null;
   const headers = new Headers(options.headers);
@@ -78,7 +80,7 @@ async function request<T>(
     headers,
   });
 
-  const data = await parseResponse(response);
+  const data = response.ok && responseBlob ? await response.blob() : await parseResponse(response);
 
   if (!response.ok) {
     // Tenta renovar o token automaticamente se receber 401 em rota autenticada
@@ -107,7 +109,7 @@ async function request<T>(
               if (tokenData.refreshToken) {
                 localStorage.setItem("refresh_token", tokenData.refreshToken);
               }
-              return request<T>(endpoint, options, params, authenticated, true);
+              return request<T>(endpoint, options, params, authenticated, true, responseBlob);
             }
           }
         } catch {
@@ -133,7 +135,14 @@ async function request<T>(
 }
 
 export const api = {
-  get<T>(endpoint: string, params?: Record<string, any>, authenticated = true) {
+  getBlob(endpoint: string) {
+    return request<Blob>(endpoint, { method: "GET" }, undefined, true, false, true);
+  },
+  get<T>(
+    endpoint: string,
+    params?: object,
+    authenticated = true,
+  ) {
     return request<T>(endpoint, { method: "GET" }, params, authenticated);
   },
 
