@@ -11,6 +11,8 @@ import { TableFilters } from "@/components/ui/tablefilters";
 import { TableFilterHead } from "@/components/ui/table-filter-head";
 import { Pagination } from "@/components/ui/pagination";
 import { Modal } from "@/components/ui/modal";
+import { turmasService } from "@/services/turmas.service";
+import type { TurmaRequest, TurmaResponse } from "@/types/api";
 
 import { TurmaFormModal } from "../TurmaFormModal/turma-form-modal";
 
@@ -24,12 +26,47 @@ import {
     type Status,
 } from "@/lib/turmas";
 
+function converterTurma(t: TurmaResponse): Turma {
+    return {
+        id: String(t.id),
+        periodo: String(t.periodo),
+        curso: t.curso.nome,
+        qtdAlunos: t.numeroAlunos,
+        ano: t.ano,
+        status: "Ativo",
+    };
+}
+
 export function TurmasListagem() {
     const [turmas, setTurmas] = React.useState<Turma[] | null>(null);
 
     React.useEffect(() => {
-        const salvas = carregarTurmasSalvas();
-        setTurmas(salvas ?? gerarTurmasMock());
+        let ativo = true;
+
+    async function carregarTurmas() {
+        try {
+            const resposta = await turmasService.listar({
+                page: 0,
+                size: 100,
+            });
+
+            if (ativo) {
+                setTurmas(resposta.content.map(converterTurma));
+            }
+        } catch (erro) {
+            console.error("Erro ao carregar turmas:", erro);
+
+            if (ativo) {
+                setTurmas([]);
+            }
+        }
+    }
+
+    carregarTurmas();
+
+    return () => {
+        ativo = false;
+    };
     }, []);
 
     React.useEffect(() => {
@@ -78,50 +115,77 @@ export function TurmasListagem() {
     const inicioIndice = (paginaSegura - 1) * itensPorPagina;
     const pagina = filtradas.slice(inicioIndice, inicioIndice + itensPorPagina);
 
-    function confirmarCadastro(dados: {
-        periodo: string;
-        curso: string;
-        qtdAlunos: number;
-        ano: number;
-        status: Status;
-    }) {
-        setTurmas((prev) => {
-            const lista = prev ?? [];
-            // ID sequencial (1, 2, 3...). Quando ligar no backend, o ID vem da API.
-            const maiorId = lista.reduce((max, t) => {
-                const n = Number(t.id);
-                return Number.isFinite(n) && n > max ? n : max;
-            }, 0);
-            return [...lista, { id: String(maiorId + 1), ...dados }];
+    async function confirmarCadastro(dados: {
+    periodo: string;
+    curso: string;
+    qtdAlunos: number;
+    ano: number;
+    status: Status;
+}) {
+    try {
+        const dadosApi: TurmaRequest = {
+            periodo: Number(dados.periodo),
+            ano: dados.ano,
+            numeroAlunos: dados.qtdAlunos,
+            curso: {
+                id: Number(dados.curso),
+            },
+        };
+
+        await turmasService.criar(dadosApi);
+
+        const resposta = await turmasService.listar({
+            page: 0,
+            size: 100,
         });
+
+        setTurmas(resposta.content.map(converterTurma));
+
         setCadastrarAberto(false);
         setSucesso("Turma cadastrada com sucesso!");
+    } catch (erro) {
+        console.error("Erro ao cadastrar turma:", erro);
     }
+}
 
-    function confirmarEdicao(dados: {
-        periodo: string;
-        curso: string;
-        qtdAlunos: number;
-        ano: number;
-        status: Status;
-    }) {
-        if (!selecionada) return;
-        setTurmas((prev) =>
-            (prev ?? []).map((t) => (t.id === selecionada.id ? { ...t, ...dados } : t))
+   async function confirmarEdicao(dados: {
+    periodo: string;
+    curso: string;
+    qtdAlunos: number;
+    ano: number;
+    status: Status;
+}) {
+    if (!selecionada) return;
+
+    try {
+        const dadosApi: TurmaRequest = {
+            periodo: Number(dados.periodo),
+            ano: dados.ano,
+            numeroAlunos: dados.qtdAlunos,
+            curso: {
+                id: Number(dados.curso),
+            },
+        };
+
+        await turmasService.atualizar(
+            Number(selecionada.id),
+            dadosApi
         );
+
+        const resposta = await turmasService.listar({
+            page: 0,
+            size: 100,
+        });
+
+        setTurmas(resposta.content.map(converterTurma));
+
         setEditarAberto(false);
         setSelecionada(null);
         setSucesso("Turma editada com sucesso!");
+    } catch (erro) {
+        console.error("Erro ao editar turma:", erro);
     }
-
-    if (turmas === null) {
-        return (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
-                <Loader2 className="size-6 animate-spin text-[#0099AA]" />
-                <span className="text-sm text-[#17264D]/70">Carregando turmas...</span>
-            </div>
-        );
-    }
+}
 
     return (
         <div className="mx-auto flex w-full max-w-[1100px] min-w-0 flex-1 flex-col gap-6 px-6 py-8">
