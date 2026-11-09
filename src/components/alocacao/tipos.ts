@@ -15,6 +15,7 @@ export type Discipline = {
   professor: string;
   sala: string;
   cor?: string;
+  professorId?: number;
 };
 
 export type Sala = {
@@ -32,6 +33,11 @@ export type Aula = AulaDoComponente & {
 
 export type Grade = {
   id: string;
+  quadroId?: number;
+  cursoId?: number;
+  turmaId?: number;
+  turma?: string;
+  blocos?: { id: number; inicio: string; fim: string }[];
   versao: number;
   dataCriacao: string;
   curso: string;
@@ -141,7 +147,7 @@ export function alocarAula(input: AlocarInput): {
     return {
       status,
       aulas: aulas.map((aula) =>
-        aula.id === aulaId ? { ...aula, dia, ...horario } : aula,
+        aula.id === aulaId ? { ...aula, dia, ...horario, salaId: sala.id, sala: sala.nome } : aula,
       ),
     };
   }

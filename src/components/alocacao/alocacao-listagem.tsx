@@ -87,7 +87,6 @@ export default function AlocacaoListagem({
           className="w-full min-w-[800px]"
           data={visiveis}
           getRowKey={(grade) => grade.id}
-          emptyMessage="Nenhuma grade encontrada para estes filtros."
           columns={[
             {
               key: "versao",
@@ -100,6 +99,7 @@ export default function AlocacaoListagem({
               render: (grade) => formatarData(grade.dataCriacao),
             },
             { key: "curso", label: "Curso" },
+            { key: "turma", label: "Turma" },
             { key: "periodoLetivo", label: "Período letivo" },
             {
               key: "alocacao",
