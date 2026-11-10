@@ -59,7 +59,7 @@ export async function salvarGrade(grade: Grade, aulas: Aula[], disciplinas: Disc
   const usuarioId = authService.getUser()?.id;
   if (!Number.isInteger(usuarioId) || usuarioId <= 0) throw new Error("ALOCACAO:Usuário autenticado não identificado. Entre novamente.");
   const antigos = grade.aulas;
-  const request = (a: Aula): AlocacaoRequest => { const disciplina = disciplinas.find(d => d.id === a.disciplinaId); if (!disciplina) throw new Error("ALOCACAO:Disciplina não encontrada."); const { horario, ...resto } = dados(grade, disciplina, a.salaId, a.dia, a); return { ...resto, diaSemana: resto.diaSemana as AlocacaoRequest["diaSemana"], blocoHorario: horario, justificativaAlteracao: "Atualização de alocação", usuarioAlteracao: { id: usuarioId } }; };
+  const request = (a: Aula): AlocacaoRequest => { const disciplina = disciplinas.find(d => d.id === a.disciplinaId); if (!disciplina) throw new Error("ALOCACAO:Disciplina não encontrada."); const { horario, ...resto } = dados(grade, disciplina, a.salaId, a.dia, a); return { ...resto, diaSemana: resto.diaSemana as AlocacaoRequest["diaSemana"], blocoHorario: horario, usuarioAlteracao: { id: usuarioId } }; };
   const removidas = antigos.filter(a => !aulas.some(b => b.id === a.id));
   const novas = aulas.filter(a => !antigos.some(b => b.id === a.id)).map(request);
   const alteradas = aulas.flatMap(a => { const anterior = antigos.find(b => b.id === a.id); return anterior && (anterior.dia !== a.dia || anterior.inicio !== a.inicio || anterior.fim !== a.fim || anterior.salaId !== a.salaId || anterior.disciplinaId !== a.disciplinaId) ? [{ id: a.id, payload: request(a) }] : []; });

@@ -19,6 +19,7 @@ import { RecursosSalaModal } from "@/components/salas/recursos-sala-modal";
 import { ApiError } from "@/lib/api";
 import { salasService } from "@/services/salas.service";
 import { tiposSalaService } from "@/services/tipos-sala.service";
+import { recursoSalaService } from "@/services/recurso-sala.service";
 import type { Id, SalaResponse, TipoSalaResponse } from "@/types/api";
 
 // Linha exibida na tabela (as chaves batem com as colunas do DataTable)
@@ -46,6 +47,39 @@ function mensagemErro(e: unknown, padrao: string) {
             return e.message || "Conflito: essa sala já existe ou está em uso.";
     }
     return e instanceof Error && e.message ? e.message : padrao;
+}
+
+async function sincronizarRecursosSala(
+    salaId: Id,
+    recursosDesejados: DadosSala["recursos"],
+) {
+    const vinculados = await recursoSalaService.listar({ salaId, page: 0, size: 1000 });
+    const pendentes = new Map(recursosDesejados.map((item) => [item.recursoId, item.quantidade]));
+
+    for (const vinculo of vinculados.content) {
+        const quantidade = pendentes.get(vinculo.recurso.id);
+        if (quantidade === undefined) {
+            await recursoSalaService.deletar(vinculo.id);
+            continue;
+        }
+
+        if (quantidade !== vinculo.quantidade) {
+            await recursoSalaService.atualizar(vinculo.id, {
+                sala: { id: salaId },
+                recurso: { id: vinculo.recurso.id },
+                quantidade,
+            });
+        }
+        pendentes.delete(vinculo.recurso.id);
+    }
+
+    for (const [recursoId, quantidade] of pendentes) {
+        await recursoSalaService.criar({
+            sala: { id: salaId },
+            recurso: { id: recursoId },
+            quantidade,
+        });
+    }
 }
 
 export function SalasListagem() {
@@ -129,11 +163,17 @@ export function SalasListagem() {
         try {
             setSalvando(true);
             setErroForm(null);
-            await salasService.criar({
+            const tipoSalaId = dados.novoTipo
+                ? (await tiposSalaService.criar({ nome: dados.novoTipo })).id
+                : dados.tipoSalaId;
+            if (!tipoSalaId) throw new Error("Selecione ou cadastre um tipo de sala.");
+
+            const criada = await salasService.criar({
                 codigo: dados.codigo,
                 capacidade: dados.capacidade,
-                tipoSala: { id: dados.tipoSalaId },
+                tipoSala: { id: tipoSalaId },
             });
+            await sincronizarRecursosSala(criada.id, dados.recursos);
             await carregar();
             setCadastrarAberto(false);
             setSucesso("Sala cadastrada com sucesso!");
@@ -149,11 +189,17 @@ export function SalasListagem() {
         try {
             setSalvando(true);
             setErroForm(null);
+            const tipoSalaId = dados.novoTipo
+                ? (await tiposSalaService.criar({ nome: dados.novoTipo })).id
+                : dados.tipoSalaId;
+            if (!tipoSalaId) throw new Error("Selecione ou cadastre um tipo de sala.");
+
             await salasService.atualizar(selecionada.id, {
                 codigo: dados.codigo,
                 capacidade: dados.capacidade,
-                tipoSala: { id: dados.tipoSalaId },
+                tipoSala: { id: tipoSalaId },
             });
+            await sincronizarRecursosSala(selecionada.id, dados.recursos);
             await carregar();
             setEditarAberto(false);
             setSelecionada(null);
