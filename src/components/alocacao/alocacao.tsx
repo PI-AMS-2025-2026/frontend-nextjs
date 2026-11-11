@@ -31,24 +31,18 @@ import {
   type Sala,
 } from "./tipos";
 
-import {
-  DISCIPLINAS_EXEMPLO,
-  GRADES_EXEMPLO,
-  SALAS_EXEMPLO,
-  carregarAlocacoesLocais,
-  salvarAlocacaoLocal,
-} from "./dados-exemplo";
+import { carregarDados, erroAlocacao, exportarGrade, interpretarSugestao, salvarGrade, validar } from "./integracao";
 
 export type AlocacaoScreenProps = {
   grades: Grade[];
   disciplinas: Discipline[];
   salas: Sala[];
   // O projeto fornece a implementação real da API. Não há endpoint inventado aqui.
-  salvarAlocacao: (gradeId: string, aulas: Aula[]) => Promise<void>;
+  salvarAlocacao: (gradeId: string, aulas: Aula[]) => Promise<Aula[]>;
 };
 
 type EstadoModal =
-  | { tipo: "sala"; disciplinaId: string; dia: DiaSemana; horario: Horario }
+  | { tipo: "sala"; disciplinaId: string; dia: DiaSemana; horario: Horario; aulaId?: string }
   | { tipo: "detalhes"; aulaId: string }
   | { tipo: "aviso"; titulo: string; texto?: string; sucesso?: boolean }
   | null;
@@ -72,7 +66,10 @@ export function TelaAlocacao({
   const [modal, setModal] = useState<EstadoModal>(null);
   const [salaId, setSalaId] = useState("");
   const [erroSala, setErroSala] = useState(false);
+  const [erroValidacao, setErroValidacao] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [processando, setProcessando] = useState(false);
+  const [sugestoes, setSugestoes] = useState<{ dia: DiaSemana; horario: Horario; salaId: string }[]>([]);
   const [mensagem, setMensagem] = useState("");
   const grade = grades.find((item) => item.id === gradeId);
   const aulasSalvas = grade ? salvas[grade.id] ?? grade.aulas : [];
@@ -85,21 +82,21 @@ export function TelaAlocacao({
   const salasDaGrade = grade
     ? salas.filter((item) => grade.salaIds.includes(item.id))
     : [];
-  const bloqueado = salvando;
+  const bloqueado = salvando || processando;
 
   useEffect(() => {
     if (!modal) return;
     const overflowAnterior = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const fecharComEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setModal(null);
+      if (event.key === "Escape" && !bloqueado) setModal(null);
     };
     document.addEventListener("keydown", fecharComEscape);
     return () => {
       document.body.style.overflow = overflowAnterior;
       document.removeEventListener("keydown", fecharComEscape);
     };
-  }, [modal]);
+  }, [modal, bloqueado]);
 
   function atualizarAulas(proximas: Aula[]) {
     if (grade && editando && !bloqueado)
@@ -119,7 +116,7 @@ export function TelaAlocacao({
     });
   }
 
-  function handleDrop(
+  async function handleDrop(
     dados: DisciplineDragData,
     dia: DiaSemana,
     horario: Horario,
@@ -162,6 +159,18 @@ export function TelaAlocacao({
       if (!origem) return;
       const sala = salasDaGrade.find((item) => item.id === origem.salaId);
       if (!sala) return;
+      setProcessando(true);
+      try {
+        const validacao = await validar(grade, disciplina, sala.id, dia, horario, origem.id);
+        if (!validacao.valido) {
+          setModal({ tipo: "sala", disciplinaId: disciplina.id, dia, horario, aulaId: origem.id });
+          setSalaId(sala.id);
+          setErroValidacao(validacao.mensagem);
+          setSugestoes(validacao.sugestoes.flatMap(s => { const item = interpretarSugestao(grade, s); return item ? [item] : []; }));
+          setMensagem(validacao.mensagem);
+          return;
+        }
+      } catch (error) { setModal({ tipo: "aviso", titulo: "Não foi possível validar a alocação", texto: erroAlocacao(error) }); return; } finally { setProcessando(false); }
       const resultado = alocarAula({
         aulas,
         disciplina,
@@ -177,12 +186,24 @@ export function TelaAlocacao({
       );
       return;
     }
-    setSalaId("");
+    // Se a aula original foi removida apenas do rascunho e está sendo recolocada
+    // no mesmo dia/bloco, preserve o ID dela. A API então valida como edição e
+    // desconsidera a alocação que ainda existe no servidor.
+    const aulaOriginalRemovida = grade.aulas.find((aula) =>
+      aula.disciplinaId === disciplina.id &&
+      aula.dia === dia &&
+      aula.inicio === horario.inicio &&
+      aula.fim === horario.fim &&
+      !aulas.some((rascunho) => rascunho.id === aula.id),
+    );
+    setSalaId(aulaOriginalRemovida?.salaId ?? "");
+    setSugestoes([]);
+    setErroValidacao("");
     setErroSala(false);
-    setModal({ tipo: "sala", disciplinaId: disciplina.id, dia, horario });
+    setModal({ tipo: "sala", disciplinaId: disciplina.id, dia, horario, aulaId: aulaOriginalRemovida?.id });
   }
 
-  function confirmarSala() {
+  async function confirmarSala() {
     if (modal?.tipo !== "sala" || !grade || !editando || bloqueado) return;
     const sala = salasDaGrade.find((item) => item.id === salaId);
     const disciplina = disciplinasDaGrade.find(
@@ -193,13 +214,25 @@ export function TelaAlocacao({
       return;
     }
     if (!disciplina) return;
+    setProcessando(true);
+    try {
+      const validacao = await validar(grade, disciplina, sala.id, modal.dia, modal.horario, modal.aulaId);
+      if (!validacao.valido) {
+        setSugestoes(validacao.sugestoes.flatMap(s => { const item = interpretarSugestao(grade, s); return item ? [item] : []; }));
+        setMensagem(validacao.mensagem);
+        setErroValidacao(validacao.mensagem);
+        return;
+      }
+      setErroValidacao("");
+    } catch (error) { setErroValidacao(erroAlocacao(error)); return; } finally { setProcessando(false); }
     const resultado = alocarAula({
       aulas,
       disciplina,
       sala,
       dia: modal.dia,
       horario: modal.horario,
-      novoId: crypto.randomUUID(),
+      aulaId: modal.aulaId,
+      novoId: modal.aulaId ?? crypto.randomUUID(),
     });
     if (resultado.status === "ocupada") {
       avisoOcupada();
@@ -222,19 +255,11 @@ export function TelaAlocacao({
 
   async function salvar() {
     if (!grade || !editando || bloqueado) return;
-    if (!aulas.length) {
-      setModal({
-        tipo: "aviso",
-        titulo:
-          "Você precisa adicionar alguma disciplina para salvar a alocação",
-      });
-      return;
-    }
     setSalvando(true);
     const snapshot = aulas.map((aula) => ({ ...aula }));
     try {
-      await salvarAlocacao(grade.id, snapshot);
-      setSalvas((atual) => ({ ...atual, [grade.id]: snapshot }));
+      const confirmadas = await salvarAlocacao(grade.id, snapshot);
+      setSalvas((atual) => ({ ...atual, [grade.id]: confirmadas }));
       setRascunhos((atual) => {
         const proximo = { ...atual };
         delete proximo[grade.id];
@@ -250,12 +275,8 @@ export function TelaAlocacao({
         titulo: "Alocação salva com sucesso!",
         sucesso: true,
       });
-    } catch {
-      setModal({
-        tipo: "aviso",
-        titulo: "Não foi possível salvar a alocação",
-        texto: "Tente novamente. As disciplinas continuam nesta grade.",
-      });
+    } catch (error) {
+      setModal({ tipo: "aviso", titulo: "Não foi possível salvar a alocação", texto: `${erroAlocacao(error)} Sua edição continua aberta para você corrigir o horário ou escolher uma sugestão.` });
     } finally {
       setSalvando(false);
     }
@@ -337,6 +358,7 @@ export function TelaAlocacao({
                   size="small"
                   title="Editar"
                   aria-label="Editar"
+                  disabled={bloqueado}
                   onClick={() => {
                     setEditando(true);
                     setMensagem("Modo de edição ativado.");
@@ -346,10 +368,11 @@ export function TelaAlocacao({
                   <Pencil className="h-5 w-5" aria-hidden="true" />
                 </Button>
               )}
-              {/* Apenas visual: a exportação será conectada posteriormente. */}
+
               <Button
                 type="button"
                 disabled={bloqueado}
+                onClick={async () => { setProcessando(true); try { await exportarGrade(grade); } catch (error) { setModal({ tipo: "aviso", titulo: "Não foi possível exportar", texto: erroAlocacao(error) }); } finally { setProcessando(false); } }}
                 variant="primary"
                 size="small"
                 className="gap-2"
@@ -476,13 +499,13 @@ export function TelaAlocacao({
                     intervalos={grade.intervalos}
                     aulas={aulas}
                     somenteLeitura={!editando || bloqueado}
-                    onAulaDrop={handleDrop}
+                    onAulaDrop={(...args) => { void handleDrop(...args); }}
                     onDragStateChange={(ativo) => alterarArraste("grade", ativo)}
                     onAulaClick={(aula) => {
                       if (!bloqueado)
                         setModal({ tipo: "detalhes", aulaId: aula.id });
                     }}
-                    onDropOcupado={handleDrop}
+                    onDropOcupado={(...args) => { void handleDrop(...args); }}
                   />
                 </div>
               </div>
@@ -519,10 +542,12 @@ export function TelaAlocacao({
       {modal?.tipo === "sala" && (
         <Modal
           open
-          onClose={() => setModal(null)}
+          onClose={() => { if (!bloqueado) setModal(null); }}
           className="max-w-xl overflow-visible [&>img]:rounded-[20px]"
         >
-          <h2 className="pr-10 text-xl font-semibold">Escolha a sala</h2>
+          <h2 className="pr-10 text-xl font-semibold">
+            {erroValidacao ? "Alocação não permitida" : "Escolha a sala"}
+          </h2>
           <p className="mt-3 text-sm text-[#777777]">
             {disciplinaPendente?.disciplina}
             <span className="mt-1 block text-xs">
@@ -530,7 +555,7 @@ export function TelaAlocacao({
               {modal.horario.inicio} - {modal.horario.fim}
             </span>
           </p>
-          <div className="mb-8 mt-6">
+          {!erroValidacao && <div className="mb-8 mt-6">
             <RoomSelect
               salas={salasDaGrade}
               value={salaId}
@@ -540,26 +565,29 @@ export function TelaAlocacao({
                 setErroSala(false);
               }}
             />
-          </div>
+          </div>}
+          {erroValidacao && <p role="alert" className="mt-6 text-sm text-red-700">{erroValidacao}</p>}
+          {sugestoes.length > 0 && <div className="mt-3 space-y-2"><p className="text-sm">Sugestões disponíveis:</p>{sugestoes.map((item, i) => <Button key={i} type="button" variant="ghost" size="small" disabled={bloqueado} onClick={() => { setModal({ tipo: "sala", disciplinaId: modal.disciplinaId, aulaId: modal.aulaId, dia: item.dia, horario: item.horario }); setSalaId(item.salaId); setErroValidacao(""); setSugestoes([]); }}>{DIAS.find(d => d.key === item.dia)?.label} {item.horario.inicio} - {salasDaGrade.find(s => s.id === item.salaId)?.nome ?? item.salaId}</Button>)}</div>}
           <div className="mt-7 flex justify-end gap-3">
             <Button
               type="button"
+              disabled={bloqueado}
               onClick={() => setModal(null)}
               variant="ghost"
               size="small"
             >
-              Cancelar
+              {erroValidacao ? "Voltar à grade" : "Cancelar"}
             </Button>
-            <Button
+            {!erroValidacao && <Button
               type="button"
-              disabled={!salasDaGrade.length}
-              onClick={confirmarSala}
+              disabled={bloqueado || !salasDaGrade.length}
+              onClick={() => void confirmarSala()}
               variant="secondary"
               size="small"
               className="gap-2"
             >
               Confirmar
-            </Button>
+            </Button>}
           </div>
         </Modal>
       )}
@@ -620,32 +648,25 @@ export function TelaAlocacao({
 }
 
 export default function Alocacao() {
-  const [grades, setGrades] = useState<Grade[] | null>(null);
-
+  const [dados, setDados] = useState<Awaited<ReturnType<typeof carregarDados>> | null>(null);
+  const [erro, setErro] = useState("");
+  const [tentativa, setTentativa] = useState(0);
   useEffect(() => {
-    setGrades(
-      carregarAlocacoesLocais(
-        GRADES_EXEMPLO,
-        DISCIPLINAS_EXEMPLO,
-        SALAS_EXEMPLO,
-      ),
-    );
-  }, []);
-
-  if (!grades) {
-    return (
-      <div role="status" className="p-8 text-sm text-[#777777]">
-        Carregando grades…
-      </div>
-    );
-  }
-
-  return (
-    <TelaAlocacao
-      grades={grades}
-      disciplinas={DISCIPLINAS_EXEMPLO}
-      salas={SALAS_EXEMPLO}
-      salvarAlocacao={salvarAlocacaoLocal}
-    />
-  );
+    let ativo = true;
+    carregarDados().then(resultado => { if (ativo) { setDados(resultado); setErro(""); } }).catch(error => { if (ativo) setErro(erroAlocacao(error)); });
+    return () => { ativo = false; };
+  }, [tentativa]);
+  if (erro) return <div role="alert" className="p-8">{erro} <Button onClick={() => { setErro(""); setTentativa(n => n + 1); }}>Tentar novamente</Button></div>;
+  if (!dados) return <div role="status" className="p-8">Carregando grades...</div>;
+  return <TelaAlocacao grades={dados.grades} disciplinas={dados.disciplinas} salas={dados.salas} salvarAlocacao={async (id, aulas) => {
+    const grade = dados.grades.find(g => g.id === id);
+    if (!grade) throw new Error("ALOCACAO:Grade não encontrada.");
+    try { await salvarGrade(grade, aulas, dados.disciplinas); } catch (error) {
+      try { setDados(await carregarDados()); } catch { setDados(null); setTentativa(n => n + 1); }
+      throw error;
+    }
+    const atualizados = await carregarDados();
+    setDados(atualizados);
+    return atualizados.grades.find(g => g.id === id)?.aulas ?? [];
+  }} />;
 }

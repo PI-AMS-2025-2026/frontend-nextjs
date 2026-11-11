@@ -3,7 +3,6 @@ import type {
   LoginRequest,
   LoginResponse,
   RefreshTokenRequest,
-  UsuarioRequest,
 } from "@/types/api";
 
 export const authService = {
@@ -37,10 +36,6 @@ export const authService = {
       }
     }
     return response;
-  },
-
-  registrar(data: UsuarioRequest) {
-    return api.post<void>("/auth/registrar", data, false);
   },
 
   async logout() {
