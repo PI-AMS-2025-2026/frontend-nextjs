@@ -11,88 +11,118 @@ import {
   ChevronsRight,
   ChevronDown,
   ChevronUp,
+  LoaderCircle,
 } from "lucide-react";
 
-type Historico = {
-  id: number;
-  usuario: string;
-  data: string;
-  dataOrdenacao: string;
-  justificativa: string;
-  campoAlterado: string;
-  valorAnterior: string;
-  valorAtual: string;
-  alocacao: string;
-};
+import { historicosAlteracoesService } from "@/services/historicos-alteracoes.service";
+import type { HistoricoVersaoAlocacaoResponse } from "@/types/api";
 
-const historicoInicial: Historico[] = [
-  { id: 1, usuario: "André Siqueira", data: "12/12/2026", dataOrdenacao: "2026-12-12", justificativa: "Correção de dados da sala", campoAlterado: "Código", valorAnterior: "Sala 2", valorAtual: "Sala 02", alocacao: "1 alocação" },
-  { id: 2, usuario: "Gustavo Lima", data: "13/12/2026", dataOrdenacao: "2026-12-13", justificativa: "Correção de dados da sala", campoAlterado: "Código", valorAnterior: "Sala 2", valorAtual: "Sala 02", alocacao: "0 alocações" },
-  { id: 3, usuario: "Michael Jackson", data: "14/12/2026", dataOrdenacao: "2026-12-14", justificativa: "Correção de dados da sala", campoAlterado: "Código", valorAnterior: "Sala 2", valorAtual: "Sala 02", alocacao: "3 alocações" },
-  { id: 4, usuario: "Marisa do Monte", data: "15/12/2026", dataOrdenacao: "2026-12-15", justificativa: "Correção de dados da sala", campoAlterado: "Código", valorAnterior: "Sala 2", valorAtual: "Sala 02", alocacao: "1 alocação" },
-  { id: 5, usuario: "Michael Jackson", data: "14/12/2026", dataOrdenacao: "2026-12-14", justificativa: "Correção de dados da sala", campoAlterado: "Código", valorAnterior: "Sala 2", valorAtual: "Sala 02", alocacao: "3 alocações" },
-  { id: 6, usuario: "Marisa do Monte", data: "15/12/2026", dataOrdenacao: "2026-12-15", justificativa: "Correção de dados da sala", campoAlterado: "Código", valorAnterior: "Sala 2", valorAtual: "Sala 02", alocacao: "1 alocação" },
-  { id: 7, usuario: "Larissa Manoela", data: "16/12/2026", dataOrdenacao: "2026-12-16", justificativa: "Correção de dados da sala", campoAlterado: "Código", valorAnterior: "Sala 2", valorAtual: "Sala 02", alocacao: "4 alocações" },
-  { id: 8, usuario: "Helder Pestana", data: "17/12/2026", dataOrdenacao: "2026-12-17", justificativa: "Correção de dados da sala", campoAlterado: "Código", valorAnterior: "Sala 2", valorAtual: "Sala 02", alocacao: "0 alocações" },
-  { id: 9, usuario: "Camila Oliveira", data: "18/12/2026", dataOrdenacao: "2026-12-18", justificativa: "Atualização cadastral", campoAlterado: "Capacidade", valorAnterior: "30", valorAtual: "35", alocacao: "2 alocações" },
-  { id: 10, usuario: "Rafael Souza", data: "19/12/2026", dataOrdenacao: "2026-12-19", justificativa: "Ajuste de informação", campoAlterado: "Bloco", valorAnterior: "Bloco A", valorAtual: "Bloco B", alocacao: "1 alocação" },
-  { id: 11, usuario: "Beatriz Costa", data: "20/12/2026", dataOrdenacao: "2026-12-20", justificativa: "Correção de cadastro", campoAlterado: "Código", valorAnterior: "Lab 1", valorAtual: "Lab 01", alocacao: "2 alocações" },
-  { id: 12, usuario: "Pedro Henrique", data: "21/12/2026", dataOrdenacao: "2026-12-21", justificativa: "Atualização de sala", campoAlterado: "Capacidade", valorAnterior: "25", valorAtual: "28", alocacao: "0 alocações" },
-  { id: 13, usuario: "Juliana Martins", data: "22/12/2026", dataOrdenacao: "2026-12-22", justificativa: "Correção de dados", campoAlterado: "Código", valorAnterior: "Sala 5", valorAtual: "Sala 05", alocacao: "3 alocações" },
-  { id: 14, usuario: "André Siqueira", data: "23/12/2026", dataOrdenacao: "2026-12-23", justificativa: "Ajuste solicitado", campoAlterado: "Tipo de sala", valorAnterior: "Comum", valorAtual: "Laboratório", alocacao: "1 alocação" },
-  { id: 15, usuario: "Gustavo Lima", data: "24/12/2026", dataOrdenacao: "2026-12-24", justificativa: "Correção de cadastro", campoAlterado: "Código", valorAnterior: "Sala 8", valorAtual: "Sala 08", alocacao: "0 alocações" },
-  { id: 16, usuario: "Marisa do Monte", data: "25/12/2026", dataOrdenacao: "2026-12-25", justificativa: "Atualização cadastral", campoAlterado: "Capacidade", valorAnterior: "20", valorAtual: "24", alocacao: "2 alocações" },
-  { id: 17, usuario: "Larissa Manoela", data: "26/12/2026", dataOrdenacao: "2026-12-26", justificativa: "Correção de dados da sala", campoAlterado: "Código", valorAnterior: "Sala 9", valorAtual: "Sala 09", alocacao: "4 alocações" },
-  { id: 18, usuario: "Helder Pestana", data: "27/12/2026", dataOrdenacao: "2026-12-27", justificativa: "Ajuste de informação", campoAlterado: "Bloco", valorAnterior: "Bloco B", valorAtual: "Bloco C", alocacao: "0 alocações" },
-  { id: 19, usuario: "Camila Oliveira", data: "28/12/2026", dataOrdenacao: "2026-12-28", justificativa: "Atualização de sala", campoAlterado: "Código", valorAnterior: "Sala 3", valorAtual: "Sala 03", alocacao: "1 alocação" },
-  { id: 20, usuario: "Rafael Souza", data: "29/12/2026", dataOrdenacao: "2026-12-29", justificativa: "Correção de cadastro", campoAlterado: "Capacidade", valorAnterior: "40", valorAtual: "45", alocacao: "3 alocações" },
-  { id: 21, usuario: "Beatriz Costa", data: "30/12/2026", dataOrdenacao: "2026-12-30", justificativa: "Ajuste solicitado", campoAlterado: "Código", valorAnterior: "Sala 4", valorAtual: "Sala 04", alocacao: "2 alocações" },
-  { id: 22, usuario: "Pedro Henrique", data: "02/01/2027", dataOrdenacao: "2027-01-02", justificativa: "Atualização cadastral", campoAlterado: "Tipo de sala", valorAnterior: "Comum", valorAtual: "Multimídia", alocacao: "1 alocação" },
-  { id: 23, usuario: "Juliana Martins", data: "03/01/2027", dataOrdenacao: "2027-01-03", justificativa: "Correção de dados", campoAlterado: "Código", valorAnterior: "Sala 6", valorAtual: "Sala 06", alocacao: "0 alocações" },
-  { id: 24, usuario: "André Siqueira", data: "04/01/2027", dataOrdenacao: "2027-01-04", justificativa: "Ajuste de informação", campoAlterado: "Capacidade", valorAnterior: "32", valorAtual: "36", alocacao: "2 alocações" },
-  { id: 25, usuario: "Gustavo Lima", data: "05/01/2027", dataOrdenacao: "2027-01-05", justificativa: "Correção de cadastro", campoAlterado: "Código", valorAnterior: "Lab 2", valorAtual: "Lab 02", alocacao: "3 alocações" },
-  { id: 26, usuario: "Michael Jackson", data: "06/01/2027", dataOrdenacao: "2027-01-06", justificativa: "Atualização de sala", campoAlterado: "Bloco", valorAnterior: "Bloco A", valorAtual: "Bloco D", alocacao: "1 alocação" },
-  { id: 27, usuario: "Marisa do Monte", data: "07/01/2027", dataOrdenacao: "2027-01-07", justificativa: "Correção de dados da sala", campoAlterado: "Código", valorAnterior: "Sala 7", valorAtual: "Sala 07", alocacao: "4 alocações" },
-  { id: 28, usuario: "Larissa Manoela", data: "08/01/2027", dataOrdenacao: "2027-01-08", justificativa: "Ajuste solicitado", campoAlterado: "Capacidade", valorAnterior: "18", valorAtual: "22", alocacao: "0 alocações" },
-  { id: 29, usuario: "Helder Pestana", data: "09/01/2027", dataOrdenacao: "2027-01-09", justificativa: "Atualização cadastral", campoAlterado: "Código", valorAnterior: "Sala 10", valorAtual: "Sala 10A", alocacao: "2 alocações" },
-  { id: 30, usuario: "Camila Oliveira", data: "10/01/2027", dataOrdenacao: "2027-01-10", justificativa: "Correção de cadastro", campoAlterado: "Tipo de sala", valorAnterior: "Laboratório", valorAtual: "Laboratório de informática", alocacao: "3 alocações" },
-];
+type Coluna = "usuario" | "dataAlteracao" | "campoAlterado" | "valorAntigo" | "valorNovo" | "alocacao";
+type Ordenacao = { coluna: Coluna; direcao: "asc" | "desc" } | null;
 
-type Coluna = keyof Pick<Historico, "usuario" | "dataOrdenacao" | "justificativa" | "campoAlterado" | "valorAnterior" | "valorAtual" | "alocacao">;
+const PAGE_SIZE = 100;
 
 const colunas: { chave: Coluna; titulo: string; largura: string }[] = [
-  { chave: "usuario", titulo: "Usuário", largura: "165px" },
-  { chave: "dataOrdenacao", titulo: "Data", largura: "105px" },
-  { chave: "justificativa", titulo: "Justificativa", largura: "185px" },
-  { chave: "campoAlterado", titulo: "Campo Alterado", largura: "145px" },
-  { chave: "valorAnterior", titulo: "Valor anterior", largura: "130px" },
-  { chave: "valorAtual", titulo: "Valor atual", largura: "120px" },
-  { chave: "alocacao", titulo: "Alocação", largura: "130px" },
+  { chave: "usuario", titulo: "Usuário", largura: "170px" },
+  { chave: "dataAlteracao", titulo: "Data", largura: "125px" },
+  { chave: "campoAlterado", titulo: "Campo alterado", largura: "160px" },
+  { chave: "valorAntigo", titulo: "Valor anterior", largura: "150px" },
+  { chave: "valorNovo", titulo: "Valor atual", largura: "150px" },
+  { chave: "alocacao", titulo: "Alocação", largura: "260px" },
 ];
 
+function dataFormatada(data: string) {
+  const [ano, mes, dia] = data.split("-").map(Number);
+  if (!ano || !mes || !dia) return data;
+  return new Intl.DateTimeFormat("pt-BR").format(new Date(ano, mes - 1, dia));
+}
+
+function descricaoAlocacao(item: HistoricoVersaoAlocacaoResponse) {
+  const alocacao = item.alocacao;
+  return [
+    alocacao.disciplina?.nome,
+    alocacao.turma?.codigo,
+    alocacao.sala?.codigo ? `Sala ${alocacao.sala.codigo}` : undefined,
+  ]
+    .filter(Boolean)
+    .join(" · ") || `Alocação #${alocacao.id}`;
+}
+
+function valorOrdenacao(item: HistoricoVersaoAlocacaoResponse, coluna: Coluna) {
+  switch (coluna) {
+    case "usuario": return item.usuario.nome;
+    case "dataAlteracao": return item.dataAlteracao;
+    case "campoAlterado": return item.campoAlterado;
+    case "valorAntigo": return item.valorAntigo ?? "";
+    case "valorNovo": return item.valorNovo ?? "";
+    case "alocacao": return descricaoAlocacao(item);
+  }
+}
+
 export function HistoricoAlteracoes() {
+  const [historicos, setHistoricos] = React.useState<HistoricoVersaoAlocacaoResponse[]>([]);
   const [busca, setBusca] = React.useState("");
   const [itensPorPagina, setItensPorPagina] = React.useState(8);
   const [paginaAtual, setPaginaAtual] = React.useState(1);
-  const [ordenacao, setOrdenacao] = React.useState<{ coluna: Coluna; direcao: "asc" | "desc" } | null>(null);
+  const [ordenacao, setOrdenacao] = React.useState<Ordenacao>(null);
+  const [carregando, setCarregando] = React.useState(true);
+  const [erro, setErro] = React.useState("");
+
+  React.useEffect(() => {
+    let cancelado = false;
+
+    async function carregarHistorico() {
+      setCarregando(true);
+      setErro("");
+      try {
+        const primeiraPagina = await historicosAlteracoesService.listar({ page: 0, size: PAGE_SIZE });
+        const registros = [...primeiraPagina.content];
+
+        for (let page = 1; page < primeiraPagina.totalPages; page += 1) {
+          const resposta = await historicosAlteracoesService.listar({ page, size: PAGE_SIZE });
+          registros.push(...resposta.content);
+        }
+
+        if (!cancelado) setHistoricos(registros);
+      } catch (error) {
+        console.error("Erro ao carregar histórico de alterações:", error);
+        if (!cancelado) setErro("Não foi possível carregar o histórico. Tente novamente.");
+      } finally {
+        if (!cancelado) setCarregando(false);
+      }
+    }
+
+    void carregarHistorico();
+    return () => { cancelado = true; };
+  }, []);
 
   const filtrados = React.useMemo(() => {
     const termo = busca.trim().toLocaleLowerCase("pt-BR");
-    let resultado = historicoInicial.filter((item) =>
-      [item.usuario, item.data, item.justificativa, item.campoAlterado, item.valorAnterior, item.valorAtual, item.alocacao]
-        .some((valor) => valor.toLocaleLowerCase("pt-BR").includes(termo)),
-    );
+    let resultado = historicos.filter((item) => {
+      const valores = [
+        item.usuario.nome,
+        item.dataAlteracao,
+        dataFormatada(item.dataAlteracao),
+        item.campoAlterado,
+        item.valorAntigo ?? "",
+        item.valorNovo ?? "",
+        descricaoAlocacao(item),
+      ];
+      return valores.some((valor) => valor.toLocaleLowerCase("pt-BR").includes(termo));
+    });
 
     if (ordenacao) {
       resultado = [...resultado].sort((a, b) => {
-        const valorA = String(a[ordenacao.coluna]).toLocaleLowerCase("pt-BR");
-        const valorB = String(b[ordenacao.coluna]).toLocaleLowerCase("pt-BR");
-        const comparacao = valorA.localeCompare(valorB, "pt-BR", { numeric: true });
+        const comparacao = valorOrdenacao(a, ordenacao.coluna).localeCompare(
+          valorOrdenacao(b, ordenacao.coluna),
+          "pt-BR",
+          { numeric: true, sensitivity: "base" },
+        );
         return ordenacao.direcao === "asc" ? comparacao : -comparacao;
       });
     }
     return resultado;
-  }, [busca, ordenacao]);
+  }, [busca, historicos, ordenacao]);
 
   const totalPaginas = Math.max(1, Math.ceil(filtrados.length / itensPorPagina));
   const paginaSegura = Math.min(paginaAtual, totalPaginas);
@@ -122,7 +152,7 @@ export function HistoricoAlteracoes() {
           </Link>
           <div>
             <h1 className="text-[26px] font-bold leading-tight text-[#171717]">Histórico de alterações</h1>
-            <p className="text-[12px] text-[#555]">Gerencie as alterações feitas nesta instituição</p>
+            <p className="text-[12px] text-[#555]">Consulte as alterações realizadas nas alocações</p>
           </div>
         </div>
 
@@ -142,8 +172,10 @@ export function HistoricoAlteracoes() {
         </div>
       </div>
 
+      {erro && <p role="alert" className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
+
       <div className="w-full overflow-x-auto rounded-[9px] border border-[#D0D4D8]">
-        <table className="w-full min-w-[1040px] table-fixed border-collapse">
+        <table className="w-full min-w-[1015px] table-fixed border-collapse">
           <colgroup>
             {colunas.map((coluna) => <col key={coluna.chave} style={{ width: coluna.largura }} />)}
           </colgroup>
@@ -152,7 +184,11 @@ export function HistoricoAlteracoes() {
               {colunas.map((coluna) => {
                 const ativa = ordenacao?.coluna === coluna.chave;
                 return (
-                  <th key={coluna.chave} className="px-3 text-left text-[11px] font-semibold">
+                  <th
+                    key={coluna.chave}
+                    className="px-3 text-left text-[11px] font-semibold"
+                    aria-sort={ativa ? (ordenacao.direcao === "asc" ? "ascending" : "descending") : "none"}
+                  >
                     <button
                       type="button"
                       onClick={() => ordenar(coluna.chave)}
@@ -168,23 +204,20 @@ export function HistoricoAlteracoes() {
             </tr>
           </thead>
           <tbody>
-            {registrosPagina.map((item, index) => (
+            {carregando ? (
+              <tr><td colSpan={colunas.length} className="h-24 text-center text-sm text-[#6B7280]"><span className="inline-flex items-center gap-2"><LoaderCircle className="size-4 animate-spin" />Carregando histórico...</span></td></tr>
+            ) : registrosPagina.map((item, index) => (
               <tr key={item.id} className={`h-[37px] border-b border-[#D5D9DC] last:border-b-0 ${index % 2 === 0 ? "bg-white" : "bg-[#F0F0F0]"}`}>
-                <td className="truncate px-3 text-[11px] text-[#171717]" title={item.usuario}>{item.usuario}</td>
-                <td className="whitespace-nowrap px-3 text-[11px] text-[#171717]">{item.data}</td>
-                <td className="truncate px-3 text-[11px] text-[#171717]" title={item.justificativa}>{item.justificativa}</td>
-                <td className="truncate px-3 text-[11px] text-[#171717]">{item.campoAlterado}</td>
-                <td className="truncate px-3 text-[11px] text-[#171717]">{item.valorAnterior}</td>
-                <td className="truncate px-3 text-[11px] text-[#171717]">{item.valorAtual}</td>
-                <td className="truncate px-3 text-[11px] text-[#171717]">{item.alocacao}</td>
+                <td className="truncate px-3 text-[11px] text-[#171717]" title={item.usuario.nome}>{item.usuario.nome}</td>
+                <td className="whitespace-nowrap px-3 text-[11px] text-[#171717]">{dataFormatada(item.dataAlteracao)}</td>
+                <td className="truncate px-3 text-[11px] text-[#171717]" title={item.campoAlterado}>{item.campoAlterado}</td>
+                <td className="truncate px-3 text-[11px] text-[#171717]" title={item.valorAntigo ?? "—"}>{item.valorAntigo || "—"}</td>
+                <td className="truncate px-3 text-[11px] text-[#171717]" title={item.valorNovo ?? "—"}>{item.valorNovo || "—"}</td>
+                <td className="truncate px-3 text-[11px] text-[#171717]" title={descricaoAlocacao(item)}>{descricaoAlocacao(item)}</td>
               </tr>
             ))}
-            {registrosPagina.length === 0 && (
-              <tr>
-                <td colSpan={colunas.length} className="h-24 text-center text-sm text-[#6B7280]">
-                  Nenhum registro encontrado.
-                </td>
-              </tr>
+            {!carregando && registrosPagina.length === 0 && (
+              <tr><td colSpan={colunas.length} className="h-24 text-center text-sm text-[#6B7280]">{erro ? "Não foi possível exibir os registros." : busca ? "Nenhum registro encontrado para esta pesquisa." : "Nenhuma alteração registrada."}</td></tr>
             )}
           </tbody>
         </table>
@@ -199,7 +232,7 @@ export function HistoricoAlteracoes() {
               setItensPorPagina(Number(event.target.value));
               setPaginaAtual(1);
             }}
-            className="h-full w-9 border-l border-[#D0D7DB] bg-white text-center outline-none"
+            className="h-full w-10 border-l border-[#D0D7DB] bg-white text-center outline-none"
             aria-label="Itens por página"
           >
             {[8, 10, 15, 20, 30].map((quantidade) => <option key={quantidade} value={quantidade}>{quantidade}</option>)}
