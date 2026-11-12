@@ -1,0 +1,163 @@
+# Publica a imagem de produção do frontend no ghcr.io após os testes passarem.
+# O DEPLOY não é feito aqui: é responsabilidade do repositório de infraestrutura,
+# que é notificado via `repository_dispatch` quando a branch é `dev`.
+name: build-release-images
+
+on:
+  push:
+    branches: [dev, staging, main]
+    tags: ['v*.*.*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: build-release-images-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Reutiliza o ci-tests: a imagem só é construída se lint/tipos/testes/build passarem.
+  tests:
+    uses: ./.github/workflows/ci-tests.yml
+    permissions:
+      contents: read
+
+  build:
+    name: Build e push da imagem
+    needs: tests
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta-vars.outputs.tag }}
+      sha: ${{ steps.meta-vars.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Calcular short SHA e resolver NEXT_PUBLIC_API_URL
+        id: meta-vars
+        env:
+          # Valores passados via env: nunca interpolar expressões do Actions
+          # diretamente dentro do script shell.
+          GIT_SHA: ${{ github.sha }}
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          API_URL_DEV: ${{ vars.NEXT_PUBLIC_API_URL_DEV }}
+          API_URL_STAGING: ${{ vars.NEXT_PUBLIC_API_URL_STAGING }}
+          API_URL_PRODUCTION: ${{ vars.NEXT_PUBLIC_API_URL_PRODUCTION }}
+        run: |
+          set -euo pipefail
+
+          short_sha="${GIT_SHA:0:7}"
+
+          # Tags git (vX.Y.Z) e a branch main apontam para produção.
+          if [ "$REF_TYPE" = "tag" ]; then
+            environment="production"
+            api_url="$API_URL_PRODUCTION"
+          else
+            case "$REF_NAME" in
+              dev)     environment="dev";        api_url="$API_URL_DEV" ;;
+              staging) environment="staging";   api_url="$API_URL_STAGING" ;;
+              main)    environment="production"; api_url="$API_URL_PRODUCTION" ;;
+              *)
+                echo "::error::Branch '$REF_NAME' não possui ambiente mapeado (dev/staging/main)."
+                exit 1
+                ;;
+            esac
+          fi
+
+          if [ -z "$api_url" ]; then
+            echo "::error::A variable NEXT_PUBLIC_API_URL para o ambiente '$environment' está vazia. Configure-a em Settings > Actions > Variables."
+            exit 1
+          fi
+
+          {
+            echo "short_sha=$short_sha"
+            echo "tag=sha-$short_sha"
+            echo "sha=$GIT_SHA"
+            echo "environment=$environment"
+            echo "api_url=$api_url"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Metadados da imagem (tags e labels OCI)
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          # ghcr.io exige o nome em minúsculas.
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=sha-${{ steps.meta-vars.outputs.short_sha }}
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+          labels: |
+            org.opencontainers.image.title=frontend-nextjs
+            org.opencontainers.image.description=Frontend do Projeto Integrador (Next.js)
+            org.opencontainers.image.vendor=PI AMS 2025-2026
+
+      - name: Build e push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          provenance: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ steps.meta-vars.outputs.api_url }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  notify-infra:
+    name: Notificar repositório de infraestrutura
+    needs: build
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar repository_dispatch (image-published)
+        env:
+          INFRA_TOKEN: ${{ secrets.INFRA_DISPATCH_TOKEN }}
+          INFRA_REPOSITORY: ${{ vars.INFRA_REPOSITORY }}
+          IMAGE_TAG: ${{ needs.build.outputs.tag }}
+          COMMIT_SHA: ${{ needs.build.outputs.sha }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$INFRA_TOKEN" ]; then
+            echo "::error::O secret INFRA_DISPATCH_TOKEN não está configurado. Ele precisa de permissão de repository_dispatch no repositório de infraestrutura (fine-grained PAT com Contents: write, ou GitHub App)."
+            exit 1
+          fi
+
+          if [ -z "$INFRA_REPOSITORY" ]; then
+            echo "::error::A variable INFRA_REPOSITORY (formato owner/repo) não está configurada."
+            exit 1
+          fi
+
+          # O JSON é montado com jq a partir de variáveis de ambiente,
+          # nunca por interpolação direta de expressões do Actions no script.
+          payload="$(jq -n \
+            --arg tag "$IMAGE_TAG" \
+            --arg sha "$COMMIT_SHA" \
+            --arg branch "$BRANCH" \
+            '{event_type: "image-published", client_payload: {service: "frontend", tag: $tag, sha: $sha, branch: $branch}}')"
+
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $INFRA_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$INFRA_REPOSITORY/dispatches" \
+            -d "$payload"
+
+          echo "Notificação enviada para $INFRA_REPOSITORY (tag: $IMAGE_TAG)."
