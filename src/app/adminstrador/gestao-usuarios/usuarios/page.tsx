@@ -20,6 +20,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { Modal } from "@/components/ui/modal";
 
 import { usuariosService } from "@/services/usuarios.service";
+import { useDebouncedValue } from "@/hooks/use-remote-page";
 import { cursosService } from "@/services/cursos.service";
 import type {
     UsuarioResponse,
@@ -56,9 +57,12 @@ export default function CadastroUsuario() {
         totalPages: 0,
     });
     const [loading, setLoading] = React.useState(true);
+    const [erroLista, setErroLista] = React.useState("");
+    const requisicaoAtual = React.useRef(0);
     const [cursos, setCursos] = React.useState<CursoResponse[]>([]);
 
     const [search, setSearch] = React.useState("");
+    const debouncedSearch = useDebouncedValue(search);
     const [filters, setFilters] = React.useState<{ status: string; tipo: string }>({
         status: "",
         tipo: "",
@@ -77,7 +81,9 @@ export default function CadastroUsuario() {
     const [submitting, setSubmitting] = React.useState(false);
 
     const carregarUsuarios = React.useCallback(async () => {
+        const requisicaoId = ++requisicaoAtual.current;
         setLoading(true);
+        setErroLista("");
         try {
             const statusParam = filters.status === "Ativo" ? "ATIVO" : filters.status === "Inativo" ? "INATIVO" : undefined;
             const tipoParam = filters.tipo === "Administrador" ? "ADMINISTRADOR" : filters.tipo === "Coordenador" ? "COORDENADOR" : undefined;
@@ -85,17 +91,19 @@ export default function CadastroUsuario() {
             const res = await usuariosService.listar({
                 page: currentPage - 1,
                 size: itemsPerPage,
-                nome: search || undefined,
+                nome: debouncedSearch || undefined,
                 status: statusParam,
                 tipo_usuario: tipoParam,
             });
-            setPageData(res);
+            if (requisicaoId === requisicaoAtual.current) setPageData(res);
         } catch (err) {
-            console.error("Erro ao carregar usuários:", err);
+            if (requisicaoId === requisicaoAtual.current) {
+                setErroLista(err instanceof Error ? err.message : "Não foi possível carregar os usuários.");
+            }
         } finally {
-            setLoading(false);
+            if (requisicaoId === requisicaoAtual.current) setLoading(false);
         }
-    }, [currentPage, itemsPerPage, search, filters]);
+    }, [currentPage, itemsPerPage, debouncedSearch, filters]);
 
     React.useEffect(() => {
         carregarUsuarios();
@@ -202,13 +210,13 @@ export default function CadastroUsuario() {
         }
     }
 
-    async function excluirUsuario(usuario: UsuarioResponse) {
-        const confirmou = window.confirm(`Deseja excluir o usuário "${usuario.nome}"?`);
+    async function inativarUsuario(usuario: UsuarioResponse) {
+        const confirmou = window.confirm(`Deseja inativar o usuário "${usuario.nome}"?`);
         if (!confirmou) return;
 
         try {
             await usuariosService.deletar(usuario.id);
-            setMensagemSucesso("Usuário excluído com sucesso!");
+            setMensagemSucesso("Usuário inativado com sucesso!");
             setModalSucesso(true);
             carregarUsuarios();
         } catch (err) {
@@ -295,6 +303,10 @@ export default function CadastroUsuario() {
                             <div className="flex items-center justify-center py-12">
                                 <Loader2 className="h-8 w-8 animate-spin text-[#0099AA]" />
                             </div>
+                        ) : erroLista ? (
+                            <div role="alert" className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                                {erroLista}
+                            </div>
                         ) : (
                             <DataTable
                                 data={pageData.content}
@@ -341,9 +353,9 @@ export default function CadastroUsuario() {
                                         onClick: abrirEdicao,
                                     },
                                     {
-                                        label: "Excluir usuário",
+                                        label: "Inativar usuário",
                                         icon: <Trash2 className="size-5 text-red-500" />,
-                                        onClick: excluirUsuario,
+                                        onClick: inativarUsuario,
                                     },
                                 ]}
                             />

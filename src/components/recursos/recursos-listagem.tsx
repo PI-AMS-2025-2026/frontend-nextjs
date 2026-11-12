@@ -16,8 +16,9 @@ import { RecursoExcluirModal } from "@/components/recursos/recurso-excluir-modal
 import { ApiError } from "@/lib/api";
 import { recursosService } from "@/services/recursos.service";
 import { tiposRecursoService } from "@/services/tipos-recurso.service";
-import type { RecursoResponse, TipoRecursoResponse } from "@/types/api";
+import type { ListRecursoParams, RecursoResponse, TipoRecursoResponse } from "@/types/api";
 import type { DadosRecurso } from "@/components/recursos/recurso-form-modal";
+import { useRemotePage } from "@/hooks/use-remote-page";
 
 function mensagemErro(e: unknown, padrao: string) {
     if (e instanceof ApiError) {
@@ -39,7 +40,7 @@ function mensagemErro(e: unknown, padrao: string) {
 }
 
 export function RecursosListagem() {
-    const [recursos, setRecursos] = React.useState<RecursoResponse[] | null>(null);
+    const [refreshKey, setRefreshKey] = React.useState(0);
     const [tiposDisponiveis, setTiposDisponiveis] = React.useState<TipoRecursoResponse[]>([]);
     const [erro, setErro] = React.useState<string | null>(null);
     const [erroForm, setErroForm] = React.useState<string | null>(null);
@@ -58,25 +59,31 @@ export function RecursosListagem() {
     const [selecionado, setSelecionado] = React.useState<RecursoResponse | null>(null);
     const [sucesso, setSucesso] = React.useState<string | null>(null);
 
-    const carregar = React.useCallback(async () => {
+    const carregarTipos = React.useCallback(async () => {
         try {
             setErro(null);
-            const [pagina, tipos] = await Promise.all([
-                recursosService.listar({ page: 0, size: 1000 }),
-                tiposRecursoService.listar(),
-            ]);
-            setRecursos(pagina.content);
-            setTiposDisponiveis(tipos);
+            setTiposDisponiveis(await tiposRecursoService.listar());
         } catch (e) {
             setErro(mensagemErro(e, "Não foi possível carregar os recursos."));
-            setRecursos((atual) => atual ?? []);
         }
     }, []);
 
+    const carregarRecursos = React.useCallback((params: ListRecursoParams & { page: number; size: number }) =>
+        recursosService.listar(params), []);
+    const filtrosApi: ListRecursoParams = {
+        busca: busca.trim(),
+        nome: fNome.trim(),
+        tipo_recurso: fTipo ? Number(fTipo) : undefined,
+    };
+    const { content: recursos, totalElements, loading, error: erroCarga } = useRemotePage(
+        carregarRecursos, filtrosApi, paginaAtual, itensPorPagina, refreshKey,
+    );
+    const carregar = React.useCallback(() => setRefreshKey((key) => key + 1), []);
+
     React.useEffect(() => {
-        const timer = window.setTimeout(() => { void carregar(); }, 0);
+        const timer = window.setTimeout(() => { void carregarTipos(); }, 0);
         return () => window.clearTimeout(timer);
-    }, [carregar]);
+    }, [carregarTipos]);
 
     React.useEffect(() => {
         if (!sucesso) return;
@@ -84,23 +91,7 @@ export function RecursosListagem() {
         return () => clearTimeout(timer);
     }, [sucesso]);
 
-    const filtrados = React.useMemo(() => {
-        if (recursos === null) return [];
-        const b = busca.trim().toLowerCase();
-
-        return recursos.filter((r) => {
-            const buscaOk =
-                !b || r.nome.toLowerCase().includes(b) || (r.tipo?.nome ?? "").toLowerCase().includes(b);
-            const nomeOk = !fNome || r.nome.toLowerCase().includes(fNome.toLowerCase());
-            const tipoOk = !fTipo || r.tipo?.nome === fTipo;
-            return buscaOk && nomeOk && tipoOk;
-        });
-    }, [recursos, busca, fNome, fTipo]);
-
-    const totalPaginas = Math.max(1, Math.ceil(filtrados.length / itensPorPagina));
-    const paginaSegura = Math.min(paginaAtual, totalPaginas);
-    const inicioIndice = (paginaSegura - 1) * itensPorPagina;
-    const pagina = filtrados.slice(inicioIndice, inicioIndice + itensPorPagina);
+    const pagina = recursos;
 
     async function salvar(dados: DadosRecurso, modo: "criar" | "editar") {
         try {
@@ -128,7 +119,7 @@ export function RecursosListagem() {
         finally { setSalvando(false); }
     }
 
-    if (recursos === null) {
+    if (loading && recursos.length === 0) {
         return (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
                 <Loader2 className="size-6 animate-spin text-[#0099AA]" />
@@ -187,7 +178,7 @@ export function RecursosListagem() {
                         label: "Tipo",
                         type: "select",
                         placeholder: "Selecione...",
-                        options: tiposDisponiveis.map((t) => ({ label: t.nome, value: t.nome })),
+                        options: tiposDisponiveis.map((t) => ({ label: t.nome, value: String(t.id) })),
                     },
                 ]}
                 onChange={(f) => {
@@ -197,9 +188,11 @@ export function RecursosListagem() {
                 }}
             />
 
-            {erro && <div role="alert" className="rounded-[10px] border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">{erro} <button type="button" className="font-semibold underline" onClick={() => void carregar()}>Tentar novamente</button></div>}
+            {(erro || erroCarga) && <div role="alert" className="rounded-[10px] border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">{erro ?? erroCarga} <button type="button" className="font-semibold underline" onClick={carregar}>Tentar novamente</button></div>}
 
-            {pagina.length === 0 ? (
+            {loading ? (
+                <div className="py-10 text-center text-sm text-[#17264D]/70">Carregando recursos...</div>
+            ) : pagina.length === 0 ? (
                 <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">
                     Nenhum recurso encontrado.
                 </div>
@@ -245,8 +238,8 @@ export function RecursosListagem() {
             )}
 
             <Pagination
-                totalItems={filtrados.length}
-                currentPage={paginaSegura}
+                totalItems={totalElements}
+                currentPage={paginaAtual}
                 itemsPerPage={itensPorPagina}
                 onPageChange={setPaginaAtual}
                 onItemsPerPageChange={(n) => {

@@ -3,6 +3,8 @@ export type Turno = "Matutino" | "Vespertino" | "Noturno";
 
 export interface GradeHoraria {
     id: string;
+    cursoId?: string;
+    periodoAtividadeQuadroId?: string;
     versao: number;
     dataCriacao: string; // ISO "yyyy-mm-dd"
     cursoVinculado: string;

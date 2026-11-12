@@ -9,16 +9,12 @@ import { Input, SearchInput } from "@/components/ui/input";
 import { DataTable } from "@/components/ui/table";
 import { Pagination } from "@/components/ui/pagination";
 
-import { gerarProfessoresMock, type Professor } from "@/lib/professores";
+import type { ProfessorResponse, ListProfessorParams } from "@/types/api";
+import { professoresService } from "@/services/professores.service";
+import { useRemotePage } from "@/hooks/use-remote-page";
 
 export function ProfessoresListagem() {
     const router = useRouter();
-
-    const [professores, setProfessores] = React.useState<Professor[] | null>(null);
-
-    React.useEffect(() => {
-        setProfessores(gerarProfessoresMock());
-    }, []);
 
     const [busca, setBusca] = React.useState("");
     const [filtroNome, setFiltroNome] = React.useState("");
@@ -27,25 +23,20 @@ export function ProfessoresListagem() {
     const [itensPorPagina, setItensPorPagina] = React.useState(6);
     const [paginaAtual, setPaginaAtual] = React.useState(1);
 
-    const filtrados = React.useMemo(() => {
-        if (professores === null) return [];
-        const b = busca.trim().toLowerCase();
-
-        return professores.filter((p) => {
-            const buscaOk =
-                !b ||
-                p.nome.toLowerCase().includes(b) ||
-                p.email.toLowerCase().includes(b);
-            const nomeOk = !filtroNome || p.nome.toLowerCase().includes(filtroNome.toLowerCase());
-            const emailOk = !filtroEmail || p.email.toLowerCase().includes(filtroEmail.toLowerCase());
-            return buscaOk && nomeOk && emailOk;
-        });
-    }, [professores, busca, filtroNome, filtroEmail]);
-
-    const totalPaginas = Math.max(1, Math.ceil(filtrados.length / itensPorPagina));
-    const paginaSegura = Math.min(paginaAtual, totalPaginas);
-    const inicioIndice = (paginaSegura - 1) * itensPorPagina;
-    const pagina = filtrados.slice(inicioIndice, inicioIndice + itensPorPagina);
+    const carregarProfessores = React.useCallback((params: ListProfessorParams & { page: number; size: number }) =>
+        professoresService.listar(params), []);
+    const filtrosApi: ListProfessorParams = {
+        busca: busca.trim(),
+        nome: filtroNome.trim(),
+        email: filtroEmail.trim(),
+    };
+    const { content, totalElements, loading, error } = useRemotePage(
+        carregarProfessores, filtrosApi, paginaAtual, itensPorPagina,
+    );
+    const pagina = content.map((p: ProfessorResponse) => ({
+        id: String(p.id), nome: p.nome, email: p.email,
+        status: p.status === "INATIVO" ? "Inativo" as const : "Ativo" as const,
+    }));
 
     function limparFiltros() {
         setBusca("");
@@ -54,7 +45,7 @@ export function ProfessoresListagem() {
         setPaginaAtual(1);
     }
 
-    if (professores === null) {
+    if (loading && pagina.length === 0) {
         return (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
                 <Loader2 className="size-6 animate-spin text-[#0099AA]" />
@@ -131,7 +122,9 @@ export function ProfessoresListagem() {
                 </Button>
             </div>
 
-            {pagina.length === 0 ? (
+            {error ? (
+                <div role="alert" className="rounded-[10px] border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+            ) : pagina.length === 0 ? (
                 <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">
                     Nenhum professor encontrado.
                 </div>
@@ -166,8 +159,8 @@ export function ProfessoresListagem() {
             )}
 
             <Pagination
-                totalItems={filtrados.length}
-                currentPage={paginaSegura}
+                totalItems={totalElements}
+                currentPage={paginaAtual}
                 itemsPerPage={itensPorPagina}
                 onPageChange={setPaginaAtual}
                 onItemsPerPageChange={(n) => {

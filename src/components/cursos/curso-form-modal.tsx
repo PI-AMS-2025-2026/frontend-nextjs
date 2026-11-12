@@ -99,7 +99,6 @@ function CursoFormConteudo({
                         options={[
                             { label: "Semestral", value: "Semestral" },
                             { label: "Anual", value: "Anual" },
-                            { label: "Trimestral", value: "Trimestral" },
                         ]}
                         value={periodicidade}
                         onChange={(v) => {
@@ -113,12 +112,14 @@ function CursoFormConteudo({
                 <Input
                     label="Duração"
                     showLabel
+                    type="number"
+                    min={2}
                     value={duracao}
                     onChange={(e) => {
                         setDuracao(e.target.value);
                         setErro("");
                     }}
-                    placeholder="Ex: 3 anos"
+                    placeholder="Informe a duração"
                 />
             </div>
 

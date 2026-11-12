@@ -2,28 +2,27 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Plus, Pencil, CheckCircle2, XCircle, ArrowLeft, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/input";
 import { DataTable } from "@/components/ui/table";
 import { TableFilterHead } from "@/components/ui/table-filter-head";
-import { TableSortHead } from "@/components/ui/table-sort-head";
 import { Pagination } from "@/components/ui/pagination";
 import { Modal } from "@/components/ui/modal";
 
 import { DisciplinaFormModal } from "@/components/disciplinas/disciplina-form-modal";
+import { disciplinasService } from "@/services/disciplinas.service";
+import { cursosService } from "@/services/cursos.service";
+import { tiposSalaService } from "@/services/tipos-sala.service";
+import { useRemotePage } from "@/hooks/use-remote-page";
+import type { DisciplinaResponse, CursoResponse, TipoSalaResponse, ListDisciplinaParams, DisciplinaRequest } from "@/types/api";
 
 import {
-    carregarDisciplinasSalvas,
     CORES_DISCIPLINA,
-    CURSOS_DISPONIVEIS,
-    gerarDisciplinasMock,
-    salvarDisciplinas,
     type Disciplina,
     type Modalidade,
     type Periodo,
-    type StatusDisciplina,
     type TipoDisciplina,
     type TipoSala,
 } from "@/lib/disciplinas";
@@ -34,34 +33,34 @@ type DadosDisciplina = {
     tipo: TipoDisciplina;
     periodo: Periodo;
     modalidade: Modalidade;
-    codigo: number;
+    codigo: string;
     cor: string;
     cursoVinculado: string;
-    tipoSala: TipoSala;
-    status: StatusDisciplina;
+    tipoSala: string;
 };
 
-type CampoOrdenavel = "nome" | "cargaHoraria" | "codigo";
-
 export function DisciplinasListagem() {
-    const [disciplinas, setDisciplinas] = React.useState<Disciplina[] | null>(null);
+    const [cursosApi, setCursosApi] = React.useState<CursoResponse[]>([]);
+    const [tiposSalaApi, setTiposSalaApi] = React.useState<TipoSalaResponse[]>([]);
+    const [refreshKey, setRefreshKey] = React.useState(0);
+    const [erro, setErro] = React.useState<string | null>(null);
 
     React.useEffect(() => {
-        const salvas = carregarDisciplinasSalvas();
-        setDisciplinas(salvas ?? gerarDisciplinasMock());
+        let ativo = true;
+        void Promise.all([
+            cursosService.listar({ page: 0, size: 1000 }),
+            tiposSalaService.listar(),
+        ]).then(([cursos, tipos]) => {
+            if (!ativo) return;
+            setCursosApi(cursos.content);
+            setTiposSalaApi(tipos);
+        }).catch((cause: unknown) => {
+            if (ativo) setErro(cause instanceof Error ? cause.message : "Não foi possível carregar as opções de curso e sala.");
+        });
+        return () => { ativo = false; };
     }, []);
 
-    React.useEffect(() => {
-        if (disciplinas === null) return;
-        salvarDisciplinas(disciplinas);
-    }, [disciplinas]);
-
     const [busca, setBusca] = React.useState("");
-
-    const [ordem, setOrdem] = React.useState<{
-        campo: CampoOrdenavel | null;
-        direcao: "asc" | "desc";
-    }>({ campo: null, direcao: "asc" });
 
     const [fTipo, setFTipo] = React.useState("");
     const [fPeriodo, setFPeriodo] = React.useState("");
@@ -69,10 +68,30 @@ export function DisciplinasListagem() {
     const [fCor, setFCor] = React.useState("");
     const [fCurso, setFCurso] = React.useState("");
     const [fTipoSala, setFTipoSala] = React.useState("");
-    const [fStatus, setFStatus] = React.useState("");
 
     const [itensPorPagina, setItensPorPagina] = React.useState(10);
     const [paginaAtual, setPaginaAtual] = React.useState(1);
+    const carregarPagina = React.useCallback((params: ListDisciplinaParams & { page: number; size: number }) => disciplinasService.listar(params), []);
+    const filtrosApi: ListDisciplinaParams = {
+        busca: busca.trim(),
+        tipo_disciplina: fTipo || undefined,
+        periodo: fPeriodo ? Number(fPeriodo) : undefined,
+        modalidade: fModalidade || undefined,
+        cor: fCor || undefined,
+        curso: fCurso ? Number(fCurso) : undefined,
+        tipo_sala: fTipoSala ? Number(fTipoSala) : undefined,
+    };
+    const { content: disciplinasApi, totalElements, loading, error: erroCarga } = useRemotePage(
+        carregarPagina, filtrosApi, paginaAtual, itensPorPagina, refreshKey,
+    );
+    const disciplinas: Disciplina[] = disciplinasApi.map((d: DisciplinaResponse) => ({
+        id: String(d.id), nome: d.nome, cargaHoraria: d.cargaHoraria,
+        tipo: d.tipoDisciplina as TipoDisciplina, periodo: String(d.periodo),
+        modalidade: d.modalidade as Modalidade, codigo: d.codDisciplina,
+        cor: d.cor ?? "#0099AA", cursoVinculado: d.curso.nome,
+        tipoSala: d.tipoSala.nome as TipoSala,
+    }));
+    const pagina = disciplinas;
 
     const [cadastrarAberto, setCadastrarAberto] = React.useState(false);
     const [editarAberto, setEditarAberto] = React.useState(false);
@@ -92,16 +111,8 @@ export function DisciplinasListagem() {
         };
     }
 
-    function ordenar(campo: CampoOrdenavel) {
-        return (direcao: "asc" | "desc") => {
-            setOrdem({ campo, direcao });
-            setPaginaAtual(1);
-        };
-    }
-
     const temFiltro =
-        !!busca || !!fTipo || !!fPeriodo || !!fModalidade || !!fCor || !!fCurso ||
-        !!fTipoSala || !!fStatus || ordem.campo !== null;
+        !!busca || !!fTipo || !!fPeriodo || !!fModalidade || !!fCor || !!fCurso || !!fTipoSala;
 
     function limparTudo() {
         setBusca("");
@@ -111,89 +122,48 @@ export function DisciplinasListagem() {
         setFCor("");
         setFCurso("");
         setFTipoSala("");
-        setFStatus("");
-        setOrdem({ campo: null, direcao: "asc" });
         setPaginaAtual(1);
     }
 
-    const filtradas = React.useMemo(() => {
-        if (disciplinas === null) return [];
-        const b = busca.trim().toLowerCase();
-
-        let resultado = disciplinas.filter((d) => {
-            const buscaOk =
-                !b ||
-                d.nome.toLowerCase().includes(b) ||
-                d.cursoVinculado.toLowerCase().includes(b) ||
-                String(d.codigo).includes(b);
-
-            return (
-                buscaOk &&
-                (!fTipo || d.tipo === fTipo) &&
-                (!fPeriodo || d.periodo === fPeriodo) &&
-                (!fModalidade || d.modalidade === fModalidade) &&
-                (!fCor || d.cor === fCor) &&
-                (!fCurso || d.cursoVinculado === fCurso) &&
-                (!fTipoSala || d.tipoSala === fTipoSala) &&
-                (!fStatus || d.status === fStatus)
-            );
-        });
-
-        if (ordem.campo) {
-            const campo = ordem.campo;
-            resultado = [...resultado].sort((a, b2) => {
-                const va = a[campo];
-                const vb = b2[campo];
-                const cmp =
-                    typeof va === "number" && typeof vb === "number"
-                        ? va - vb
-                        : String(va).localeCompare(String(vb));
-                return ordem.direcao === "asc" ? cmp : -cmp;
-            });
-        }
-
-        return resultado;
-    }, [
-        disciplinas,
-        busca,
-        ordem,
-        fTipo,
-        fPeriodo,
-        fModalidade,
-        fCor,
-        fCurso,
-        fTipoSala,
-        fStatus,
-    ]);
-
-    const totalPaginas = Math.max(1, Math.ceil(filtradas.length / itensPorPagina));
-    const paginaSegura = Math.min(paginaAtual, totalPaginas);
-    const inicioIndice = (paginaSegura - 1) * itensPorPagina;
-    const pagina = filtradas.slice(inicioIndice, inicioIndice + itensPorPagina);
-
-    function confirmarCadastro(dados: DadosDisciplina) {
-        setDisciplinas((prev) => [...(prev ?? []), { id: crypto.randomUUID(), ...dados }]);
-        setCadastrarAberto(false);
-        setSucesso("Disciplina criada com sucesso!");
+    function requestDisciplina(dados: DadosDisciplina): DisciplinaRequest {
+        const curso = cursosApi.find((item) => item.nome === dados.cursoVinculado);
+        const tipoSala = tiposSalaApi.find((item) => item.nome === dados.tipoSala);
+        if (!curso || !tipoSala) throw new Error("Selecione um curso e um tipo de sala válidos.");
+        return {
+            nome: dados.nome, cargaHoraria: dados.cargaHoraria,
+            tipoDisciplina: dados.tipo, periodo: Number(dados.periodo),
+            modalidade: dados.modalidade, codDisciplina: dados.codigo,
+            cor: dados.cor, curso: { id: curso.id }, tipoSala: { id: tipoSala.id },
+        };
     }
 
-    function confirmarEdicao(dados: DadosDisciplina) {
+    async function confirmarCadastro(dados: DadosDisciplina) {
+        try {
+            setErro(null);
+            await disciplinasService.criar(requestDisciplina(dados));
+            setPaginaAtual(1); setRefreshKey((key) => key + 1);
+            setCadastrarAberto(false); setSucesso("Disciplina criada com sucesso!");
+        } catch (cause) { setErro(cause instanceof Error ? cause.message : "Não foi possível cadastrar a disciplina."); }
+    }
+
+    async function confirmarEdicao(dados: DadosDisciplina) {
         if (!selecionada) return;
-        setDisciplinas((prev) =>
-            (prev ?? []).map((d) => (d.id === selecionada.id ? { ...d, ...dados } : d))
-        );
-        setEditarAberto(false);
-        setSelecionada(null);
-        setSucesso("Disciplina editada com sucesso!");
+        try {
+            setErro(null);
+            await disciplinasService.atualizar(Number(selecionada.id), requestDisciplina(dados));
+            setRefreshKey((key) => key + 1);
+            setEditarAberto(false); setSelecionada(null); setSucesso("Disciplina editada com sucesso!");
+        } catch (cause) { setErro(cause instanceof Error ? cause.message : "Não foi possível editar a disciplina."); }
     }
 
-    if (disciplinas === null) {
-        return (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
-                <Loader2 className="size-6 animate-spin text-[#0099AA]" />
-                <span className="text-sm text-[#17264D]/70">Carregando disciplinas...</span>
-            </div>
-        );
+    async function excluirDisciplina(disciplina: Disciplina) {
+        if (!window.confirm(`Deseja deletar a disciplina "${disciplina.nome}"?`)) return;
+        try {
+            setErro(null);
+            await disciplinasService.deletar(Number(disciplina.id));
+            setPaginaAtual(1); setRefreshKey((key) => key + 1);
+            setSucesso("Disciplina deletada com sucesso!");
+        } catch (cause) { setErro(cause instanceof Error ? cause.message : "Não foi possível deletar a disciplina."); }
     }
 
     return (
@@ -289,11 +259,7 @@ export function DisciplinasListagem() {
                                     label="Período"
                                     value={fPeriodo}
                                     onChange={filtrar(setFPeriodo)}
-                                    options={[
-                                        { label: "Manhã", value: "Manhã" },
-                                        { label: "Tarde", value: "Tarde" },
-                                        { label: "Noite", value: "Noite" },
-                                    ]}
+                                    options={Array.from({ length: 12 }, (_, index) => ({ label: `${index + 1}º período`, value: String(index + 1) }))}
                                 />
                             ),
                         },
@@ -345,9 +311,9 @@ export function DisciplinasListagem() {
                                     label="Curso vinculado"
                                     value={fCurso}
                                     onChange={filtrar(setFCurso)}
-                                    options={CURSOS_DISPONIVEIS.map((c) => ({
-                                        label: c,
-                                        value: c,
+                                    options={cursosApi.map((curso) => ({
+                                        label: curso.nome,
+                                        value: String(curso.id),
                                     }))}
                                 />
                             ),
@@ -359,38 +325,9 @@ export function DisciplinasListagem() {
                                     label="Tipo de sala"
                                     value={fTipoSala}
                                     onChange={filtrar(setFTipoSala)}
-                                    options={[
-                                        { label: "Laboratório", value: "Laboratório" },
-                                        { label: "Sala", value: "Sala" },
-                                    ]}
+                                    options={tiposSalaApi.map((tipo) => ({ label: tipo.nome, value: String(tipo.id) }))}
                                 />
                             ),
-                        },
-                        {
-                            key: "status",
-                            label: (
-                                <TableFilterHead
-                                    label="Status"
-                                    value={fStatus}
-                                    onChange={filtrar(setFStatus)}
-                                    options={[
-                                        { label: "Ativo", value: "Ativo" },
-                                        { label: "Inativo", value: "Inativo" },
-                                    ]}
-                                />
-                            ),
-                            render: (d) =>
-                                d.status === "Ativo" ? (
-                                    <span className="flex items-center gap-1.5 font-medium text-emerald-600">
-                                        <CheckCircle2 className="size-4" />
-                                        Ativo
-                                    </span>
-                                ) : (
-                                    <span className="flex items-center gap-1.5 font-medium text-[#BA1A1A]">
-                                        <XCircle className="size-4" />
-                                        Inativo
-                                    </span>
-                                ),
                         },
                     ]}
                     actions={[
@@ -402,13 +339,22 @@ export function DisciplinasListagem() {
                                 setEditarAberto(true);
                             },
                         },
+                        {
+                            label: "Deletar",
+                            icon: <Trash2 className="size-[21px]" strokeWidth={2} />,
+                            className: "text-[#BA1A1A] hover:bg-[#BA1A1A]/10",
+                            onClick: (d) => void excluirDisciplina(d),
+                        },
                     ]}
                 />
             </div>
 
+            {(erro || erroCarga) && <div role="alert" className="rounded-[10px] border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">{erro ?? erroCarga}</div>}
+            {loading && <div className="flex items-center justify-center py-8"><Loader2 className="size-6 animate-spin text-[#0099AA]" /></div>}
+
             <Pagination
-                totalItems={filtradas.length}
-                currentPage={paginaSegura}
+                totalItems={totalElements}
+                currentPage={paginaAtual}
                 itemsPerPage={itensPorPagina}
                 onPageChange={setPaginaAtual}
                 onItemsPerPageChange={(n) => {
@@ -421,6 +367,8 @@ export function DisciplinasListagem() {
                 open={cadastrarAberto}
                 onClose={() => setCadastrarAberto(false)}
                 mode="cadastrar"
+                cursos={cursosApi.map((c) => c.nome)}
+                tiposSala={tiposSalaApi.map((t) => t.nome)}
                 onConfirm={confirmarCadastro}
             />
 
@@ -432,6 +380,8 @@ export function DisciplinasListagem() {
                 }}
                 mode="editar"
                 disciplina={selecionada}
+                cursos={cursosApi.map((c) => c.nome)}
+                tiposSala={tiposSalaApi.map((t) => t.nome)}
                 onConfirm={confirmarEdicao}
             />
 
@@ -440,6 +390,12 @@ export function DisciplinasListagem() {
                 onClose={() => setSucesso(null)}
                 type="success"
                 message={sucesso ?? ""}
+            />
+            <Modal
+                open={erro !== null}
+                onClose={() => setErro(null)}
+                type="error"
+                message={erro ?? ""}
             />
         </div>
     );

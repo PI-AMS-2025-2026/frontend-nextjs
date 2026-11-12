@@ -3,29 +3,31 @@
 import * as React from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
-import { Input, DateInput } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
-    CURSOS_DISPONIVEIS,
-    PERIODOS_LETIVOS,
     type GradeHoraria,
     type StatusGrade,
 } from "@/lib/grade-horaria";
 
 interface GradeFormValues {
     versao: number;
-    dataCriacao: string;
-    cursoVinculado: string;
-    periodoLetivo: string;
+    cursoId: string;
+    periodoAtividadeQuadroId: string;
     status: StatusGrade;
 }
+
+export interface GradeCursoOpcao { id: string; nome: string }
+export interface GradePeriodoOpcao { id: string; label: string }
 
 interface GradeFormModalProps {
     open: boolean;
     onClose: () => void;
     mode: "cadastrar" | "editar";
     grade?: GradeHoraria | null;
+    cursos: GradeCursoOpcao[];
+    periodos: GradePeriodoOpcao[];
     onConfirm: (dados: GradeFormValues) => void;
 }
 
@@ -34,6 +36,8 @@ export function GradeFormModal({
     onClose,
     mode,
     grade,
+    cursos,
+    periodos,
     onConfirm,
 }: GradeFormModalProps) {
     return (
@@ -42,6 +46,8 @@ export function GradeFormModal({
                 key={grade?.id ?? "novo"}
                 mode={mode}
                 grade={grade}
+                cursos={cursos}
+                periodos={periodos}
                 onCancel={onClose}
                 onConfirm={onConfirm}
             />
@@ -52,19 +58,22 @@ export function GradeFormModal({
 function GradeFormConteudo({
     mode,
     grade,
+    cursos,
+    periodos,
     onCancel,
     onConfirm,
 }: {
     mode: "cadastrar" | "editar";
     grade?: GradeHoraria | null;
+    cursos: GradeCursoOpcao[];
+    periodos: GradePeriodoOpcao[];
     onCancel: () => void;
     onConfirm: (dados: GradeFormValues) => void;
 }) {
     const [valores, setValores] = React.useState<GradeFormValues>({
         versao: grade?.versao ?? 0,
-        dataCriacao: grade?.dataCriacao ?? "",
-        cursoVinculado: grade?.cursoVinculado ?? "",
-        periodoLetivo: grade?.periodoLetivo ?? "",
+        cursoId: grade?.cursoId ?? "",
+        periodoAtividadeQuadroId: grade?.periodoAtividadeQuadroId ?? "",
         status: grade?.status ?? "Ativo",
     });
     const [erro, setErro] = React.useState("");
@@ -78,7 +87,7 @@ function GradeFormConteudo({
     }
 
     function handleConfirmar() {
-        if (!valores.dataCriacao || !valores.cursoVinculado || !valores.periodoLetivo) {
+        if (!valores.cursoId || !valores.periodoAtividadeQuadroId) {
             setErro("Preencha todos os campos obrigatórios.");
             return;
         }
@@ -99,19 +108,12 @@ function GradeFormConteudo({
                     onChange={(e) => atualizar("versao", Number(e.target.value))}
                 />
 
-                <DateInput
-                    label="Data de Criação"
-                    showLabel
-                    value={valores.dataCriacao}
-                    onChange={(e) => atualizar("dataCriacao", e.target.value)}
-                />
-
                 <div className="flex flex-col gap-2">
                     <label className="text-sm font-medium text-[#17264D]">Curso Vinculado</label>
                     <Select
-                        options={CURSOS_DISPONIVEIS.map((c) => ({ label: c, value: c }))}
-                        value={valores.cursoVinculado}
-                        onChange={(v) => atualizar("cursoVinculado", v)}
+                        options={cursos.map((curso) => ({ label: curso.nome, value: curso.id }))}
+                        value={valores.cursoId}
+                        onChange={(v) => atualizar("cursoId", v)}
                         placeholder="Selecione..."
                     />
                 </div>
@@ -119,9 +121,9 @@ function GradeFormConteudo({
                 <div className="flex flex-col gap-2">
                     <label className="text-sm font-medium text-[#17264D]">Período Letivo</label>
                     <Select
-                        options={PERIODOS_LETIVOS.map((p) => ({ label: p, value: p }))}
-                        value={valores.periodoLetivo}
-                        onChange={(v) => atualizar("periodoLetivo", v)}
+                        options={periodos.map((periodo) => ({ label: periodo.label, value: periodo.id }))}
+                        value={valores.periodoAtividadeQuadroId}
+                        onChange={(v) => atualizar("periodoAtividadeQuadroId", v)}
                         placeholder="Selecione..."
                     />
                 </div>

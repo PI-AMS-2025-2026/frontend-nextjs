@@ -61,6 +61,7 @@ export interface TurmaRequest {
   ano: number;
   numeroAlunos: number;
   curso: LongDTO;
+  status: Status;
 }
 export interface TurmaResponse {
   id: Id;
@@ -300,18 +301,23 @@ export interface ListTurmaParams {
   ano?: number;
   periodo?: number;
   codigo?: string;
+  busca?: string;
+  status?: Status;
   page?: number;
   size?: number;
 }
 export interface ListSalaParams {
   tipo_sala?: Id;
   capacidade?: number;
+  codigo?: string;
+  busca?: string;
   page?: number;
   size?: number;
 }
 export interface ListRecursoParams {
   nome?: string;
   tipo_recurso?: Id;
+  busca?: string;
   page?: number;
   size?: number;
 }
@@ -325,6 +331,9 @@ export interface ListQuadroHorarioParams {
   curso?: Id;
   periodo_atividade_quadro?: Id;
   status?: Status;
+  versao?: number;
+  data_criacao?: DateOnly;
+  busca?: string;
   page?: number;
   size?: number;
 }
@@ -333,12 +342,16 @@ export interface ListProfessorParams {
   email?: string;
   cidade?: string;
   status?: Status;
+  busca?: string;
   page?: number;
   size?: number;
 }
 export interface ListProfessorDisciplinaParams {
   usuario?: Id;
   disciplina?: Id;
+  professor_nome?: string;
+  disciplina_nome?: string;
+  busca?: string;
   page?: number;
   size?: number;
 }
@@ -362,6 +375,11 @@ export interface ListDisciplinaParams {
   nome?: string;
   curso?: Id;
   tipo_sala?: Id;
+  tipo_disciplina?: string;
+  periodo?: number;
+  modalidade?: string;
+  cor?: string;
+  busca?: string;
   page?: number;
   size?: number;
 }
@@ -370,6 +388,7 @@ export interface ListCursoParams {
   periodicidade?: string;
   status?: Status;
   duracao?: number;
+  busca?: string;
   page?: number;
   size?: number;
 }
@@ -377,6 +396,7 @@ export interface ListBlocoHorarioParams {
   hora_inicio?: string;
   hora_fim?: string;
   duracao?: number;
+  busca?: string;
   page?: number;
   size?: number;
 }
