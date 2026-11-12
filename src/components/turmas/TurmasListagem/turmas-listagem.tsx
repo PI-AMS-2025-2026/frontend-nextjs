@@ -12,15 +12,14 @@ import { TableFilterHead } from "@/components/ui/table-filter-head";
 import { Pagination } from "@/components/ui/pagination";
 import { Modal } from "@/components/ui/modal";
 import { turmasService } from "@/services/turmas.service";
-import { cursosService } from "@/services/cursos.service";
-import { ApiError } from "@/lib/api";
-import { useRemotePage } from "@/hooks/use-remote-page";
 import type { TurmaRequest, TurmaResponse } from "@/types/api";
-import type { ListTurmaParams } from "@/types/api";
 
-import { TurmaFormModal, type CursoOpcao } from "../TurmaFormModal/turma-form-modal";
+import { TurmaFormModal } from "../TurmaFormModal/turma-form-modal";
 
 import {
+    carregarTurmasSalvas,
+    gerarTurmasMock,
+    salvarTurmas,
     PERIODOS,
     ANOS,
     type Turma,
@@ -31,28 +30,49 @@ function converterTurma(t: TurmaResponse): Turma {
     return {
         id: String(t.id),
         periodo: String(t.periodo),
-        periodoId: String(t.periodo),
         curso: t.curso.nome,
-        cursoId: String(t.curso.id),
         qtdAlunos: t.numeroAlunos,
         ano: t.ano,
-        status: t.status === "INATIVO" ? "Inativo" : "Ativo",
+        status: "Ativo",
     };
 }
 
 export function TurmasListagem() {
-    const [cursos, setCursos] = React.useState<CursoOpcao[]>([]);
-    const [refreshKey, setRefreshKey] = React.useState(0);
+    const [turmas, setTurmas] = React.useState<Turma[] | null>(null);
 
     React.useEffect(() => {
         let ativo = true;
-        void cursosService.listar({ page: 0, size: 1000 }).then((resposta) => {
-            if (ativo) setCursos(resposta.content.map((curso) => ({ id: String(curso.id), nome: curso.nome, duracao: curso.duracao })));
-        }).catch((erro: unknown) => {
-            console.error("Erro ao carregar cursos:", erro);
-        });
-        return () => { ativo = false; };
+
+    async function carregarTurmas() {
+        try {
+            const resposta = await turmasService.listar({
+                page: 0,
+                size: 100,
+            });
+
+            if (ativo) {
+                setTurmas(resposta.content.map(converterTurma));
+            }
+        } catch (erro) {
+            console.error("Erro ao carregar turmas:", erro);
+
+            if (ativo) {
+                setTurmas([]);
+            }
+        }
+    }
+
+    carregarTurmas();
+
+    return () => {
+        ativo = false;
+    };
     }, []);
+
+    React.useEffect(() => {
+        if (turmas === null) return;
+        salvarTurmas(turmas);
+    }, [turmas]);
 
     const [busca, setBusca] = React.useState("");
     const [fPeriodo, setFPeriodo] = React.useState("");
@@ -66,26 +86,6 @@ export function TurmasListagem() {
     const [editarAberto, setEditarAberto] = React.useState(false);
     const [selecionada, setSelecionada] = React.useState<Turma | null>(null);
     const [sucesso, setSucesso] = React.useState<string | null>(null);
-    const [mensagemErro, setMensagemErro] = React.useState<string | null>(null);
-
-    const carregarPagina = React.useCallback((params: ListTurmaParams & { page: number; size: number }) =>
-        turmasService.listar(params), []);
-    const filtrosApi: ListTurmaParams = {
-        busca: busca.trim(),
-        periodo: fPeriodo ? Number(fPeriodo) : undefined,
-        ano: fAno ? Number(fAno) : undefined,
-        status: fStatus === "Ativo" ? "ATIVO" : fStatus === "Inativo" ? "INATIVO" : undefined,
-    };
-    const { content: turmasApi, totalElements, loading, error: erroCarga } = useRemotePage(
-        carregarPagina, filtrosApi, paginaAtual, itensPorPagina, refreshKey,
-    );
-    const turmas = turmasApi.map(converterTurma);
-
-    function obterMensagemErro(erro: unknown) {
-        if (erro instanceof ApiError) return erro.message;
-        if (erro instanceof Error) return erro.message;
-        return "Não foi possível concluir a operação. Tente novamente.";
-    }
 
     React.useEffect(() => {
         if (!sucesso) return;
@@ -93,7 +93,27 @@ export function TurmasListagem() {
         return () => clearTimeout(timer);
     }, [sucesso]);
 
-    const pagina = turmas;
+    const filtradas = React.useMemo(() => {
+        if (turmas === null) return [];
+        const b = busca.trim().toLowerCase();
+
+        return turmas.filter((t) => {
+            const buscaOk =
+                !b ||
+                t.curso.toLowerCase().includes(b) ||
+                t.periodo.toLowerCase().includes(b) ||
+                String(t.ano).includes(b);
+            const periodoOk = !fPeriodo || t.periodo === fPeriodo;
+            const anoOk = !fAno || String(t.ano) === fAno;
+            const statusOk = !fStatus || t.status === fStatus;
+            return buscaOk && periodoOk && anoOk && statusOk;
+        });
+    }, [turmas, busca, fPeriodo, fAno, fStatus]);
+
+    const totalPaginas = Math.max(1, Math.ceil(filtradas.length / itensPorPagina));
+    const paginaSegura = Math.min(paginaAtual, totalPaginas);
+    const inicioIndice = (paginaSegura - 1) * itensPorPagina;
+    const pagina = filtradas.slice(inicioIndice, inicioIndice + itensPorPagina);
 
     async function confirmarCadastro(dados: {
     periodo: string;
@@ -102,25 +122,29 @@ export function TurmasListagem() {
     ano: number;
     status: Status;
 }) {
-    setMensagemErro(null);
     try {
         const dadosApi: TurmaRequest = {
             periodo: Number(dados.periodo),
             ano: dados.ano,
             numeroAlunos: dados.qtdAlunos,
-            curso: { id: Number(dados.curso) },
-            status: dados.status === "Inativo" ? "INATIVO" : "ATIVO",
+            curso: {
+                id: Number(dados.curso),
+            },
         };
 
         await turmasService.criar(dadosApi);
 
-        setPaginaAtual(1);
-        setRefreshKey((key) => key + 1);
+        const resposta = await turmasService.listar({
+            page: 0,
+            size: 100,
+        });
+
+        setTurmas(resposta.content.map(converterTurma));
 
         setCadastrarAberto(false);
         setSucesso("Turma cadastrada com sucesso!");
     } catch (erro) {
-        setMensagemErro(obterMensagemErro(erro));
+        console.error("Erro ao cadastrar turma:", erro);
     }
 }
 
@@ -133,14 +157,14 @@ export function TurmasListagem() {
 }) {
     if (!selecionada) return;
 
-    setMensagemErro(null);
     try {
         const dadosApi: TurmaRequest = {
             periodo: Number(dados.periodo),
             ano: dados.ano,
             numeroAlunos: dados.qtdAlunos,
-            curso: { id: Number(dados.curso) },
-            status: dados.status === "Inativo" ? "INATIVO" : "ATIVO",
+            curso: {
+                id: Number(dados.curso),
+            },
         };
 
         await turmasService.atualizar(
@@ -148,14 +172,18 @@ export function TurmasListagem() {
             dadosApi
         );
 
-        setPaginaAtual(1);
-        setRefreshKey((key) => key + 1);
+        const resposta = await turmasService.listar({
+            page: 0,
+            size: 100,
+        });
+
+        setTurmas(resposta.content.map(converterTurma));
 
         setEditarAberto(false);
         setSelecionada(null);
         setSucesso("Turma editada com sucesso!");
     } catch (erro) {
-        setMensagemErro(obterMensagemErro(erro));
+        console.error("Erro ao editar turma:", erro);
     }
 }
 
@@ -232,7 +260,7 @@ export function TurmasListagem() {
                     getRowKey={(t) => t.id}
                     columns={[
                         { key: "id", label: "ID", headerClassName: "min-w-[80px]" },
-                        { key: "periodo", label: "Período", headerClassName: "min-w-[140px]", render: (t) => `${t.periodo}º período` },
+                        { key: "periodo", label: "Período", headerClassName: "min-w-[140px]" },
                         { key: "ano", label: "Ano", headerClassName: "min-w-[100px]" },
                         { key: "qtdAlunos", label: "Qtd. Alunos", headerClassName: "min-w-[120px]" },
                         { key: "curso", label: "Curso", headerClassName: "min-w-[140px]" },
@@ -279,11 +307,7 @@ export function TurmasListagem() {
                     ]}
                 />
 
-                {loading ? (
-                    <p className="py-10 text-center text-sm text-[#17264D]/70">Carregando turmas...</p>
-                ) : erroCarga ? (
-                    <p role="alert" className="py-10 text-center text-sm text-red-700">{erroCarga}</p>
-                ) : pagina.length === 0 && (
+                {pagina.length === 0 && (
                     <p className="py-10 text-center text-sm text-[#17264D]/70">
                         Nenhuma turma encontrada.
                     </p>
@@ -291,8 +315,8 @@ export function TurmasListagem() {
             </div>
 
             <Pagination
-                totalItems={totalElements}
-                currentPage={paginaAtual}
+                totalItems={filtradas.length}
+                currentPage={paginaSegura}
                 itemsPerPage={itensPorPagina}
                 onPageChange={setPaginaAtual}
                 onItemsPerPageChange={(n) => {
@@ -305,7 +329,6 @@ export function TurmasListagem() {
                 open={cadastrarAberto}
                 onClose={() => setCadastrarAberto(false)}
                 mode="cadastrar"
-                cursos={cursos}
                 onConfirm={confirmarCadastro}
             />
 
@@ -316,7 +339,6 @@ export function TurmasListagem() {
                     setSelecionada(null);
                 }}
                 mode="editar"
-                cursos={cursos}
                 turma={selecionada}
                 onConfirm={confirmarEdicao}
             />
@@ -326,13 +348,6 @@ export function TurmasListagem() {
                 onClose={() => setSucesso(null)}
                 type="success"
                 message={sucesso ?? ""}
-            />
-
-            <Modal
-                open={mensagemErro !== null}
-                onClose={() => setMensagemErro(null)}
-                type="error"
-                message={mensagemErro ?? ""}
             />
         </div>
     );

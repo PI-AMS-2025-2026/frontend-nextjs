@@ -6,9 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { type Status, type Turma } from "@/lib/turmas";
-
-export interface CursoOpcao { id: string; nome: string; duracao: number }
+import { PERIODOS, CURSOS, type Status, type Turma } from "@/lib/turmas";
 
 interface DadosTurma {
     periodo: string;
@@ -23,16 +21,17 @@ interface TurmaFormModalProps {
     onClose: () => void;
     mode: "cadastrar" | "editar";
     turma?: Turma | null;
-    cursos: CursoOpcao[];
     onConfirm: (dados: DadosTurma) => void;
 }
+
+const opcoesPeriodo = PERIODOS.map((periodo) => ({ label: periodo, value: periodo }));
+const opcoesCurso = CURSOS.map((curso) => ({ label: curso, value: curso }));
 
 export function TurmaFormModal({
     open,
     onClose,
     mode,
     turma,
-    cursos,
     onConfirm,
 }: TurmaFormModalProps) {
     return (
@@ -41,7 +40,6 @@ export function TurmaFormModal({
                 key={turma?.id ?? "novo"}
                 mode={mode}
                 turma={turma}
-                cursos={cursos}
                 onCancel={onClose}
                 onConfirm={onConfirm}
             />
@@ -52,35 +50,26 @@ export function TurmaFormModal({
 function TurmaFormConteudo({
     mode,
     turma,
-    cursos,
     onCancel,
     onConfirm,
 }: {
     mode: "cadastrar" | "editar";
     turma?: Turma | null;
-    cursos: CursoOpcao[];
     onCancel: () => void;
     onConfirm: (dados: DadosTurma) => void;
 }) {
-    const [periodo, setPeriodo] = React.useState(turma?.periodoId ?? "");
-    const [curso, setCurso] = React.useState(turma?.cursoId ?? "");
+    const [periodo, setPeriodo] = React.useState(turma?.periodo ?? "");
+    const [curso, setCurso] = React.useState(turma?.curso ?? "");
     const [qtdAlunos, setQtdAlunos] = React.useState(turma ? String(turma.qtdAlunos) : "");
     const [ano, setAno] = React.useState(turma ? String(turma.ano) : "");
     const [status, setStatus] = React.useState<Status>(turma?.status ?? "Ativo");
     const [erro, setErro] = React.useState("");
-    const cursoSelecionado = cursos.find((item) => item.id === curso);
+
     const titulo = mode === "cadastrar" ? "Cadastrar Turma" : "Editar Turma";
 
     function handleConfirmar() {
-        if (!periodo.trim()) return setErro("Informe o período.");
-        const periodoNumero = Number(periodo);
-        if (!Number.isInteger(periodoNumero) || periodoNumero <= 0) {
-            return setErro("Informe um período válido, maior que zero.");
-        }
+        if (!periodo) return setErro("Selecione o período.");
         if (!curso) return setErro("Selecione o curso.");
-        if (cursoSelecionado && periodoNumero > cursoSelecionado.duracao) {
-            return setErro(`O período não pode ser maior que a duração do curso (${cursoSelecionado.duracao}).`);
-        }
 
         const qtd = Number(qtdAlunos);
         if (!qtdAlunos.trim() || !Number.isInteger(qtd) || qtd <= 0) {
@@ -107,25 +96,22 @@ function TurmaFormConteudo({
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
-                    <Input
-                        label="Período:"
-                        showLabel
-                        type="number"
-                        min={1}
-                        max={cursoSelecionado?.duracao}
+                    <label className="text-sm font-medium text-[#17264D]">Período:</label>
+                    <Select
+                        options={opcoesPeriodo}
                         value={periodo}
-                        onChange={(e) => {
-                            setPeriodo(e.target.value);
+                        onChange={(valor) => {
+                            setPeriodo(valor);
                             setErro("");
                         }}
-                        placeholder="Ex: 1"
+                        placeholder="Selecione..."
                     />
                 </div>
 
                 <div className="flex flex-col gap-1.5">
                     <label className="text-sm font-medium text-[#17264D]">Curso:</label>
                     <Select
-                        options={cursos.map((item) => ({ label: item.nome, value: item.id }))}
+                        options={opcoesCurso}
                         value={curso}
                         onChange={(valor) => {
                             setCurso(valor);

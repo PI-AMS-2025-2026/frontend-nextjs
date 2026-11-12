@@ -16,7 +16,6 @@ import { ExcluirHorarioModal } from "./excluir-horario-modal";
 import { blocoHorariosService } from "@/services/bloco-horarios.service";
 import type { BlocoHorarioResponse, PageResponse } from "@/types/api";
 import { ApiError } from "@/lib/api";
-import { useDebouncedValue } from "@/hooks/use-remote-page";
 
 export function HorariosListagem() {
     const [pageData, setPageData] = React.useState<PageResponse<BlocoHorarioResponse>>({
@@ -29,7 +28,6 @@ export function HorariosListagem() {
     const [loading, setLoading] = React.useState(true);
 
     const [busca, setBusca] = React.useState("");
-    const buscaDebounced = useDebouncedValue(busca);
     const [filtroInicio, setFiltroInicio] = React.useState("");
     const [filtroFim, setFiltroFim] = React.useState("");
 
@@ -41,28 +39,23 @@ export function HorariosListagem() {
     const [excluirAberto, setExcluirAberto] = React.useState(false);
     const [selecionado, setSelecionado] = React.useState<BlocoHorarioResponse | null>(null);
     const [sucesso, setSucesso] = React.useState<string | null>(null);
-    const [erroCarga, setErroCarga] = React.useState<string | null>(null);
-    const sequenciaRequisicao = React.useRef(0);
 
     const carregarHorarios = React.useCallback(async () => {
         setLoading(true);
-        setErroCarga(null);
-        const requisicao = ++sequenciaRequisicao.current;
         try {
             const res = await blocoHorariosService.listar({
                 page: paginaAtual - 1,
                 size: itensPorPagina,
                 hora_inicio: filtroInicio || undefined,
                 hora_fim: filtroFim || undefined,
-                busca: buscaDebounced.trim() || undefined,
             });
-            if (sequenciaRequisicao.current === requisicao) setPageData(res);
+            setPageData(res);
         } catch (err) {
-            if (sequenciaRequisicao.current === requisicao) setErroCarga(err instanceof Error ? err.message : "Não foi possível carregar os horários.");
+            console.error("Erro ao carregar horários:", err);
         } finally {
-            if (sequenciaRequisicao.current === requisicao) setLoading(false);
+            setLoading(false);
         }
-    }, [paginaAtual, itensPorPagina, filtroInicio, filtroFim, buscaDebounced]);
+    }, [paginaAtual, itensPorPagina, filtroInicio, filtroFim]);
 
     React.useEffect(() => {
         carregarHorarios();
@@ -111,7 +104,13 @@ export function HorariosListagem() {
         }
     }
 
-    const exibidos = pageData.content;
+    const exibidos = React.useMemo(() => {
+        if (!busca.trim()) return pageData.content;
+        const b = busca.trim();
+        return pageData.content.filter(
+            (h) => h.horaInicio.includes(b) || h.horaFim.includes(b)
+        );
+    }, [pageData.content, busca]);
 
     return (
         <div className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-6 px-4 py-8 sm:px-6">
@@ -127,7 +126,6 @@ export function HorariosListagem() {
                             value={busca}
                             onChange={(e) => {
                                 setBusca(e.target.value);
-                                setPaginaAtual(1);
                             }}
                         />
                     </div>
@@ -156,9 +154,7 @@ export function HorariosListagem() {
                 }}
             />
 
-            {erroCarga ? (
-                <div role="alert" className="rounded-[10px] border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">{erroCarga}</div>
-            ) : loading ? (
+            {loading ? (
                 <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
                     <Loader2 className="size-6 animate-spin text-[#0099AA]" />
                     <span className="text-sm text-[#17264D]/70">

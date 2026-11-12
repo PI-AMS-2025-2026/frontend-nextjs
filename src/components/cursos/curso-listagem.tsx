@@ -10,20 +10,31 @@ import { DataTable } from "@/components/ui/table";
 import { TableFilters } from "@/components/ui/tablefilters";
 import { Pagination } from "@/components/ui/pagination";
 import { Modal } from "@/components/ui/modal";
-import { cursosService } from "@/services/cursos.service";
-import { ApiError } from "@/lib/api";
-import { useRemotePage } from "@/hooks/use-remote-page";
-import type { CursoResponse, ListCursoParams } from "@/types/api";
 
 import { CursoFormModal } from "@/components/cursos/curso-form-modal";
 
 import {
+    carregarCursosSalvos,
+    gerarCursosMock,
+    salvarCursos,
     type Curso,
     type Periodicidade,
     type StatusCurso,
 } from "@/lib/cursos";
 
 export function CursosListagem() {
+    const [cursos, setCursos] = React.useState<Curso[] | null>(null);
+
+    React.useEffect(() => {
+        const salvos = carregarCursosSalvos();
+        setCursos(salvos ?? gerarCursosMock());
+    }, []);
+
+    React.useEffect(() => {
+        if (cursos === null) return;
+        salvarCursos(cursos);
+    }, [cursos]);
+
     const [busca, setBusca] = React.useState("");
     const [filtroNome, setFiltroNome] = React.useState("");
     const [filtroPeriodicidade, setFiltroPeriodicidade] = React.useState("");
@@ -32,8 +43,6 @@ export function CursosListagem() {
 
     const [itensPorPagina, setItensPorPagina] = React.useState(6);
     const [paginaAtual, setPaginaAtual] = React.useState(1);
-    const [refreshKey, setRefreshKey] = React.useState(0);
-    const [erro, setErro] = React.useState<string | null>(null);
 
     const [cadastrarAberto, setCadastrarAberto] = React.useState(false);
     const [editarAberto, setEditarAberto] = React.useState(false);
@@ -46,60 +55,55 @@ export function CursosListagem() {
         return () => clearTimeout(timer);
     }, [sucesso]);
 
-    const carregarPagina = React.useCallback((params: ListCursoParams & { page: number; size: number }) => cursosService.listar(params), []);
-    const filtrosApi: ListCursoParams = {
-        busca: busca.trim(),
-        nome: filtroNome.trim(),
-        periodicidade: filtroPeriodicidade || undefined,
-        duracao: /^\d+$/.test(filtroDuracao.trim()) ? Number(filtroDuracao) : undefined,
-        status: filtroStatus === "Ativo" ? "ATIVO" : filtroStatus === "Inativo" ? "INATIVO" : undefined,
-    };
-    const { content: cursosApi, totalElements, loading, error: erroCarga } = useRemotePage(
-        carregarPagina, filtrosApi, paginaAtual, itensPorPagina, refreshKey,
-    );
-    const cursos: Curso[] = cursosApi.map((c: CursoResponse) => ({
-        id: String(c.id), nome: c.nome,
-        periodicidade: c.periodicidade as Periodicidade,
-        duracao: String(c.duracao), status: c.status === "INATIVO" ? "Inativo" : "Ativo",
-    }));
-    const pagina = cursos;
+    const filtrados = React.useMemo(() => {
+        if (cursos === null) return [];
+        const b = busca.trim().toLowerCase();
+        const n = filtroNome.trim().toLowerCase();
+        const d = filtroDuracao.trim().toLowerCase();
 
-    function requestCurso(dados: { nome: string; periodicidade: Periodicidade; duracao: string; status: StatusCurso }) {
-        const duracao = Number.parseInt(dados.duracao, 10);
-        if (!Number.isInteger(duracao) || duracao <= 0) throw new Error("Informe a duração como um número inteiro.");
-        return { nome: dados.nome, periodicidade: dados.periodicidade, duracao, status: dados.status === "Ativo" ? "ATIVO" as const : "INATIVO" as const };
-    }
+        return cursos.filter((c) => {
+            const buscaOk = !b || c.nome.toLowerCase().includes(b);
+            const nomeOk = !n || c.nome.toLowerCase().includes(n);
+            const periodicidadeOk =
+                !filtroPeriodicidade || c.periodicidade === filtroPeriodicidade;
+            const duracaoOk = !d || c.duracao.toLowerCase().includes(d);
+            const statusOk = !filtroStatus || c.status === filtroStatus;
+            return buscaOk && nomeOk && periodicidadeOk && duracaoOk && statusOk;
+        });
+    }, [cursos, busca, filtroNome, filtroPeriodicidade, filtroDuracao, filtroStatus]);
 
-    async function confirmarCadastro(dados: {
+    const totalPaginas = Math.max(1, Math.ceil(filtrados.length / itensPorPagina));
+    const paginaSegura = Math.min(paginaAtual, totalPaginas);
+    const inicioIndice = (paginaSegura - 1) * itensPorPagina;
+    const pagina = filtrados.slice(inicioIndice, inicioIndice + itensPorPagina);
+
+    function confirmarCadastro(dados: {
         nome: string;
         periodicidade: Periodicidade;
         duracao: string;
         status: StatusCurso;
     }) {
-        try {
-            setErro(null);
-            await cursosService.criar(requestCurso(dados));
-            setPaginaAtual(1); setRefreshKey((key) => key + 1);
-            setCadastrarAberto(false); setSucesso("Curso cadastrado com sucesso!");
-        } catch (cause) { setErro(cause instanceof ApiError || cause instanceof Error ? cause.message : "Não foi possível cadastrar o curso."); }
+        setCursos((prev) => [...(prev ?? []), { id: crypto.randomUUID(), ...dados }]);
+        setCadastrarAberto(false);
+        setSucesso("Curso cadastrado com sucesso!");
     }
 
-    async function confirmarEdicao(dados: {
+    function confirmarEdicao(dados: {
         nome: string;
         periodicidade: Periodicidade;
         duracao: string;
         status: StatusCurso;
     }) {
         if (!selecionado) return;
-        try {
-            setErro(null);
-            await cursosService.atualizar(Number(selecionado.id), requestCurso(dados));
-            setRefreshKey((key) => key + 1);
-            setEditarAberto(false); setSelecionado(null); setSucesso("Curso editado com sucesso!");
-        } catch (cause) { setErro(cause instanceof ApiError || cause instanceof Error ? cause.message : "Não foi possível editar o curso."); }
+        setCursos((prev) =>
+            (prev ?? []).map((c) => (c.id === selecionado.id ? { ...c, ...dados } : c))
+        );
+        setEditarAberto(false);
+        setSelecionado(null);
+        setSucesso("Curso editado com sucesso!");
     }
 
-    if (loading && pagina.length === 0) {
+    if (cursos === null) {
         return (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
                 <Loader2 className="size-6 animate-spin text-[#0099AA]" />
@@ -167,6 +171,7 @@ export function CursosListagem() {
                         options: [
                             { label: "Semestral", value: "Semestral" },
                             { label: "Anual", value: "Anual" },
+                            { label: "Trimestral", value: "Trimestral" },
                         ],
                     },
                     {
@@ -195,10 +200,7 @@ export function CursosListagem() {
                 }}
             />
 
-            {(erro || erroCarga) && <div role="alert" className="rounded-[10px] border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">{erro ?? erroCarga}</div>}
-            {loading ? (
-                <div className="py-10 text-center text-sm text-[#17264D]/70">Carregando cursos...</div>
-            ) : pagina.length === 0 ? (
+            {pagina.length === 0 ? (
                 <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">
                     Nenhum curso encontrado.
                 </div>
@@ -241,8 +243,8 @@ export function CursosListagem() {
             )}
 
             <Pagination
-                totalItems={totalElements}
-                currentPage={paginaAtual}
+                totalItems={filtrados.length}
+                currentPage={paginaSegura}
                 itemsPerPage={itensPorPagina}
                 onPageChange={setPaginaAtual}
                 onItemsPerPageChange={(n) => {

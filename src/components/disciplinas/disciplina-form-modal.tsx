@@ -6,10 +6,14 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
     CORES_DISCIPLINA,
+    CURSOS_DISPONIVEIS,
     type Disciplina,
     type Modalidade,
+    type Periodo,
+    type StatusDisciplina,
     type TipoDisciplina,
     type TipoSala,
 } from "@/lib/disciplinas";
@@ -18,24 +22,26 @@ interface DadosDisciplina {
     nome: string;
     cargaHoraria: number;
     tipo: TipoDisciplina;
-    periodo: string;
+    periodo: Periodo;
     modalidade: Modalidade;
-    codigo: string;
+    codigo: number;
     cor: string;
     cursoVinculado: string;
-    tipoSala: string;
+    tipoSala: TipoSala;
+    status: StatusDisciplina;
 }
 
 interface FormValues {
     nome: string;
     cargaHoraria: number;
     tipo: TipoDisciplina | "";
-    periodo: string;
+    periodo: Periodo | "";
     modalidade: Modalidade | "";
-    codigo: string;
+    codigo: number;
     cor: string;
     cursoVinculado: string;
-    tipoSala: string;
+    tipoSala: TipoSala | "";
+    status: StatusDisciplina;
 }
 
 interface DisciplinaFormModalProps {
@@ -43,8 +49,6 @@ interface DisciplinaFormModalProps {
     onClose: () => void;
     mode: "cadastrar" | "editar";
     disciplina?: Disciplina | null;
-    cursos: string[];
-    tiposSala: string[];
     onConfirm: (dados: DadosDisciplina) => void;
 }
 
@@ -53,8 +57,6 @@ export function DisciplinaFormModal({
     onClose,
     mode,
     disciplina,
-    cursos,
-    tiposSala,
     onConfirm,
 }: DisciplinaFormModalProps) {
     return (
@@ -63,8 +65,6 @@ export function DisciplinaFormModal({
                 key={disciplina?.id ?? "novo"}
                 mode={mode}
                 disciplina={disciplina}
-                cursos={cursos}
-                tiposSala={tiposSala}
                 onCancel={onClose}
                 onConfirm={onConfirm}
             />
@@ -75,15 +75,11 @@ export function DisciplinaFormModal({
 function DisciplinaFormConteudo({
     mode,
     disciplina,
-    cursos,
-    tiposSala,
     onCancel,
     onConfirm,
 }: {
     mode: "cadastrar" | "editar";
     disciplina?: Disciplina | null;
-    cursos: string[];
-    tiposSala: string[];
     onCancel: () => void;
     onConfirm: (dados: DadosDisciplina) => void;
 }) {
@@ -93,10 +89,11 @@ function DisciplinaFormConteudo({
         tipo: disciplina?.tipo ?? "",
         periodo: disciplina?.periodo ?? "",
         modalidade: disciplina?.modalidade ?? "",
-        codigo: disciplina?.codigo ?? "",
+        codigo: disciplina?.codigo ?? 0,
         cor: disciplina?.cor ?? CORES_DISCIPLINA[0].hex,
         cursoVinculado: disciplina?.cursoVinculado ?? "",
         tipoSala: disciplina?.tipoSala ?? "",
+        status: disciplina?.status ?? "Ativo",
     });
     const [erro, setErro] = React.useState("");
     const [corAberta, setCorAberta] = React.useState(false);
@@ -120,20 +117,12 @@ function DisciplinaFormConteudo({
             setErro("Preencha todos os campos obrigatórios.");
             return;
         }
-        if (!/^\d+$/.test(valores.periodo) || Number(valores.periodo) < 1) {
-            setErro("O período deve ser um número inteiro maior que zero.");
-            return;
-        }
-        if (valores.codigo.trim().length < 3 || valores.codigo.trim().length > 20) {
-            setErro("O código deve ter entre 3 e 20 caracteres.");
-            return;
-        }
 
         onConfirm({
             ...valores,
             nome: valores.nome.trim(),
             tipo: valores.tipo as TipoDisciplina,
-            periodo: valores.periodo,
+            periodo: valores.periodo as Periodo,
             modalidade: valores.modalidade as Modalidade,
             tipoSala: valores.tipoSala as TipoSala,
         });
@@ -159,8 +148,7 @@ function DisciplinaFormConteudo({
                     label="Carga horária"
                     showLabel
                     type="number"
-                    min={20}
-                    max={160}
+                    min={0}
                     value={valores.cargaHoraria}
                     onChange={(e) => atualizar("cargaHoraria", Number(e.target.value))}
                 />
@@ -168,9 +156,10 @@ function DisciplinaFormConteudo({
                 <Input
                     label="Código da disciplina"
                     showLabel
-                    type="text"
+                    type="number"
+                    min={0}
                     value={valores.codigo}
-                    onChange={(e) => atualizar("codigo", e.target.value)}
+                    onChange={(e) => atualizar("codigo", Number(e.target.value))}
                 />
 
                 <div className="flex flex-col gap-2">
@@ -191,12 +180,15 @@ function DisciplinaFormConteudo({
 
                 <div className="flex flex-col gap-2">
                     <label className="text-sm font-medium text-[#17264D]">Período</label>
-                    <Input
-                        type="number"
-                        min={1}
+                    <Select
+                        options={[
+                            { label: "Manhã", value: "Manhã" },
+                            { label: "Tarde", value: "Tarde" },
+                            { label: "Noite", value: "Noite" },
+                        ]}
                         value={valores.periodo}
-                        onChange={(e) => atualizar("periodo", e.target.value)}
-                        placeholder="Ex: 1"
+                        onChange={(v) => atualizar("periodo", v as Periodo)}
+                        placeholder="Selecione..."
                     />
                 </div>
 
@@ -262,7 +254,7 @@ function DisciplinaFormConteudo({
                 <div className="flex flex-col gap-2">
                     <label className="text-sm font-medium text-[#17264D]">Curso vinculado</label>
                     <Select
-                        options={cursos.map((c) => ({ label: c, value: c }))}
+                        options={CURSOS_DISPONIVEIS.map((c) => ({ label: c, value: c }))}
                         value={valores.cursoVinculado}
                         onChange={(v) => atualizar("cursoVinculado", v)}
                         placeholder="Selecione..."
@@ -272,12 +264,36 @@ function DisciplinaFormConteudo({
                 <div className="flex flex-col gap-2">
                     <label className="text-sm font-medium text-[#17264D]">Tipo de sala</label>
                     <Select
-                        options={tiposSala.map((tipo) => ({ label: tipo, value: tipo }))}
+                        options={[
+                            { label: "Laboratório", value: "Laboratório" },
+                            { label: "Sala", value: "Sala" },
+                        ]}
                         value={valores.tipoSala}
-                        onChange={(v) => atualizar("tipoSala", v)}
+                        onChange={(v) => atualizar("tipoSala", v as TipoSala)}
                         placeholder="Selecione..."
                     />
                 </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-[#17264D]">Status</label>
+                <RadioGroup
+                    value={valores.status}
+                    onValueChange={(v) => atualizar("status", v as StatusDisciplina)}
+                >
+                    <div className="flex items-center gap-2">
+                        <RadioGroupItem value="Ativo" id="disc-status-ativo" />
+                        <label htmlFor="disc-status-ativo" className="text-sm text-[#17264D]">
+                            Ativo
+                        </label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <RadioGroupItem value="Inativo" id="disc-status-inativo" />
+                        <label htmlFor="disc-status-inativo" className="text-sm text-[#17264D]">
+                            Inativo
+                        </label>
+                    </div>
+                </RadioGroup>
             </div>
 
             {erro && <p className="text-sm text-[#BA1A1A]">{erro}</p>}

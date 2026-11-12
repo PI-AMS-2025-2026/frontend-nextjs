@@ -1,9 +1,10 @@
 
 
 export type TipoDisciplina = "Teórica" | "Prática" | "50/50";
-export type Periodo = string;
+export type Periodo = "Manhã" | "Tarde" | "Noite";
 export type Modalidade = "Presencial" | "EAD";
 export type TipoSala = "Laboratório" | "Sala";
+export type StatusDisciplina = "Ativo" | "Inativo";
 
 export interface Disciplina {
     id: string;
@@ -12,10 +13,11 @@ export interface Disciplina {
     tipo: TipoDisciplina;
     periodo: Periodo;
     modalidade: Modalidade;
-    codigo: string;
+    codigo: number;
     cor: string;
     cursoVinculado: string;
     tipoSala: TipoSala;
+    status: StatusDisciplina;
 }
 
 export const CORES_DISCIPLINA = [
@@ -58,6 +60,7 @@ export function gerarDisciplinasMock(): Disciplina[] {
 
     for (let ciclo = 0; ciclo < 4; ciclo++) {
         NOMES_BASE.forEach((base, index) => {
+            const status: StatusDisciplina = index % 3 === 1 ? "Inativo" : "Ativo";
             disciplinas.push({
                 id: String(id),
                 nome: base.nome,
@@ -65,10 +68,11 @@ export function gerarDisciplinasMock(): Disciplina[] {
                 tipo: TIPOS[(index + ciclo) % TIPOS.length],
                 periodo: PERIODOS[(index + ciclo) % PERIODOS.length],
                 modalidade: MODALIDADES[(index + ciclo) % MODALIDADES.length],
-                codigo: String(base.codigo + ciclo),
+                codigo: base.codigo + ciclo,
                 cor: CORES_DISCIPLINA[(index + ciclo) % CORES_DISCIPLINA.length].hex,
                 cursoVinculado: CURSOS_DISPONIVEIS[index % CURSOS_DISPONIVEIS.length],
                 tipoSala: TIPOS_SALA[(index + ciclo) % TIPOS_SALA.length],
+                status,
             });
             id++;
         });
