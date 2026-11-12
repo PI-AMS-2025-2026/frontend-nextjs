@@ -1,4 +1,4 @@
-import { TurmasListagem } from "@/components/turmas/turmas-listagem";
+import { TurmasListagem } from "@/components/turmas/TurmasListagem/turmas-listagem";
 
 export default function TurmasPage() {
     return (

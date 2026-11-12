@@ -244,6 +244,7 @@ export interface AlocacaoRequest {
   diaSemana: DiaSemana;
   blocoHorario: LongDTO;
   quadroHorario: LongDTO;
+  justificativaAlteracao?: string;
   usuarioAlteracao: LongDTO;
 }
 export interface AlocacaoResponse {
@@ -277,6 +278,7 @@ export interface RefreshTokenRequest {
 export interface HistoricoVersaoAlocacaoResponse {
   id: Id;
   dataAlteracao: DateOnly;
+  justificativa?: string;
   campoAlterado: string;
   valorAntigo: string;
   valorNovo: string;

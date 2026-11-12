@@ -8,10 +8,13 @@ import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/input";
 import { DataTable } from "@/components/ui/table";
 import { TableFilters } from "@/components/ui/tablefilters";
+import { TableFilterHead } from "@/components/ui/table-filter-head";
 import { Pagination } from "@/components/ui/pagination";
 import { Modal } from "@/components/ui/modal";
+import { turmasService } from "@/services/turmas.service";
+import type { CursoResponse, TurmaRequest, TurmaResponse } from "@/types/api";
 
-import { TurmaFormModal } from "@/components/turmas/turma-form-modal";
+import { TurmaFormModal } from "../TurmaFormModal/turma-form-modal";
 
 import {
     carregarTurmasSalvas,
@@ -22,13 +25,49 @@ import {
     type Turma,
     type Status,
 } from "@/lib/turmas";
+import { Curso } from "@/lib/cursos";
+
+function converterTurma(t: TurmaResponse): Turma {
+    return {
+        id: String(t.id),
+        periodo: String(t.periodo),
+        curso: t.curso.nome,
+        qtdAlunos: t.numeroAlunos,
+        ano: t.ano,
+        status: "Ativo",
+    };
+}
 
 export function TurmasListagem() {
     const [turmas, setTurmas] = React.useState<Turma[] | null>(null);
 
     React.useEffect(() => {
-        const salvas = carregarTurmasSalvas();
-        setTurmas(salvas ?? gerarTurmasMock());
+        let ativo = true;
+
+    async function carregarTurmas() {
+        try {
+            const resposta = await turmasService.listar({
+                page: 0,
+                size: 100,
+            });
+
+            if (ativo) {
+                setTurmas(resposta.content.map(converterTurma));
+            }
+        } catch (erro) {
+            console.error("Erro ao carregar turmas:", erro);
+
+            if (ativo) {
+                setTurmas([]);
+            }
+        }
+    }
+
+    carregarTurmas();
+
+    return () => {
+        ativo = false;
+    };
     }, []);
 
     React.useEffect(() => {
@@ -39,6 +78,7 @@ export function TurmasListagem() {
     const [busca, setBusca] = React.useState("");
     const [fPeriodo, setFPeriodo] = React.useState("");
     const [fAno, setFAno] = React.useState("");
+    const [fStatus, setFStatus] = React.useState("");
 
     const [itensPorPagina, setItensPorPagina] = React.useState(10);
     const [paginaAtual, setPaginaAtual] = React.useState(1);
@@ -66,54 +106,87 @@ export function TurmasListagem() {
                 String(t.ano).includes(b);
             const periodoOk = !fPeriodo || t.periodo === fPeriodo;
             const anoOk = !fAno || String(t.ano) === fAno;
-            return buscaOk && periodoOk && anoOk;
+            const statusOk = !fStatus || t.status === fStatus;
+            return buscaOk && periodoOk && anoOk && statusOk;
         });
-    }, [turmas, busca, fPeriodo, fAno]);
+    }, [turmas, busca, fPeriodo, fAno, fStatus]);
 
     const totalPaginas = Math.max(1, Math.ceil(filtradas.length / itensPorPagina));
     const paginaSegura = Math.min(paginaAtual, totalPaginas);
     const inicioIndice = (paginaSegura - 1) * itensPorPagina;
     const pagina = filtradas.slice(inicioIndice, inicioIndice + itensPorPagina);
 
-    function confirmarCadastro(dados: {
-        periodo: string;
-        curso: string;
-        qtdAlunos: number;
-        ano: number;
-        status: Status;
-    }) {
-        setTurmas((prev) => [
-            ...(prev ?? []),
-            { id: crypto.randomUUID(), ...dados },
-        ]);
+    async function confirmarCadastro(dados: {
+    periodo: string;
+    curso: CursoResponse;
+    qtdAlunos: number;
+    ano: number;
+    status: Status;
+}) {
+    try {
+        const dadosApi: TurmaRequest = {
+            periodo: Number(dados.periodo),
+            ano: dados.ano,
+            numeroAlunos: dados.qtdAlunos,
+            curso: {
+                id: dados.curso.id,
+            },
+        };
+
+        await turmasService.criar(dadosApi);
+
+        const resposta = await turmasService.listar({
+            page: 0,
+            size: 100,
+        });
+
+        setTurmas(resposta.content.map(converterTurma));
+
         setCadastrarAberto(false);
         setSucesso("Turma cadastrada com sucesso!");
+    } catch (erro) {
+        console.error("Erro ao cadastrar turma:", erro);
     }
+}
 
-    function confirmarEdicao(dados: {
-        periodo: string;
-        curso: string;
-        qtdAlunos: number;
-        ano: number;
-        status: Status;
-    }) {
-        if (!selecionada) return;
-        setTurmas((prev) =>
-            (prev ?? []).map((t) => (t.id === selecionada.id ? { ...t, ...dados } : t))
+   async function confirmarEdicao(dados: {
+    periodo: string;
+    curso: CursoResponse;
+    qtdAlunos: number;
+    ano: number;
+    status: Status;
+}) {
+    if (!selecionada) return;
+
+    try {
+        const dadosApi: TurmaRequest = {
+            periodo: Number(dados.periodo),
+            ano: dados.ano,
+            numeroAlunos: dados.qtdAlunos,
+            curso: {
+                id: Number(dados.curso),
+            },
+        };
+
+        await turmasService.atualizar(
+            Number(selecionada.id),
+            dadosApi
         );
+
+        const resposta = await turmasService.listar({
+            page: 0,
+            size: 100,
+        });
+
+        setTurmas(resposta.content.map(converterTurma));
+
         setEditarAberto(false);
         setSelecionada(null);
         setSucesso("Turma editada com sucesso!");
+    } catch (erro) {
+        console.error("Erro ao editar turma:", erro);
     }
-
-    if (turmas === null) {
-        return (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
-                <Loader2 className="size-6 animate-spin text-[#0099AA]" />
-                <span className="text-sm text-[#17264D]/70">Carregando turmas...</span>
-            </div>
-        );
-    }
+}
 
     return (
         <div className="mx-auto flex w-full max-w-[1100px] min-w-0 flex-1 flex-col gap-6 px-6 py-8">
@@ -127,7 +200,7 @@ export function TurmasListagem() {
                         <ArrowLeft className="size-6" />
                     </Link>
                     <div>
-                        <h1 className="text-3xl font-bold text-[#17264D]">Turmas</h1>
+                        <h1 className="text-3xl font-bold text-[#17264D]">Listagem de Turmas</h1>
                         <p className="text-sm text-[#17264D]/70">
                             Gerencie as turmas da instituição
                         </p>
@@ -179,53 +252,68 @@ export function TurmasListagem() {
                     setFAno(f.ano ?? "");
                     setPaginaAtual(1);
                 }}
+                onClear={() => setFStatus("")}
             />
 
-            {pagina.length === 0 ? (
-                <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">
-                    Nenhuma turma encontrada.
-                </div>
-            ) : (
-                <div className="min-w-0 overflow-x-auto pb-2">
-                    <DataTable
-                        data={pagina}
-                        getRowKey={(t) => t.id}
-                        columns={[
-                            { key: "periodo", label: "Período", headerClassName: "min-w-[140px]" },
-                            { key: "ano", label: "Ano", headerClassName: "min-w-[100px]" },
-                            { key: "qtdAlunos", label: "Qtd. Alunos", headerClassName: "min-w-[120px]" },
-                            { key: "curso", label: "Curso", headerClassName: "min-w-[140px]" },
-                            {
-                                key: "status",
-                                label: "Status",
-                                headerClassName: "min-w-[140px]",
-                                render: (t) =>
-                                    t.status === "Ativo" ? (
-                                        <span className="inline-flex items-center gap-2 font-medium text-[#13B900]">
-                                            <CircleCheck className="size-4" />
-                                            Ativo
-                                        </span>
-                                    ) : (
-                                        <span className="inline-flex items-center gap-2 font-medium text-[#BA1A1A]">
-                                            <CircleMinus className="size-4" />
-                                            Inativo
-                                        </span>
-                                    ),
+            <div className="min-w-0 pb-2">
+                <DataTable
+                    data={pagina}
+                    getRowKey={(t) => t.id}
+                    columns={[
+                        { key: "id", label: "ID", headerClassName: "min-w-[80px]" },
+                        { key: "periodo", label: "Período", headerClassName: "min-w-[140px]" },
+                        { key: "ano", label: "Ano", headerClassName: "min-w-[100px]" },
+                        { key: "qtdAlunos", label: "Qtd. Alunos", headerClassName: "min-w-[120px]" },
+                        { key: "curso", label: "Curso", headerClassName: "min-w-[140px]" },
+                        {
+                            key: "status",
+                            label: (
+                                <TableFilterHead
+                                    label="Status"
+                                    value={fStatus}
+                                    onChange={(valor) => {
+                                        setFStatus(valor);
+                                        setPaginaAtual(1);
+                                    }}
+                                    options={[
+                                        { label: "Ativo", value: "Ativo" },
+                                        { label: "Inativo", value: "Inativo" },
+                                    ]}
+                                />
+                            ),
+                            headerClassName: "min-w-[140px]",
+                            render: (t) =>
+                                t.status === "Ativo" ? (
+                                    <span className="inline-flex items-center gap-2 font-medium text-[#13B900]">
+                                        <CircleCheck className="size-4" />
+                                        Ativo
+                                    </span>
+                                ) : (
+                                    <span className="inline-flex items-center gap-2 font-medium text-[#BA1A1A]">
+                                        <CircleMinus className="size-4" />
+                                        Inativo
+                                    </span>
+                                ),
+                        },
+                    ]}
+                    actions={[
+                        {
+                            label: "Editar",
+                            icon: <Pencil className="size-[21px]" strokeWidth={2} />,
+                            onClick: (t) => {
+                                setSelecionada(t);
+                                setEditarAberto(true);
                             },
-                        ]}
-                        actions={[
-                            {
-                                label: "Editar",
-                                icon: <Pencil className="size-[21px]" strokeWidth={2} />,
-                                onClick: (t) => {
-                                    setSelecionada(t);
-                                    setEditarAberto(true);
-                                },
-                            },
-                        ]}
-                    />
-                </div>
-            )}
+                        },
+                    ]}
+                />
+
+                {pagina.length === 0 && (
+                    <p className="py-10 text-center text-sm text-[#17264D]/70">
+                        Nenhuma turma encontrada.
+                    </p>
+                )}
+            </div>
 
             <Pagination
                 totalItems={filtradas.length}
