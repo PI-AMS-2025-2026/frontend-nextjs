@@ -7,11 +7,11 @@ export type TipoUsuario = "ADMINISTRADOR" | "COORDENADOR";
 export type DiaSemana =
   | "DOMINGO"
   | "SEGUNDA"
-  | "TERCA"
+  | "TERÇA"
   | "QUARTA"
   | "QUINTA"
   | "SEXTA"
-  | "SABADO";
+  | "SÁBADO";
 
 export interface LongDTO {
   id: Id;
@@ -33,8 +33,8 @@ export interface CursoRequest {
 }
 export interface CursoResponse extends CursoRequest {
   id: Id;
-  created_at: DateTime;
-  updated_at: DateTime;
+  createdAt: DateTime;
+  updatedAt: DateTime;
 }
 
 export interface UsuarioRequest {
@@ -52,8 +52,8 @@ export interface UsuarioResponse {
   tipoUsuario: TipoUsuario;
   status: Status;
   curso?: CursoResponse;
-  created_at: DateTime;
-  updated_at: DateTime;
+  createdAt: DateTime;
+  updatedAt: DateTime;
 }
 
 export interface TurmaRequest {
@@ -69,14 +69,29 @@ export interface TurmaResponse {
   ano: number;
   numeroAlunos: number;
   curso: CursoResponse;
-  created_at: DateTime;
-  updated_at: DateTime;
+  status: Status;
+  createdAt: DateTime;
+  updatedAt: DateTime;
 }
 
-export interface TipoSalaRequest { nome: string }
-export interface TipoSalaResponse { id: Id; nome: string }
-export interface TipoRecursoRequest { nome: string }
-export interface TipoRecursoResponse { id: Id; nome: string }
+export interface TipoSalaRequest {
+  nome: string;
+}
+export interface TipoSalaResponse {
+  id: Id;
+  nome: string;
+  createdAt?: DateTime;
+  updatedAt?: DateTime;
+}
+export interface TipoRecursoRequest {
+  nome: string;
+}
+export interface TipoRecursoResponse {
+  id: Id;
+  nome: string;
+  createdAt?: DateTime;
+  updatedAt?: DateTime;
+}
 
 export interface SalaRequest {
   codigo: string;
@@ -88,8 +103,8 @@ export interface SalaResponse {
   codigo: string;
   capacidade: number;
   tipoSala: TipoSalaResponse;
-  created_at: DateTime;
-  updated_at: DateTime;
+  createdAt: DateTime;
+  updatedAt: DateTime;
 }
 
 export interface RecursoRequest {
@@ -100,8 +115,8 @@ export interface RecursoResponse {
   id: Id;
   nome: string;
   tipo: TipoRecursoResponse;
-  created_at: DateTime;
-  updated_at: DateTime;
+  createdAt: DateTime;
+  updatedAt: DateTime;
 }
 
 export interface RecursoSalaRequest {
@@ -124,9 +139,9 @@ export interface PeriodoAtividadeQuadroRequest {
   status: Status;
 }
 export interface PeriodoAtividadeQuadroResponse extends PeriodoAtividadeQuadroRequest {
-  idPeriodoAtividadeQuadro: Id;
-  created_at: DateTime;
-  updated_at: DateTime;
+  id: Id;
+  createdAt: DateTime;
+  updatedAt: DateTime;
 }
 
 export interface QuadroHorarioRequest {
@@ -142,8 +157,8 @@ export interface QuadroHorarioResponse {
   status: Status;
   curso: CursoResponse;
   periodoAtividadeQuadro: PeriodoAtividadeQuadroResponse;
-  created_at: DateTime;
-  updated_at: DateTime;
+  createdAt: DateTime;
+  updatedAt: DateTime;
 }
 
 export interface ProfessorRequest {
@@ -154,8 +169,8 @@ export interface ProfessorRequest {
 }
 export interface ProfessorResponse extends ProfessorRequest {
   id: Id;
-  created_at: DateTime;
-  updated_at: DateTime;
+  createdAt: DateTime;
+  updatedAt: DateTime;
 }
 
 export interface DisciplinaRequest {
@@ -180,8 +195,8 @@ export interface DisciplinaResponse {
   cor?: string;
   curso: CursoResponse;
   tipoSala: TipoSalaResponse;
-  created_at: DateTime;
-  updated_at: DateTime;
+  createdAt: DateTime;
+  updatedAt: DateTime;
 }
 
 export interface ProfessorDisciplinaRequest {
@@ -190,6 +205,8 @@ export interface ProfessorDisciplinaRequest {
 }
 export interface ProfessorDisciplinaResponse {
   id: Id;
+  professorId: Id;
+  disciplinaId: Id;
   professor: ProfessorResponse;
   disciplina: DisciplinaResponse;
 }
@@ -201,22 +218,22 @@ export interface BlocoHorarioRequest {
 export interface BlocoHorarioResponse extends BlocoHorarioRequest {
   id: Id;
   duracao: number;
-  created_at: DateTime;
-  updated_at: DateTime;
+  createdAt: DateTime;
+  updatedAt: DateTime;
 }
 
 export interface DisponibilidadeProfessorRequest {
   professor: LongDTO;
-  diaSemana: LongDTO;
+  diaSemana: DiaSemana;
   blocoHorario: LongDTO;
 }
 export interface DisponibilidadeProfessorResponse {
   id: Id;
-  usuario: ProfessorResponse;
+  professor: ProfessorResponse;
   diaSemana: DiaSemana;
   blocoHorario: BlocoHorarioResponse;
-  created_at: DateTime;
-  updated_at: DateTime;
+  createdAt: DateTime;
+  updatedAt: DateTime;
 }
 
 export interface AlocacaoRequest {
@@ -225,9 +242,8 @@ export interface AlocacaoRequest {
   sala: LongDTO;
   professor: LongDTO;
   diaSemana: DiaSemana;
-  horario: LongDTO;
+  blocoHorario: LongDTO;
   quadroHorario: LongDTO;
-  justificativaAlteracao?: string;
   usuarioAlteracao: LongDTO;
 }
 export interface AlocacaoResponse {
@@ -239,20 +255,28 @@ export interface AlocacaoResponse {
   diaSemana: DiaSemana;
   blocoHorario: BlocoHorarioResponse;
   quadroHorario: QuadroHorarioResponse;
-  created_at: DateTime;
-  updated_at: DateTime;
+  createdAt: DateTime;
+  updatedAt: DateTime;
 }
 
 export interface LoginRequest {
   email: string;
   senha: string;
 }
-export interface LoginResponse { token: string }
+
+export interface LoginResponse {
+  accessToken: string;
+  refreshToken: string;
+  usuario: UsuarioResponse;
+}
+
+export interface RefreshTokenRequest {
+  refreshToken: string;
+}
 
 export interface HistoricoVersaoAlocacaoResponse {
   id: Id;
   dataAlteracao: DateOnly;
-  justificativa: string;
   campoAlterado: string;
   valorAntigo: string;
   valorNovo: string;
@@ -269,17 +293,105 @@ export interface ListUsuarioParams {
   page?: number;
   size?: number;
 }
-export interface ListTurmaParams { curso?: Id; ano?: number; periodo?: number; codigo?: string; page?: number; size?: number }
-export interface ListSalaParams { tipo_sala?: Id; capacidade?: number; page?: number; size?: number }
-export interface ListRecursoParams { nome?: string; tipo_recurso?: Id; page?: number; size?: number }
-export interface ListRecursoSalaParams { salaId?: Id; recursoId?: Id; page?: number; size?: number }
-export interface ListQuadroHorarioParams { curso?: Id; periodo_atividade_quadro?: Id; status?: Status; page?: number; size?: number }
-export interface ListProfessorParams { nome?: string; email?: string; cidade?: string; status?: Status; page?: number; size?: number }
-export interface ListProfessorDisciplinaParams { usuario?: Id; disciplina?: Id; page?: number; size?: number }
-export interface ListPeriodoAtividadeQuadroParams { ano?: number; periodo?: number; status?: Status; dataInicio?: DateOnly; dataFim?: DateOnly; page?: number; size?: number }
-export interface ListDisponibilidadeProfessorParams { professor?: Id; dia_semana?: DiaSemana; bloco_horario?: Id; page?: number; size?: number }
-export interface ListDisciplinaParams { nome?: string; curso?: Id; tipo_sala?: Id; page?: number; size?: number }
-export interface ListCursoParams { nome?: string; periodicidade?: string; status?: Status; duracao?: number; page?: number; size?: number }
-export interface ListBlocoHorarioParams { hora_inicio?: string; hora_fim?: string; duracao?: number; page?: number; size?: number }
-export interface ListAlocacaoParams { turma?: Id; disciplina?: Id; sala?: Id; usuario?: Id; dia_semana?: DiaSemana; horario?: Id; quadro_horario?: Id; page?: number; size?: number }
-export interface ListHistoricoParams { alocacao?: Id; usuario?: Id; page?: number; size?: number }
+export interface ListTurmaParams {
+  curso?: Id;
+  ano?: number;
+  periodo?: number;
+  codigo?: string;
+  page?: number;
+  size?: number;
+}
+export interface ListSalaParams {
+  tipo_sala?: Id;
+  capacidade?: number;
+  page?: number;
+  size?: number;
+}
+export interface ListRecursoParams {
+  nome?: string;
+  tipo_recurso?: Id;
+  page?: number;
+  size?: number;
+}
+export interface ListRecursoSalaParams {
+  salaId?: Id;
+  recursoId?: Id;
+  page?: number;
+  size?: number;
+}
+export interface ListQuadroHorarioParams {
+  curso?: Id;
+  periodo_atividade_quadro?: Id;
+  status?: Status;
+  page?: number;
+  size?: number;
+}
+export interface ListProfessorParams {
+  nome?: string;
+  email?: string;
+  cidade?: string;
+  status?: Status;
+  page?: number;
+  size?: number;
+}
+export interface ListProfessorDisciplinaParams {
+  usuario?: Id;
+  disciplina?: Id;
+  page?: number;
+  size?: number;
+}
+export interface ListPeriodoAtividadeQuadroParams {
+  ano?: number;
+  periodo?: number;
+  status?: Status;
+  dataInicio?: DateOnly;
+  dataFim?: DateOnly;
+  page?: number;
+  size?: number;
+}
+export interface ListDisponibilidadeProfessorParams {
+  professor?: Id;
+  dia_semana?: DiaSemana;
+  bloco_horario?: Id;
+  page?: number;
+  size?: number;
+}
+export interface ListDisciplinaParams {
+  nome?: string;
+  curso?: Id;
+  tipo_sala?: Id;
+  page?: number;
+  size?: number;
+}
+export interface ListCursoParams {
+  nome?: string;
+  periodicidade?: string;
+  status?: Status;
+  duracao?: number;
+  page?: number;
+  size?: number;
+}
+export interface ListBlocoHorarioParams {
+  hora_inicio?: string;
+  hora_fim?: string;
+  duracao?: number;
+  page?: number;
+  size?: number;
+}
+export interface ListAlocacaoParams {
+  turma?: Id;
+  disciplina?: Id;
+  sala?: Id;
+  usuario?: Id;
+  dia_semana?: DiaSemana;
+  horario?: Id;
+  quadro_horario?: Id;
+  page?: number;
+  size?: number;
+}
+export interface ListHistoricoParams {
+  alocacao?: Id;
+  usuario?: Id;
+  page?: number;
+  size?: number;
+}
