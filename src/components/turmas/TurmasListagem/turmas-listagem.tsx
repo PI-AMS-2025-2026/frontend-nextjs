@@ -12,7 +12,7 @@ import { TableFilterHead } from "@/components/ui/table-filter-head";
 import { Pagination } from "@/components/ui/pagination";
 import { Modal } from "@/components/ui/modal";
 import { turmasService } from "@/services/turmas.service";
-import type { TurmaRequest, TurmaResponse } from "@/types/api";
+import type { CursoResponse, TurmaRequest, TurmaResponse } from "@/types/api";
 
 import { TurmaFormModal } from "../TurmaFormModal/turma-form-modal";
 
@@ -25,6 +25,7 @@ import {
     type Turma,
     type Status,
 } from "@/lib/turmas";
+import { Curso } from "@/lib/cursos";
 
 function converterTurma(t: TurmaResponse): Turma {
     return {
@@ -117,7 +118,7 @@ export function TurmasListagem() {
 
     async function confirmarCadastro(dados: {
     periodo: string;
-    curso: string;
+    curso: CursoResponse;
     qtdAlunos: number;
     ano: number;
     status: Status;
@@ -128,7 +129,7 @@ export function TurmasListagem() {
             ano: dados.ano,
             numeroAlunos: dados.qtdAlunos,
             curso: {
-                id: Number(dados.curso),
+                id: dados.curso.id,
             },
         };
 
@@ -150,7 +151,7 @@ export function TurmasListagem() {
 
    async function confirmarEdicao(dados: {
     periodo: string;
-    curso: string;
+    curso: CursoResponse;
     qtdAlunos: number;
     ano: number;
     status: Status;
