@@ -17,9 +17,19 @@ export function GradeVisualizacao({ gradeId }: { gradeId: string }) {
     const [grade, setGrade] = React.useState<GradeHoraria | null | "nao-encontrada">(null);
 
     React.useEffect(() => {
-        const salvas = carregarGradesSalvas();
-        const encontrada = salvas?.find((g) => g.id === gradeId) ?? null;
-        setGrade(encontrada ?? "nao-encontrada");
+        let vivo = true;
+        // A leitura precisa ocorrer depois da hidratacao (localStorage nao existe
+        // no servidor) e o setState e adiado para um microtask, para nao encadear
+        // um render sincrono dentro do mesmo commit do efeito.
+        void Promise.resolve().then(() => {
+            if (!vivo) return;
+            const salvas = carregarGradesSalvas();
+            const encontrada = salvas?.find((g) => g.id === gradeId) ?? null;
+            setGrade(encontrada ?? "nao-encontrada");
+        });
+        return () => {
+            vivo = false;
+        };
     }, [gradeId]);
 
     if (grade === null) {

@@ -21,7 +21,13 @@ export default function Modal({
   const tituloId = useId();
   const ref = useRef<HTMLDivElement>(null);
   const fechar = useRef(onClose);
-  fechar.current = onClose;
+
+  // Refs nao podem ser escritas durante o render; a sincronizacao do callback
+  // mais recente acontece em um efeito proprio, que roda antes do efeito de
+  // teclado abaixo ler fechar.current.
+  useEffect(() => {
+    fechar.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     const focoAnterior = document.activeElement as HTMLElement | null;

@@ -17,7 +17,16 @@ export function ProfessoresListagem() {
     const [professores, setProfessores] = React.useState<Professor[] | null>(null);
 
     React.useEffect(() => {
-        setProfessores(gerarProfessoresMock());
+        let vivo = true;
+        // setState adiado para um microtask, para nao encadear um render
+        // sincrono dentro do mesmo commit do efeito.
+        void Promise.resolve().then(() => {
+            if (!vivo) return;
+            setProfessores(gerarProfessoresMock());
+        });
+        return () => {
+            vivo = false;
+        };
     }, []);
 
     const [busca, setBusca] = React.useState("");

@@ -47,8 +47,18 @@ export function DisciplinasListagem() {
     const [disciplinas, setDisciplinas] = React.useState<Disciplina[] | null>(null);
 
     React.useEffect(() => {
-        const salvas = carregarDisciplinasSalvas();
-        setDisciplinas(salvas ?? gerarDisciplinasMock());
+        let vivo = true;
+        // A leitura precisa ocorrer depois da hidratacao (localStorage nao existe
+        // no servidor) e o setState e adiado para um microtask, para nao encadear
+        // um render sincrono dentro do mesmo commit do efeito.
+        void Promise.resolve().then(() => {
+            if (!vivo) return;
+            const salvas = carregarDisciplinasSalvas();
+            setDisciplinas(salvas ?? gerarDisciplinasMock());
+        });
+        return () => {
+            vivo = false;
+        };
     }, []);
 
     React.useEffect(() => {
