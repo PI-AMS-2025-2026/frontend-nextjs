@@ -76,6 +76,22 @@ export default function CadastroUsuario() {
     const [mensagemSucesso, setMensagemSucesso] = React.useState("");
     const [submitting, setSubmitting] = React.useState(false);
 
+    // Alterar a busca ou os filtros volta para a primeira pagina. O reset
+    // acontece junto da acao do usuario, em vez de um efeito reagindo ao
+    // estado derivado (o que causava um render extra a cada digitacao).
+    const aplicarBusca = React.useCallback((valor: string) => {
+        setSearch(valor);
+        setCurrentPage(1);
+    }, []);
+
+    const aplicarFiltros = React.useCallback(
+        (novos: { status: string; tipo: string }) => {
+            setFilters(novos);
+            setCurrentPage(1);
+        },
+        [],
+    );
+
     const carregarUsuarios = React.useCallback(async () => {
         setLoading(true);
         try {
@@ -98,7 +114,16 @@ export default function CadastroUsuario() {
     }, [currentPage, itemsPerPage, search, filters]);
 
     React.useEffect(() => {
-        carregarUsuarios();
+        let vivo = true;
+        // A chamada e adiada para um microtask porque o carregamento liga o
+        // estado de loading de forma sincrona; assim o efeito nao encadeia um
+        // render dentro do proprio commit. O guard evita atualizar apos desmontar.
+        void Promise.resolve().then(() => {
+            if (vivo) carregarUsuarios();
+        });
+        return () => {
+            vivo = false;
+        };
     }, [carregarUsuarios]);
 
     React.useEffect(() => {
@@ -112,10 +137,6 @@ export default function CadastroUsuario() {
             ativo = false;
         };
     }, []);
-
-    React.useEffect(() => {
-        setCurrentPage(1);
-    }, [search, filters]);
 
     function abrirCadastro() {
         setUsuarioEditando(null);
@@ -236,7 +257,7 @@ export default function CadastroUsuario() {
                             <SearchInput
                                 placeholder="Pesquisar..."
                                 value={search}
-                                onChange={(event) => setSearch(event.target.value)}
+                                onChange={(event) => aplicarBusca(event.target.value)}
                                 className="h-[45px] w-[205px] rounded-[10px]"
                             />
 
@@ -278,14 +299,14 @@ export default function CadastroUsuario() {
                             },
                         ]}
                         onChange={(values) => {
-                            setFilters({
+                            aplicarFiltros({
                                 status: values.status ?? "",
                                 tipo: values.tipo ?? "",
                             });
                         }}
                         onClear={() => {
-                            setSearch("");
-                            setFilters({ status: "", tipo: "" });
+                            aplicarBusca("");
+                            aplicarFiltros({ status: "", tipo: "" });
                         }}
                         className="min-h-[94px] rounded-[6px] border-[#C8DDE2] bg-[#F1FBFD] px-6 py-3"
                     />

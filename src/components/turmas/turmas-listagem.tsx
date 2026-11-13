@@ -27,8 +27,18 @@ export function TurmasListagem() {
     const [turmas, setTurmas] = React.useState<Turma[] | null>(null);
 
     React.useEffect(() => {
-        const salvas = carregarTurmasSalvas();
-        setTurmas(salvas ?? gerarTurmasMock());
+        let vivo = true;
+        // A leitura precisa ocorrer depois da hidratacao (localStorage nao existe
+        // no servidor) e o setState e adiado para um microtask, para nao encadear
+        // um render sincrono dentro do mesmo commit do efeito.
+        void Promise.resolve().then(() => {
+            if (!vivo) return;
+            const salvas = carregarTurmasSalvas();
+            setTurmas(salvas ?? gerarTurmasMock());
+        });
+        return () => {
+            vivo = false;
+        };
     }, []);
 
     React.useEffect(() => {

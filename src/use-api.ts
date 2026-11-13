@@ -25,9 +25,16 @@ export function useApi<T>(fetchFn: () => Promise<T>, autoFetch = true) {
   }, [fetchFn]);
 
   useEffect(() => {
-    if (autoFetch) {
-      execute();
-    }
+    if (!autoFetch) return;
+    let vivo = true;
+    // A chamada e adiada para um microtask porque execute() liga o loading de
+    // forma sincrona; assim o efeito nao encadeia um render no proprio commit.
+    void Promise.resolve().then(() => {
+      if (vivo) execute();
+    });
+    return () => {
+      vivo = false;
+    };
   }, [autoFetch, execute]);
 
   return { data, setData, loading, error, refetch: execute };

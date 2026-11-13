@@ -43,8 +43,18 @@ export function GradeListagem() {
     const [grades, setGrades] = React.useState<GradeHoraria[] | null>(null);
 
     React.useEffect(() => {
-        const salvas = carregarGradesSalvas();
-        setGrades(salvas ?? gerarGradesMock());
+        let vivo = true;
+        // A leitura precisa ocorrer depois da hidratacao (localStorage nao existe
+        // no servidor) e o setState e adiado para um microtask, para nao encadear
+        // um render sincrono dentro do mesmo commit do efeito.
+        void Promise.resolve().then(() => {
+            if (!vivo) return;
+            const salvas = carregarGradesSalvas();
+            setGrades(salvas ?? gerarGradesMock());
+        });
+        return () => {
+            vivo = false;
+        };
     }, []);
 
     React.useEffect(() => {

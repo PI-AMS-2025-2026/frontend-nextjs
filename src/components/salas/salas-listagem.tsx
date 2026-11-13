@@ -108,7 +108,16 @@ export function SalasListagem() {
     }, []);
 
     React.useEffect(() => {
-        carregar();
+        let vivo = true;
+        // A chamada e adiada para um microtask porque o carregamento liga o
+        // estado de loading de forma sincrona; assim o efeito nao encadeia um
+        // render dentro do proprio commit. O guard evita atualizar apos desmontar.
+        void Promise.resolve().then(() => {
+            if (vivo) carregar();
+        });
+        return () => {
+            vivo = false;
+        };
     }, [carregar]);
 
     const [busca, setBusca] = React.useState("");
