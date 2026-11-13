@@ -1,23 +1,44 @@
 # Ambiente de desenvolvimento local: sobe o frontend (build local) apontando
-# para o backend real (imagem já publicada no ghcr.io) e seu banco Postgres.
+# para o backend real (imagem já publicada no ghcr.io), seu banco Postgres e o
+# Mailpit (caixa de entrada local para o e-mail de recuperação de senha).
 # Assim não é necessário ter Java/Maven instalado na máquina do dev.
+#
+# As variáveis do backend espelham o docker-compose.yml do repositório
+# backend-java e o compose do repositório de infraestrutura (banco-infra).
+# Se o backend passar a exigir uma variável nova, ela precisa entrar aqui também.
 #
 # O deploy em ambientes hospedados NÃO usa este arquivo: isso é feito pelo
 # repositório de infraestrutura.
 
 services:
   db:
-    image: postgres:16-alpine
+    # Mesma versão usada pelo backend-java e pelo banco-infra.
+    image: postgres:17-alpine
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-projeto_integrador}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-gini}
+      POSTGRES_USER: ${POSTGRES_USER:-gini}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     # Sem porta publicada: o banco só é acessível pela rede interna do compose.
     healthcheck:
-      test:
-        ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-projeto_integrador}"]
+      # O $$ faz a variável ser resolvida dentro do contêiner, não pelo compose.
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  # Servidor SMTP local para o fluxo de recuperação de senha. Nenhum e-mail sai
+  # da máquina: tudo fica visível em http://localhost:8025 (porta configurável).
+  # O SMTP (1025) não é publicado: só o backend o usa, pela rede interna.
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "127.0.0.1:${MAILPIT_WEB_PORT:-8025}:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -26,26 +47,48 @@ services:
 
   backend:
     # Imagem publicada pelo repositório do backend; nunca construída aqui.
-    image: ${BACKEND_IMAGE:?defina BACKEND_IMAGE no .env}:${BACKEND_TAG:-dev}
+    image: ${BACKEND_IMAGE:-ghcr.io/pi-ams-2025-2026/backend-java}:${BACKEND_TAG:-dev}
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-projeto_integrador}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-gini}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-gini}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
-      JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET no .env}
-      CORS_ALLOWED_ORIGINS: http://localhost:${FRONTEND_PORT:-3000}
+      # 32+ caracteres e não pode ser valor de exemplo: o backend recusa subir.
+      JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET no .env (32+ caracteres)}
+      # Identifica o ambiente. "dev" isola o emissor dos tokens dos ambientes
+      # hospedados e permite ligar o Swagger localmente.
+      APP_ENVIRONMENT: dev
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-true}
+      # Origem do frontend: no perfil prod o backend a usa no CORS
+      # (allowedOrigins) e como base do link do e-mail de recuperação de senha.
+      # Precisa ser a origem exata pela qual o navegador acessa o frontend.
+      FRONTEND_URL: http://localhost:${FRONTEND_PORT:-3000}
+      # SMTP fixo no Mailpit: este compose nunca envia e-mail de verdade.
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_USERNAME: ""
+      SMTP_PASSWORD: ""
+      SMTP_AUTH: "false"
+      SMTP_STARTTLS: "false"
+      SMTP_FROM: noreply@gini.local
+      PASSWORD_RESET_EXPIRATION_MINUTES: ${PASSWORD_RESET_EXPIRATION_MINUTES:-15}
     ports:
-      - "8080:8080"
+      # O navegador chama a API diretamente (NEXT_PUBLIC_API_URL), por isso a
+      # porta do backend precisa estar publicada no host.
+      - "${BACKEND_PORT:-8080}:8080"
     depends_on:
       db:
+        # Evita falha do Flyway na primeira subida.
         condition: service_healthy
+      mailpit:
+        condition: service_started
     healthcheck:
-      test:
-        ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health || curl -fsS http://127.0.0.1:8080/actuator/health || exit 1"]
+      # A imagem do backend (eclipse-temurin:21-jre-alpine) traz wget.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health | grep -q '\"status\":\"UP\"'"]
       interval: 15s
       timeout: 5s
-      retries: 5
-      start_period: 60s
+      retries: 8
+      start_period: 90s
     restart: unless-stopped
 
   frontend:

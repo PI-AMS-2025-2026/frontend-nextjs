@@ -41,9 +41,15 @@ Abra [http://localhost:3000](http://localhost:3000).
 
 ## Executando com Docker
 
-O `docker-compose.yml` sobe três serviços: `db` (Postgres), `backend`
-(imagem já publicada no ghcr.io) e `frontend` (construído localmente).
-Assim não é necessário ter Java/Maven na máquina.
+O `docker-compose.yml` sobe quatro serviços: `db` (Postgres 17), `mailpit`
+(caixa de entrada local do e-mail de recuperação de senha), `backend` (imagem
+já publicada no ghcr.io) e `frontend` (construído localmente). Assim não é
+necessário ter Java/Maven na máquina.
+
+As variáveis do backend espelham o compose do `backend-java` e o do
+repositório de infraestrutura: `FRONTEND_URL` (CORS e link do e-mail), SMTP
+apontando para o Mailpit e `APP_ENVIRONMENT=dev`. Se o backend passar a exigir
+uma variável nova, ela precisa ser adicionada aqui também.
 
 ### 1. Autenticar no ghcr.io
 
@@ -61,7 +67,8 @@ cp .env.example .env
 # edite o .env e substitua todos os valores CHANGE_ME
 ```
 
-O `.env` é ignorado pelo Git — nunca versione segredos.
+O `.env` é ignorado pelo Git — nunca versione segredos. O `JWT_SECRET` precisa
+ter 32+ caracteres (`openssl rand -hex 32`); o backend recusa subir sem isso.
 
 ### 3. Subir o ambiente
 
@@ -76,6 +83,13 @@ curl -f http://localhost:3000/api/health      # {"status":"ok"}
 curl -f http://localhost:8080/actuator/health
 docker compose ps                             # todos os serviços "healthy"
 ```
+
+E-mails enviados pelo backend (recuperação de senha) aparecem no Mailpit:
+<http://localhost:8025>.
+
+> **Atualizando de uma versão anterior do compose (Postgres 16):** o volume
+> antigo não é compatível com o Postgres 17. Rode `docker compose down -v` uma
+> vez antes de subir — os dados locais são recriados pelas migrations.
 
 Para derrubar (e apagar o volume do banco):
 

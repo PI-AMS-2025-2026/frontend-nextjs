@@ -41,8 +41,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 
-# Usuário sem privilégios (o node:alpine já traz uid/gid 1000 para "node";
-# criamos 1001 para alinhar com a convenção usada no repositório de infra).
+# Usuário sem privilégios dedicado (uid/gid 1001, convenção dos exemplos
+# oficiais do Next.js; o node:alpine já usa 1000 para o usuário "node").
 RUN addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 --ingroup nodejs nextjs
 
