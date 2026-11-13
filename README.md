@@ -150,7 +150,7 @@ Imagem: `ghcr.io/<owner>/<repo>` (em minúsculas). Tags publicadas:
 
 | Tag | Quando | Mutável? |
 | --- | --- | --- |
-| `sha-<7 chars>` | sempre (usada nos deploys) | não |
+| `sha-<7 chars>-<ambiente>` | sempre (usada nos deploys); ambiente = `dev`, `staging` ou `production` | não |
 | `dev` / `staging` / `main` | push na branch correspondente | sim |
 | `X.Y.Z` e `X.Y` | tag git `vX.Y.Z` | sim (`X.Y`) |
 | `latest` | somente a partir de `main` | sim |
@@ -160,6 +160,12 @@ ao repositório de infraestrutura, com `event_type: image-published` e
 `client_payload: { service: "frontend", tag, sha, branch }`.
 Os deploys de **staging** e **produção** são manuais, via `workflow_dispatch`
 no repositório de infraestrutura, informando a tag da imagem.
+
+> **Por que o ambiente está na tag imutável?** A URL da API é embutida no
+> build, então cada ambiente tem sua própria imagem. Um mesmo commit pode ser
+> buildado em `dev` e depois em `staging`/`main` (fast-forward ou rebase); com
+> só `sha-<7>`, o segundo build sobrescreveria o primeiro com outra URL. No
+> deploy manual, use a tag do ambiente certo (ex.: `sha-a1b2c3d-staging`).
 
 > **O deploy não é feito neste repositório.** Ele é responsabilidade exclusiva
 > do repositório de infraestrutura.

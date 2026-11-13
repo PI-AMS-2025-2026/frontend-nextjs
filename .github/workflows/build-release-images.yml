@@ -71,9 +71,13 @@ jobs:
             exit 1
           fi
 
+          # A imagem do frontend é específica do ambiente (a URL da API é
+          # embutida no build). Um mesmo commit pode ser buildado em mais de uma
+          # branch (fast-forward/rebase), então o ambiente entra na tag imutável
+          # para que um build não sobrescreva o de outro ambiente.
           {
             echo "short_sha=$short_sha"
-            echo "tag=sha-$short_sha"
+            echo "tag=sha-$short_sha-$environment"
             echo "sha=$GIT_SHA"
             echo "environment=$environment"
             echo "api_url=$api_url"
@@ -94,7 +98,7 @@ jobs:
           # ghcr.io exige o nome em minúsculas.
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=raw,value=sha-${{ steps.meta-vars.outputs.short_sha }}
+            type=raw,value=${{ steps.meta-vars.outputs.tag }}
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
