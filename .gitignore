@@ -33,6 +33,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# O template de variáveis é versionado (não contém segredos reais).
+!.env.example
 
 # vercel
 .vercel
