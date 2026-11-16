@@ -28,8 +28,8 @@ export function normalizarBlocosHorarios(
         horaInicio: bloco.hora_inicio,
         horaFim: bloco.hora_fim,
         duracao: bloco.duracao,
-        created_at: bloco.created_at ?? "",
-        updated_at: bloco.updated_at ?? "",
+        createdAt: bloco.created_at ?? "",
+        updatedAt: bloco.updated_at ?? "",
     }));
 }
 
