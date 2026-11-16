@@ -1,5 +1,5 @@
-
 import type { Metadata } from "next";
+
 import { CoordinatorDashboard } from "./coordinator-dashboard";
 
 export const metadata: Metadata = {

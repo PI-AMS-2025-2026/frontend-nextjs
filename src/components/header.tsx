@@ -203,6 +203,30 @@ export function Header({
           <strong className="text-xl font-semibold sm:text-2xl">Bem-vindo!</strong>{" "}
           <span className="font-medium text-black/80 max-sm:hidden">Explore abaixo um pouco do nosso sistema</span>
         </p>
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="relative h-[53px] w-[55px] max-sm:hidden" aria-hidden="true">
+            <Image src="/images/administrator/profile-ring.svg" alt="" fill sizes="55px" className="object-fill" />
+            <Image src="/images/administrator/profile-fill.svg" alt="" fill sizes="55px" className="object-fill" />
+            <Image src="/images/administrator/profile-user.svg" alt="" width={28} height={30} className="absolute left-[13px] top-[11px]" />
+          </div>
+          <div className="min-w-0 max-w-32 leading-tight sm:max-w-56">
+            <p className="truncate text-base font-medium text-black sm:text-2xl" title={user.name}>
+              {user.name}
+            </p>
+            <p className="truncate text-sm text-[#0099AA] sm:text-xl" title={user.role}>
+              {user.role}
+            </p>
+          </div>
+          <div className="mx-1 h-14 w-px bg-black/40" aria-hidden="true" />
+          <button
+            type="button"
+            onClick={handleLogout}
+            aria-label="Sair do sistema"
+            className="grid size-10 place-items-center rounded-md transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0099AA]"
+          >
+            <Image src="/images/administrator/logout.svg" alt="" width={28} height={29} className="h-[29px] w-7" />
+          </button>
+        </div>
       </div>
     </>
   );
