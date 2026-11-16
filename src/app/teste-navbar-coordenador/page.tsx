@@ -1,10 +1,15 @@
 import { Navbar } from "@/components/created/navbar";
 import { Footer } from "@/components/created/footer";
+import { coordinatorHeaderConfig } from "@/app/coordenador/navigation";
 
 export default function TesteNavbarPage() {
     return (
         <div className="flex min-h-screen flex-col bg-white">
-            <Navbar tipo="coordenador" />
+            <Navbar
+                tipo="coordenador"
+                homeHref={coordinatorHeaderConfig.homeHref}
+                navigationGroups={coordinatorHeaderConfig.navigationGroups}
+            />
             <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
                 <h1 className="text-2xl font-semibold text-[#1B4D62]">Bem-vindo!</h1>
                 <p className="mt-2 text-gray-600">Explore abaixo um pouco do nosso sistema</p>

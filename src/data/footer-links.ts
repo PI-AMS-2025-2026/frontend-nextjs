@@ -1,4 +1,3 @@
-import { Footer } from "@/components/created/footer";
 export const footerColumns = [
   {
     title: "Exemple 1",
@@ -20,4 +19,4 @@ export const footerColumns = [
     title: "Exemple 5",
     links: ["Text exemple", "Text exemple", "Text exemple"],
   },
-]
+];

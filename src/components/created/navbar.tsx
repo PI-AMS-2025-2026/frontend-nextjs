@@ -28,90 +28,60 @@ import {
 } from "@/components/ui/sheet";
 
 import { cn } from "@/lib/utils";
-import { navItems, type NavItem } from "@/data/nav-links";
 import { authService } from "@/services/auth.service";
 
-type TipoNavbar = "administrador" | "coordenador";
+export type TipoNavbar = "administrador" | "coordenador";
+
+export type NavbarNavigationGroup = {
+  label: string;
+  links: readonly {
+    label: string;
+    href: string;
+  }[];
+};
 
 type NavbarProps = {
-  tipo?: TipoNavbar;
+  tipo: TipoNavbar;
+  homeHref: string;
+  navigationGroups: readonly NavbarNavigationGroup[];
+  historyHref?: string;
 };
 
-type MenuItem = NavItem & {
+type MenuItem = {
+  label: string;
   icon: LucideIcon;
+  href?: string;
+  children?: NavbarNavigationGroup["links"];
 };
 
-const administradorIcons = [
+const administratorIcons = [
   UsersRound,
   BookOpen,
   School,
   Timer,
   CalendarCheck2,
 ];
-
-const coordenadorItems: MenuItem[] = [
-  {
-    label: "Grade e planejamento",
-    icon: CalendarCheck2,
-    children: [
-      {
-        label: "Alocação",
-        href: "/coordenador/grade-planejamento/alocacao",
-      },
-    ],
-  },
-  {
-    label: "Estrutura acadêmica",
-    icon: BookOpen,
-    children: [
-      {
-        label: "Turmas",
-        href: "/coordenador/estrutura-academica/turmas",
-      },
-      {
-        label: "Período Letivo",
-        href: "/coordenador/estrutura-academica/periodo-letivo",
-      },
-    ],
-  },
-  {
-    label: "Listagens",
-    icon: School,
-    children: [
-      {
-        label: "Salas",
-        href: "/coordenador/listagens/sala",
-      },
-      {
-        label: "Professores",
-        href: "/coordenador/listagens/professores",
-      },
-    ],
-  },
-];
-
-const administradorItems: MenuItem[] = navItems.map(
-  (item, index) => ({
-    ...item,
-    icon: administradorIcons[index] ?? ClipboardList,
-  }),
-);
+const coordinatorIcons = [CalendarCheck2, BookOpen, School];
 
 export function Navbar({
-  tipo = "administrador",
+  tipo,
+  homeHref,
+  navigationGroups,
+  historyHref,
 }: NavbarProps) {
   const router = useRouter();
   const pathname = usePathname();
 
   const isAdministrador = tipo === "administrador";
 
-  const homeHref = isAdministrador
-    ? "/administrador/home"
-    : "/coordenador/home";
-
-  const menuItems = isAdministrador
-    ? administradorItems
-    : coordenadorItems;
+  const icons = isAdministrador ? administratorIcons : coordinatorIcons;
+  const menuItems: MenuItem[] = navigationGroups.map(
+    (group, index) => ({
+      label: group.label,
+      children: group.links,
+      icon: icons[index] ?? ClipboardList,
+    }),
+  );
 
   const profileLabel = isAdministrador ? "ADM" : "CRD";
 
@@ -130,9 +100,17 @@ export function Navbar({
 
   const [loggingOut, setLoggingOut] =
     React.useState(false);
+  const [userName, setUserName] = React.useState("Usuário");
 
   const profileRef = React.useRef<HTMLDivElement>(null);
   const navigationRef = React.useRef<HTMLElement>(null);
+
+  React.useEffect(() => {
+    const storedUser = authService.getUser();
+    const name = storedUser?.nome?.trim();
+
+    if (name) setUserName(name);
+  }, []);
 
   React.useEffect(() => {
     function handleOutsideClick(event: MouseEvent) {
@@ -365,12 +343,12 @@ export function Navbar({
             {profileOpen && (
               <div className="absolute right-0 top-[calc(100%+14px)] z-50 w-[320px] max-w-[calc(100vw-24px)] rounded-[12px] border border-[#D9D9D9] bg-white p-5 text-black shadow-[0_5px_20px_rgba(0,0,0,0.12)]">
                 <p className="mb-4 text-[16px] font-medium">
-                  Username - {profileRole}
+                  {userName} - {profileRole}
                 </p>
 
-                {isAdministrador && (
+                {isAdministrador && historyHref && (
                   <Link
-                    href="/controle"
+                    href={historyHref}
                     onClick={closeMenus}
                     className="mb-3 flex min-h-[60px] w-full items-center gap-4 rounded-[12px] border border-[#AAAAAA] px-4 text-[15px] text-[#444444] transition-colors hover:bg-[#F2F5F6]"
                   >
