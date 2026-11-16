@@ -61,6 +61,7 @@ export interface TurmaRequest {
   ano: number;
   numeroAlunos: number;
   curso: LongDTO;
+  status: Status;
 }
 export interface TurmaResponse {
   id: Id;
@@ -131,9 +132,12 @@ export interface RecursoSalaResponse {
   quantidade: number;
 }
 
+export type TipoPeriodoAtividadeQuadro = "SEMENSTRAL" | "ANUAL";
+
 export interface PeriodoAtividadeQuadroRequest {
   ano: number;
   periodo: number;
+  tipoPeridoAtividadeQuadro: TipoPeriodoAtividadeQuadro;
   dataInicio: DateOnly;
   dataFim: DateOnly;
   status: Status;
@@ -300,6 +304,8 @@ export interface ListTurmaParams {
   ano?: number;
   periodo?: number;
   codigo?: string;
+  busca?: string;
+  status?: Status;
   page?: number;
   size?: number;
 }

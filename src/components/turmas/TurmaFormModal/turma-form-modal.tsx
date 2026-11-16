@@ -6,27 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { PERIODOS, type Status, type Turma } from "@/lib/turmas";
 import { cursosService } from "@/services/cursos.service";
-import type { CursoResponse } from "@/types/api";
-
-interface DadosTurma {
-    periodo: string;
-    curso: CursoResponse;
-    qtdAlunos: number;
-    ano: number;
-    status: Status;
-}
+import type { CursoResponse, Status, TurmaRequest, TurmaResponse } from "@/types/api";
+import { opcoesPeriodoCurso, unidadePeriodoCurso } from "@/lib/turma-periodo";
 
 interface TurmaFormModalProps {
     open: boolean;
     onClose: () => void;
     mode: "cadastrar" | "editar";
-    turma?: Turma | null;
-    onConfirm: (dados: DadosTurma) => void;
+    turma?: TurmaResponse | null;
+    onConfirm: (dados: TurmaRequest) => Promise<void> | void;
 }
-
-const opcoesPeriodo = PERIODOS.map((periodo) => ({ label: periodo, value: periodo }));
 
 export function TurmaFormModal({
     open,
@@ -55,20 +45,23 @@ function TurmaFormConteudo({
     onConfirm,
 }: {
     mode: "cadastrar" | "editar";
-    turma?: Turma | null;
+    turma?: TurmaResponse | null;
     onCancel: () => void;
-    onConfirm: (dados: DadosTurma) => void;
+    onConfirm: (dados: TurmaRequest) => Promise<void> | void;
 }) {
-    const [periodo, setPeriodo] = React.useState(turma?.periodo ?? "");
-    const [curso, setCurso] = React.useState<CursoResponse>();
-    const [qtdAlunos, setQtdAlunos] = React.useState(turma ? String(turma.qtdAlunos) : "");
+    const [periodo, setPeriodo] = React.useState(turma ? String(turma.periodo) : "");
+    const [cursoId, setCursoId] = React.useState(turma ? String(turma.curso.id) : "");
+    const [qtdAlunos, setQtdAlunos] = React.useState(turma ? String(turma.numeroAlunos) : "");
     const [ano, setAno] = React.useState(turma ? String(turma.ano) : "");
-    const [status, setStatus] = React.useState<Status>(turma?.status ?? "Ativo");
+    const [status, setStatus] = React.useState<Status>(turma?.status ?? "ATIVO");
     const [erro, setErro] = React.useState("");
+    const [submitting, setSubmitting] = React.useState(false);
 
     const [cursos, setCursos] = React.useState<CursoResponse[]>([]);
     const [carregandoCursos, setCarregandoCursos] = React.useState(true);
     const [erroCursos, setErroCursos] = React.useState(false);
+    const curso = cursos.find((item) => String(item.id) === cursoId);
+    const opcoesPeriodo = opcoesPeriodoCurso(curso);
     const opcoesCurso = React.useMemo(
         () =>
             cursos.map((curso) => ({
@@ -78,30 +71,20 @@ function TurmaFormConteudo({
         [cursos]
     );
 
-    <Select
-        options={opcoesCurso}
-        value={curso ? String(curso.id) : ""}
-        onChange={(valor) => {
-            const cursoSelecionado = cursos.find((c) => String(c.id) === valor);
-            setCurso(cursoSelecionado);
-            setErro("");
-        }}
-        placeholder="Selecione..."
-    />
-
-
     React.useEffect(() => {
         let ativo = true;
 
         async function carregarCursos() {
             try {
-                const resposta = await cursosService.listar({
-                    page: 0,
-                    size: 100,
-                });
+                const primeiraPagina = await cursosService.listar({ page: 0, size: 100 });
+                const paginasRestantes = await Promise.all(
+                    Array.from({ length: Math.max(0, primeiraPagina.totalPages - 1) }, (_, index) =>
+                        cursosService.listar({ page: index + 1, size: 100 }),
+                    ),
+                );
 
                 if (ativo) {
-                    setCursos(resposta.content);
+                    setCursos([...primeiraPagina.content, ...paginasRestantes.flatMap((pagina) => pagina.content)]);
                 }
             } catch (erro) {
                 console.error("Erro ao carregar cursos:", erro);
@@ -124,41 +107,42 @@ function TurmaFormConteudo({
     }, []);
 
 
-    React.useEffect(() => {
-        if (!turma) return;
-
-        const cursoEncontrado = cursos.find(
-            (c) => c.nome === turma.curso
-        );
-
-        if (cursoEncontrado) {
-            setCurso(cursoEncontrado);
-        }
-    }, [turma, cursos]);
-
     const titulo = mode === "cadastrar" ? "Cadastrar Turma" : "Editar Turma";
 
-    function handleConfirmar() {
-        if (!periodo) return setErro("Selecione o período.");
-        if (!curso) return setErro("Selecione o curso.");
+    async function handleConfirmar() {
+        if (!curso) return setErro("Selecione um curso carregado pelo backend.");
+        const periodoNumero = Number(periodo);
+        if (!Number.isInteger(periodoNumero) || periodoNumero < 1 || periodoNumero > curso.duracao) {
+            return setErro(`Selecione um ${unidadePeriodoCurso(curso.periodicidade)} entre 1 e ${curso.duracao}.`);
+        }
+        if (curso.status !== "ATIVO" && status === "ATIVO") {
+            return setErro("Uma turma vinculada a um curso inativo também deve estar inativa.");
+        }
 
         const qtd = Number(qtdAlunos);
-        if (!qtdAlunos.trim() || !Number.isInteger(qtd) || qtd <= 0) {
-            return setErro("A quantidade de alunos deve ser maior que zero.");
+        if (!qtdAlunos.trim() || !Number.isInteger(qtd) || qtd <= 0 || qtd > 50) {
+            return setErro("A quantidade de alunos deve estar entre 1 e 50.");
         }
 
         const anoNumero = Number(ano);
-        if (!ano.trim() || !Number.isInteger(anoNumero) || anoNumero < 1900) {
-            return setErro("Informe um ano válido.");
+        if (!ano.trim() || !Number.isInteger(anoNumero) || anoNumero < 2009 || anoNumero > 9999) {
+            return setErro("Informe um ano entre 2009 e 9999.");
         }
 
-        onConfirm({
-            periodo,
-            curso,
-            qtdAlunos: qtd,
-            ano: anoNumero,
-            status,
-        });
+        setSubmitting(true);
+        try {
+            await onConfirm({
+                periodo: periodoNumero,
+                curso: { id: curso.id },
+                numeroAlunos: qtd,
+                ano: anoNumero,
+                status,
+            });
+        } catch (error) {
+            setErro(error instanceof Error ? error.message : "Não foi possível salvar a turma.");
+        } finally {
+            setSubmitting(false);
+        }
     }
 
     return (
@@ -167,38 +151,39 @@ function TurmaFormConteudo({
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
-                    <label className="text-sm font-medium text-[#17264D]">Período:</label>
+                    <label className="text-sm font-medium text-[#17264D]">Curso:</label>
                     <Select
+                        aria-label="Curso da turma"
+                        options={opcoesCurso}
+                        value={cursoId}
+                        onChange={(valor) => {
+                            const cursoSelecionado = cursos.find((item) => String(item.id) === valor);
+                            setCursoId(valor);
+                            setPeriodo("");
+                            if (cursoSelecionado?.status === "INATIVO") setStatus("INATIVO");
+                            setErro("");
+                        }}
+                        placeholder={carregandoCursos ? "Carregando cursos..." : "Selecione..."}
+                    />
+                    {erroCursos && <p className="text-sm text-red-600">Não foi possível carregar os cursos.</p>}
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium text-[#17264D]">
+                        {curso ? `${unidadePeriodoCurso(curso.periodicidade)} no curso:` : "Período no curso:"}
+                    </label>
+                    <Select
+                        aria-label="Período da turma"
                         options={opcoesPeriodo}
                         value={periodo}
+                        disabled={!curso || carregandoCursos || opcoesPeriodo.length === 0}
                         onChange={(valor) => {
                             setPeriodo(valor);
                             setErro("");
                         }}
-                        placeholder="Selecione..."
+                        placeholder={curso ? "Selecione..." : "Selecione primeiro um curso"}
                     />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                    <label className="text-sm font-medium text-[#17264D]">Curso:</label>
-                    <Select
-                        options={opcoesCurso}
-                        {...erroCursos && (
-                            <p className="text-sm text-red-600">
-                                Não foi possível carregar os cursos.
-                            </p>
-                        )}
-                        value={curso ? String(curso.id) : ""}
-                        onChange={(valor) => {
-                            const cursoSelecionado = cursos.find(
-                                (c) => c.id === Number(valor)
-                            );
-
-                            setCurso(cursoSelecionado);
-                            setErro("");
-                        }}
-                        placeholder="Selecione..."
-                    />
+                    {curso && <p className="text-xs text-[#17264D]/70">O curso tem duração de {curso.duracao} {unidadePeriodoCurso(curso.periodicidade)}(s).</p>}
                 </div>
 
                 <Input
@@ -206,6 +191,7 @@ function TurmaFormConteudo({
                     showLabel
                     type="number"
                     min={1}
+                    max={50}
                     value={qtdAlunos}
                     onChange={(e) => {
                         setQtdAlunos(e.target.value);
@@ -218,6 +204,8 @@ function TurmaFormConteudo({
                     label="Ano:"
                     showLabel
                     type="number"
+                    min={2009}
+                    max={9999}
                     value={ano}
                     onChange={(e) => {
                         setAno(e.target.value);
@@ -234,13 +222,13 @@ function TurmaFormConteudo({
                     onValueChange={(v) => setStatus(v as Status)}
                 >
                     <div className="flex items-center gap-2">
-                        <RadioGroupItem value="Ativo" id="turma-status-ativo" />
+                        <RadioGroupItem value="ATIVO" id="turma-status-ativo" />
                         <label htmlFor="turma-status-ativo" className="text-sm text-[#17264D]">
                             Ativo
                         </label>
                     </div>
                     <div className="flex items-center gap-2">
-                        <RadioGroupItem value="Inativo" id="turma-status-inativo" />
+                        <RadioGroupItem value="INATIVO" id="turma-status-inativo" />
                         <label htmlFor="turma-status-inativo" className="text-sm text-[#17264D]">
                             Inativo
                         </label>
@@ -251,11 +239,11 @@ function TurmaFormConteudo({
             {erro && <p className="text-sm text-[#BA1A1A]">{erro}</p>}
 
             <div className="flex justify-end gap-3">
-                <Button variant="ghost" size="small" onClick={onCancel}>
+                <Button variant="ghost" size="small" onClick={onCancel} disabled={submitting}>
                     Cancelar
                 </Button>
-                <Button variant="secondary" size="small" onClick={handleConfirmar}>
-                    Confirmar
+                <Button variant="secondary" size="small" onClick={() => void handleConfirmar()} disabled={submitting}>
+                    {submitting ? "Salvando..." : "Confirmar"}
                 </Button>
             </div>
         </div>

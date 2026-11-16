@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Plus, Pencil, ArrowLeft, Loader2, CircleCheck, CircleMinus } from "lucide-react";
+import { Plus, Pencil, ArrowLeft, CircleCheck, CircleMinus, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/input";
@@ -11,64 +11,80 @@ import { TableFilters } from "@/components/ui/tablefilters";
 import { TableFilterHead } from "@/components/ui/table-filter-head";
 import { Pagination } from "@/components/ui/pagination";
 import { Modal } from "@/components/ui/modal";
+import { ApiError } from "@/lib/api";
 import { turmasService } from "@/services/turmas.service";
-import type { CursoResponse, TurmaRequest, TurmaResponse } from "@/types/api";
+import type { Status, TurmaRequest, TurmaResponse } from "@/types/api";
+import { rotuloPeriodoTurma } from "@/lib/turma-periodo";
 
 import { TurmaFormModal } from "../TurmaFormModal/turma-form-modal";
 
-import {
-    PERIODOS,
-    ANOS,
-    type Turma,
-    type Status,
-} from "@/lib/turmas";
-import { Curso } from "@/lib/cursos";
+const PAGE_SIZE_DEFAULT = 10;
 
-function converterTurma(t: TurmaResponse): Turma {
-    return {
-        id: String(t.id),
-        periodo: String(t.periodo),
-        curso: t.curso.nome,
-        qtdAlunos: t.numeroAlunos,
-        ano: t.ano,
-        status: "Ativo",
-    };
+function mensagemErro(error: unknown, fallback: string) {
+    return error instanceof Error ? error.message : fallback;
 }
 
 export function TurmasListagem() {
-    const [turmas, setTurmas] = React.useState<Turma[] | null>(null);
-
-    React.useEffect(() => {
-        let ativo = true;
-
-        async function carregarTurmas() {
-            try {
-                const resposta = await turmasService.listar({ page: 0, size: 100 });
-                if (ativo) setTurmas(resposta.content.map(converterTurma));
-            } catch (erro) {
-                console.error("Erro ao carregar turmas:", erro);
-                if (ativo) setTurmas([]);
-            }
-        }
-
-        void carregarTurmas();
-        return () => {
-            ativo = false;
-        };
-    }, []);
-
+    const [turmas, setTurmas] = React.useState<TurmaResponse[]>([]);
+    const [totalTurmas, setTotalTurmas] = React.useState(0);
+    const [loading, setLoading] = React.useState(true);
+    const [erro, setErro] = React.useState<string | null>(null);
     const [busca, setBusca] = React.useState("");
+    const [buscaAplicada, setBuscaAplicada] = React.useState("");
     const [fPeriodo, setFPeriodo] = React.useState("");
     const [fAno, setFAno] = React.useState("");
-    const [fStatus, setFStatus] = React.useState("");
-
-    const [itensPorPagina, setItensPorPagina] = React.useState(10);
+    const [fStatus, setFStatus] = React.useState<Status | "">("");
+    const [itensPorPagina, setItensPorPagina] = React.useState(PAGE_SIZE_DEFAULT);
     const [paginaAtual, setPaginaAtual] = React.useState(1);
-
     const [cadastrarAberto, setCadastrarAberto] = React.useState(false);
     const [editarAberto, setEditarAberto] = React.useState(false);
-    const [selecionada, setSelecionada] = React.useState<Turma | null>(null);
+    const [selecionada, setSelecionada] = React.useState<TurmaResponse | null>(null);
     const [sucesso, setSucesso] = React.useState<string | null>(null);
+    const requisicaoAtual = React.useRef(0);
+
+    const carregarTurmas = React.useCallback(async (pagina = paginaAtual) => {
+        const idRequisicao = ++requisicaoAtual.current;
+        setLoading(true);
+        setErro(null);
+        try {
+            const resposta = await turmasService.listar({
+                page: pagina - 1,
+                size: itensPorPagina,
+                busca: buscaAplicada.trim() || undefined,
+                periodo: fPeriodo ? Number(fPeriodo) : undefined,
+                ano: fAno ? Number(fAno) : undefined,
+                status: fStatus || undefined,
+            });
+            if (idRequisicao === requisicaoAtual.current) {
+                setTurmas(resposta.content);
+                setTotalTurmas(resposta.totalElements);
+            }
+        } catch (error) {
+            if (idRequisicao === requisicaoAtual.current) {
+                setErro(mensagemErro(error, "Não foi possível carregar as turmas."));
+                setTurmas([]);
+                setTotalTurmas(0);
+            }
+        } finally {
+            if (idRequisicao === requisicaoAtual.current) setLoading(false);
+        }
+    }, [buscaAplicada, fAno, fPeriodo, fStatus, itensPorPagina, paginaAtual]);
+
+    React.useEffect(() => {
+        const timer = setTimeout(() => setBuscaAplicada(busca), 300);
+        return () => clearTimeout(timer);
+    }, [busca]);
+
+    React.useEffect(() => {
+        let vivo = true;
+        void Promise.resolve().then(() => {
+            if (vivo) void carregarTurmas();
+        });
+        return () => {
+            vivo = false;
+            requisicaoAtual.current += 1;
+        };
+    }, [carregarTurmas]);
 
     React.useEffect(() => {
         if (!sucesso) return;
@@ -76,99 +92,28 @@ export function TurmasListagem() {
         return () => clearTimeout(timer);
     }, [sucesso]);
 
-    const filtradas = React.useMemo(() => {
-        if (turmas === null) return [];
-        const b = busca.trim().toLowerCase();
+    async function salvarTurma(dados: TurmaRequest, modo: "criar" | "editar") {
+        try {
+            if (modo === "criar") {
+                await turmasService.criar(dados);
+                setCadastrarAberto(false);
+                setSucesso("Turma cadastrada com sucesso!");
+            } else if (selecionada) {
+                await turmasService.atualizar(selecionada.id, dados);
+                setEditarAberto(false);
+                setSelecionada(null);
+                setSucesso("Turma editada com sucesso!");
+            } else {
+                return;
+            }
 
-        return turmas.filter((t) => {
-            const buscaOk =
-                !b ||
-                t.curso.toLowerCase().includes(b) ||
-                t.periodo.toLowerCase().includes(b) ||
-                String(t.ano).includes(b);
-            const periodoOk = !fPeriodo || t.periodo === fPeriodo;
-            const anoOk = !fAno || String(t.ano) === fAno;
-            const statusOk = !fStatus || t.status === fStatus;
-            return buscaOk && periodoOk && anoOk && statusOk;
-        });
-    }, [turmas, busca, fPeriodo, fAno, fStatus]);
-
-    const totalPaginas = Math.max(1, Math.ceil(filtradas.length / itensPorPagina));
-    const paginaSegura = Math.min(paginaAtual, totalPaginas);
-    const inicioIndice = (paginaSegura - 1) * itensPorPagina;
-    const pagina = filtradas.slice(inicioIndice, inicioIndice + itensPorPagina);
-
-    async function confirmarCadastro(dados: {
-    periodo: string;
-    curso: CursoResponse;
-    qtdAlunos: number;
-    ano: number;
-    status: Status;
-}) {
-    try {
-        const dadosApi: TurmaRequest = {
-            periodo: Number(dados.periodo),
-            ano: dados.ano,
-            numeroAlunos: dados.qtdAlunos,
-            curso: {
-                id: dados.curso.id,
-            },
-        };
-
-        await turmasService.criar(dadosApi);
-
-        const resposta = await turmasService.listar({
-            page: 0,
-            size: 100,
-        });
-
-        setTurmas(resposta.content.map(converterTurma));
-
-        setCadastrarAberto(false);
-        setSucesso("Turma cadastrada com sucesso!");
-    } catch (erro) {
-        console.error("Erro ao cadastrar turma:", erro);
+            if (paginaAtual !== 1) setPaginaAtual(1);
+            else await carregarTurmas(1);
+        } catch (error) {
+            const fallback = modo === "criar" ? "Erro ao cadastrar turma." : "Erro ao editar turma.";
+            throw new Error(error instanceof ApiError ? error.message : fallback);
+        }
     }
-}
-
-   async function confirmarEdicao(dados: {
-    periodo: string;
-    curso: CursoResponse;
-    qtdAlunos: number;
-    ano: number;
-    status: Status;
-}) {
-    if (!selecionada) return;
-
-    try {
-        const dadosApi: TurmaRequest = {
-            periodo: Number(dados.periodo),
-            ano: dados.ano,
-            numeroAlunos: dados.qtdAlunos,
-            curso: {
-                id: Number(dados.curso),
-            },
-        };
-
-        await turmasService.atualizar(
-            Number(selecionada.id),
-            dadosApi
-        );
-
-        const resposta = await turmasService.listar({
-            page: 0,
-            size: 100,
-        });
-
-        setTurmas(resposta.content.map(converterTurma));
-
-        setEditarAberto(false);
-        setSelecionada(null);
-        setSucesso("Turma editada com sucesso!");
-    } catch (erro) {
-        console.error("Erro ao editar turma:", erro);
-    }
-}
 
     return (
         <div className="mx-auto flex w-full max-w-[1100px] min-w-0 flex-1 flex-col gap-6 px-6 py-8">
@@ -183,9 +128,7 @@ export function TurmasListagem() {
                     </Link>
                     <div>
                         <h1 className="text-3xl font-bold text-[#17264D]">Listagem de Turmas</h1>
-                        <p className="text-sm text-[#17264D]/70">
-                            Gerencie as turmas da instituição
-                        </p>
+                        <p className="text-sm text-[#17264D]/70">Gerencie as turmas da instituição</p>
                     </div>
                 </div>
 
@@ -194,18 +137,13 @@ export function TurmasListagem() {
                         <SearchInput
                             placeholder="Pesquisar..."
                             value={busca}
-                            onChange={(e) => {
-                                setBusca(e.target.value);
+                            onChange={(event) => {
+                                setBusca(event.target.value);
                                 setPaginaAtual(1);
                             }}
                         />
                     </div>
-                    <Button
-                        variant="secondary"
-                        size="small"
-                        className="gap-2"
-                        onClick={() => setCadastrarAberto(true)}
-                    >
+                    <Button variant="secondary" size="small" className="gap-2" onClick={() => setCadastrarAberto(true)}>
                         <Plus className="size-5" />
                         Cadastrar
                     </Button>
@@ -214,124 +152,73 @@ export function TurmasListagem() {
 
             <TableFilters
                 fields={[
-                    {
-                        name: "periodo",
-                        label: "Período",
-                        type: "select",
-                        placeholder: "Selecione...",
-                        options: PERIODOS.map((p) => ({ label: p, value: p })),
-                    },
-                    {
-                        name: "ano",
-                        label: "Ano",
-                        type: "select",
-                        placeholder: "Selecione...",
-                        options: ANOS.map((a) => ({ label: String(a), value: String(a) })),
-                    },
+                    { name: "periodo", label: "Etapa do curso", type: "input", inputType: "number", placeholder: "Número da etapa", width: "w-[190px]" },
+                    { name: "ano", label: "Ano", type: "input", inputType: "number", placeholder: "Ex.: 2026", width: "w-[150px]" },
                 ]}
-                onChange={(f) => {
-                    setFPeriodo(f.periodo ?? "");
-                    setFAno(f.ano ?? "");
+                onChange={(filters) => {
+                    setFPeriodo(filters.periodo ?? "");
+                    setFAno(filters.ano ?? "");
                     setPaginaAtual(1);
                 }}
-                onClear={() => setFStatus("")}
+                onClear={() => {
+                    setFStatus("");
+                    setPaginaAtual(1);
+                }}
             />
 
-            <div className="min-w-0 pb-2">
-                <DataTable
-                    data={pagina}
-                    getRowKey={(t) => t.id}
-                    columns={[
-                        { key: "id", label: "ID", headerClassName: "min-w-[80px]" },
-                        { key: "periodo", label: "Período", headerClassName: "min-w-[140px]" },
-                        { key: "ano", label: "Ano", headerClassName: "min-w-[100px]" },
-                        { key: "qtdAlunos", label: "Qtd. Alunos", headerClassName: "min-w-[120px]" },
-                        { key: "curso", label: "Curso", headerClassName: "min-w-[140px]" },
-                        {
-                            key: "status",
-                            label: (
-                                <TableFilterHead
-                                    label="Status"
-                                    value={fStatus}
-                                    onChange={(valor) => {
-                                        setFStatus(valor);
-                                        setPaginaAtual(1);
-                                    }}
-                                    options={[
-                                        { label: "Ativo", value: "Ativo" },
-                                        { label: "Inativo", value: "Inativo" },
-                                    ]}
-                                />
-                            ),
-                            headerClassName: "min-w-[140px]",
-                            render: (t) =>
-                                t.status === "Ativo" ? (
-                                    <span className="inline-flex items-center gap-2 font-medium text-[#13B900]">
-                                        <CircleCheck className="size-4" />
-                                        Ativo
-                                    </span>
-                                ) : (
-                                    <span className="inline-flex items-center gap-2 font-medium text-[#BA1A1A]">
-                                        <CircleMinus className="size-4" />
-                                        Inativo
-                                    </span>
-                                ),
-                        },
-                    ]}
-                    actions={[
-                        {
+            {erro && (
+                <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-[#BA1A1A]">
+                    <span>{erro}</span>
+                    <Button variant="ghost" size="small" onClick={() => void carregarTurmas()}>Tentar novamente</Button>
+                </div>
+            )}
+
+            {loading ? (
+                <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24" role="status">
+                    <Loader2 className="size-6 animate-spin text-[#0099AA]" />
+                    <span className="text-sm text-[#17264D]/70">Carregando turmas...</span>
+                </div>
+            ) : (
+                <div className="min-w-0 pb-2">
+                    <DataTable
+                        data={turmas}
+                        getRowKey={(turma) => turma.id}
+                        emptyMessage="Nenhuma turma encontrada."
+                        columns={[
+                            { key: "id", label: "ID", headerClassName: "min-w-[80px]" },
+                            { key: "periodo", label: "Período no curso", headerClassName: "min-w-[140px]", render: (turma) => rotuloPeriodoTurma(turma.curso.periodicidade, turma.periodo) },
+                            { key: "ano", label: "Ano", headerClassName: "min-w-[100px]" },
+                            { key: "numeroAlunos", label: "Qtd. Alunos", headerClassName: "min-w-[120px]" },
+                            { key: "curso", label: "Curso", headerClassName: "min-w-[140px]", render: (turma) => turma.curso.nome },
+                            {
+                                key: "status",
+                                label: <TableFilterHead label="Status" value={fStatus} onChange={(status) => { setFStatus(status as Status | ""); setPaginaAtual(1); }} options={[{ label: "Ativo", value: "ATIVO" }, { label: "Inativo", value: "INATIVO" }]} />,
+                                headerClassName: "min-w-[140px]",
+                                render: (turma) => turma.status === "ATIVO"
+                                    ? <span className="inline-flex items-center gap-2 font-medium text-[#13B900]"><CircleCheck className="size-4" />Ativo</span>
+                                    : <span className="inline-flex items-center gap-2 font-medium text-[#BA1A1A]"><CircleMinus className="size-4" />Inativo</span>,
+                            },
+                        ]}
+                        actions={[{
                             label: "Editar",
                             icon: <Pencil className="size-[21px]" strokeWidth={2} />,
-                            onClick: (t) => {
-                                setSelecionada(t);
-                                setEditarAberto(true);
-                            },
-                        },
-                    ]}
-                />
-
-                {pagina.length === 0 && (
-                    <p className="py-10 text-center text-sm text-[#17264D]/70">
-                        Nenhuma turma encontrada.
-                    </p>
-                )}
-            </div>
+                            onClick: (turma) => { setSelecionada(turma); setEditarAberto(true); },
+                        }]}
+                    />
+                </div>
+            )}
 
             <Pagination
-                totalItems={filtradas.length}
-                currentPage={paginaSegura}
+                totalItems={totalTurmas}
+                currentPage={paginaAtual}
                 itemsPerPage={itensPorPagina}
                 onPageChange={setPaginaAtual}
-                onItemsPerPageChange={(n) => {
-                    setItensPorPagina(n);
-                    setPaginaAtual(1);
-                }}
+                onItemsPerPageChange={(quantidade) => { setItensPorPagina(quantidade); setPaginaAtual(1); }}
             />
 
-            <TurmaFormModal
-                open={cadastrarAberto}
-                onClose={() => setCadastrarAberto(false)}
-                mode="cadastrar"
-                onConfirm={confirmarCadastro}
-            />
-
-            <TurmaFormModal
-                open={editarAberto}
-                onClose={() => {
-                    setEditarAberto(false);
-                    setSelecionada(null);
-                }}
-                mode="editar"
-                turma={selecionada}
-                onConfirm={confirmarEdicao}
-            />
-
-            <Modal
-                open={sucesso !== null}
-                onClose={() => setSucesso(null)}
-                type="success"
-                message={sucesso ?? ""}
-            />
+            <TurmaFormModal open={cadastrarAberto} onClose={() => setCadastrarAberto(false)} mode="cadastrar" onConfirm={(dados) => salvarTurma(dados, "criar")} />
+            <TurmaFormModal open={editarAberto} onClose={() => { setEditarAberto(false); setSelecionada(null); }} mode="editar" turma={selecionada} onConfirm={(dados) => salvarTurma(dados, "editar")} />
+            <Modal open={sucesso !== null} onClose={() => setSucesso(null)} type="success" message={sucesso ?? ""} />
         </div>
     );
 }

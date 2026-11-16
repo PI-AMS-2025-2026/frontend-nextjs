@@ -14,6 +14,8 @@ interface SelectProps {
   onChange?: (value: string) => void;
   placeholder?: string;
   className?: string;
+  "aria-label"?: string;
+  disabled?: boolean;
 }
 
 export function Select({
@@ -22,6 +24,8 @@ export function Select({
   onChange,
   placeholder = "Selecione uma opção",
   className = "",
+  "aria-label": ariaLabel,
+  disabled = false,
 }: SelectProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -31,8 +35,10 @@ export function Select({
     <div className={`relative w-full overflow-visible ${className}`}>
       <button
         type="button"
+        aria-label={ariaLabel}
+        disabled={disabled}
         onClick={() => setOpen((prev) => !prev)}
-        className={`flex w-full items-center justify-between rounded-lg border bg-[#F2F2F2] px-3 py-2 text-sm transition-colors duration-200 ${
+        className={`flex w-full items-center justify-between rounded-lg border bg-[#F2F2F2] px-3 py-2 text-sm transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${
           open ? "border-[#4471E6]" : "border-[#17264D]"
         }`}
       >
