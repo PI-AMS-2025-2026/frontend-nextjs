@@ -1,4 +1,4 @@
-// Valores do enum no backend (GET /dias-semana), com acento em TERÇA e SÁBADO
+
 export const DIAS_SEMANA: { label: string; value: string }[] = [
     { label: "Segunda", value: "SEGUNDA" },
     { label: "Terça", value: "TERÇA" },
@@ -10,19 +10,28 @@ export const DIAS_SEMANA: { label: string; value: string }[] = [
 ];
 
 function semAcento(valor: string) {
-    return valor.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
+    return valor
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toUpperCase();
 }
 
-/** Compara dias ignorando acento (TERÇA == TERCA). */
 export function mesmoDia(a: string, b: string) {
     return semAcento(a) === semAcento(b);
 }
 
 export function rotuloDia(dia: string) {
-    return DIAS_SEMANA.find((d) => mesmoDia(d.value, dia))?.label ?? dia;
+    return DIAS_SEMANA.find(
+        (d) => mesmoDia(d.value, dia)
+    )?.label ?? dia;
 }
 
-// Aceita "08:00" ou "08:00:00" e devolve "08:00"
-export function formatarHora(hora: string) {
+// Aceita "08:00" ou "08:00:00".
+// Evita quebrar a tela quando a API não fornece o horário.
+export function formatarHora(hora: string | null | undefined) {
+    if (typeof hora !== "string" || !hora.trim()) {
+        return "Horário indisponível";
+    }
+
     return hora.slice(0, 5);
 }

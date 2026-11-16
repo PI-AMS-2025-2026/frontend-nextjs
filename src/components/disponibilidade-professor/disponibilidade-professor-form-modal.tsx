@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -24,8 +25,6 @@ interface DisponibilidadeProfessorFormModalProps {
     blocos: BlocoHorarioResponse[];
     onConfirm: (dados: DadosDisponibilidade) => void | Promise<void>;
 }
-
-const REGEX_HORARIO = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export function DisponibilidadeProfessorFormModal({
     open,
@@ -63,30 +62,61 @@ function DisponibilidadeProfessorFormConteudo({
 }) {
     const edicao = disponibilidade !== null;
 
-    const [professor, setProfessor] = React.useState(disponibilidade?.professor.nome ?? "");
+    const [professor, setProfessor] = React.useState(
+        disponibilidade?.professor.nome ?? ""
+    );
+
     const [diaSemana, setDiaSemana] = React.useState<string>(
-        DIAS_SEMANA.find((d) => mesmoDia(d.value, disponibilidade?.diaSemana ?? ""))?.value ?? "",
+        DIAS_SEMANA.find(
+            (d) => mesmoDia(d.value, disponibilidade?.diaSemana ?? "")
+        )?.value ?? ""
     );
-    const [horario, setHorario] = React.useState(
-        disponibilidade ? formatarHora(disponibilidade.blocoHorario.horaInicio) : "",
+
+    const [blocoHorarioId, setBlocoHorarioId] = React.useState(
+        disponibilidade ? String(disponibilidade.blocoHorario.id) : ""
     );
+
     const [erro, setErro] = React.useState("");
     const [salvando, setSalvando] = React.useState(false);
 
+    const opcoesHorarios = blocos.map((bloco) => ({
+        value: String(bloco.id),
+        label: `${formatarHora(bloco.horaInicio)} - ${formatarHora(bloco.horaFim)}`,
+    }));
+
     async function handleConfirmar() {
         const nome = professor.trim().toLowerCase();
-        const encontrado = professores.find((p) => p.nome.trim().toLowerCase() === nome);
 
-        if (!nome) return setErro("Informe o professor.");
-        if (!encontrado) return setErro("Professor não encontrado.");
-        if (!diaSemana) return setErro("Selecione o dia da semana.");
-        if (!horario) return setErro("Informe o horário.");
-        if (!REGEX_HORARIO.test(horario)) return setErro("Informe o horário no formato HH:mm.");
+        const encontrado = professores.find(
+            (p) => p.nome.trim().toLowerCase() === nome
+        );
 
-        const bloco = blocos.find((b) => formatarHora(b.horaInicio) === horario);
-        if (!bloco) return setErro("Não há bloco de horário cadastrado para este horário.");
+        if (!nome) {
+            return setErro("Informe o professor.");
+        }
+
+        if (!encontrado) {
+            return setErro("Professor não encontrado.");
+        }
+
+        if (!diaSemana) {
+            return setErro("Selecione o dia da semana.");
+        }
+
+        if (!blocoHorarioId) {
+            return setErro("Selecione um horário.");
+        }
+
+        const bloco = blocos.find(
+            (b) => b.id === Number(blocoHorarioId)
+        );
+
+        if (!bloco) {
+            return setErro("Bloco de horário não encontrado.");
+        }
 
         setSalvando(true);
+
         try {
             await onConfirm({
                 professorId: encontrado.id,
@@ -101,7 +131,9 @@ function DisponibilidadeProfessorFormConteudo({
     return (
         <div className="flex flex-col gap-5">
             <h2 className="pr-12 text-2xl font-semibold text-[#17264D]">
-                {edicao ? "Edição de Disponibilidade" : "Cadastro de Disponibilidade"}
+                {edicao
+                    ? "Edição de Disponibilidade"
+                    : "Cadastro de Disponibilidade"}
             </h2>
 
             <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
@@ -119,6 +151,7 @@ function DisponibilidadeProfessorFormConteudo({
                             setErro("");
                         }}
                     />
+
                     <datalist id="professores-disponibilidade">
                         {professores.map((p) => (
                             <option key={p.id} value={p.nome} />
@@ -127,12 +160,15 @@ function DisponibilidadeProfessorFormConteudo({
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-[#17264D]">Dia da Semana</label>
+                    <label className="text-sm font-medium text-[#17264D]">
+                        Dia da Semana
+                    </label>
+
                     <Select
                         options={DIAS_SEMANA}
                         value={diaSemana}
-                        onChange={(v) => {
-                            setDiaSemana(v);
+                        onChange={(value) => {
+                            setDiaSemana(value);
                             setErro("");
                         }}
                         placeholder="Escolha"
@@ -142,28 +178,39 @@ function DisponibilidadeProfessorFormConteudo({
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    <Input
-                        label="Horário"
-                        showLabel
-                        height="36px"
-                        className="rounded-[10px] text-sm"
-                        type="time"
-                        placeholder="00:00"
-                        value={horario}
-                        onChange={(e) => {
-                            setHorario(e.target.value);
+                    <label className="text-sm font-medium text-[#17264D]">
+                        Horário
+                    </label>
+
+                    <Select
+                        options={opcoesHorarios}
+                        value={blocoHorarioId}
+                        onChange={(value) => {
+                            setBlocoHorarioId(value);
                             setErro("");
                         }}
+                        placeholder="Selecione um horário"
+                        maxVisibleOptions={4}
+                        slimScrollbar
                     />
                 </div>
             </div>
 
-            {erro && <p className="text-sm text-[#BA1A1A]">{erro}</p>}
+            {erro && (
+                <p className="text-sm text-[#BA1A1A]">
+                    {erro}
+                </p>
+            )}
 
             <div className="mt-8 flex justify-end gap-3">
-                <Button variant="ghost" size="small" onClick={onCancel}>
+                <Button
+                    variant="ghost"
+                    size="small"
+                    onClick={onCancel}
+                >
                     Cancelar
                 </Button>
+
                 <Button
                     variant="secondary"
                     size="small"

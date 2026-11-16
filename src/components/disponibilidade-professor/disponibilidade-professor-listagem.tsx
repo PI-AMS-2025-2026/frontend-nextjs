@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -15,44 +16,63 @@ import {
     DisponibilidadeProfessorFormModal,
     type DadosDisponibilidade,
 } from "./disponibilidade-professor-form-modal";
+
 import { DisponibilidadeProfessorExclusaoModal } from "./disponibilidade-professor-exclusao-modal";
-import { DIAS_SEMANA, formatarHora, mesmoDia, rotuloDia } from "./dias-semana";
+
+import {
+    DIAS_SEMANA,
+    formatarHora,
+    mesmoDia,
+    rotuloDia,
+} from "./dias-semana";
 
 import {
     blocoHorariosService,
     disponibilidadesProfessoresService,
     professoresService,
 } from "@/services";
+
 import type {
     BlocoHorarioResponse,
     DisponibilidadeProfessorRequest,
     LongDTO,
     ProfessorResponse,
 } from "@/types/api";
+
 import {
+    normalizarBlocosHorarios,
     normalizarDisponibilidades,
+    type BlocoHorarioApi,
     type DisponibilidadeProfessor,
     type DisponibilidadeProfessorApi,
 } from "./disponibilidade-professor-api";
 
 const TAMANHO_MAXIMO = 1000;
 
-type Feedback = { tipo: "success" | "error"; mensagem: string };
+type Feedback = {
+    tipo: "success" | "error";
+    mensagem: string;
+};
 
-function montarRequest(dados: DadosDisponibilidade): DisponibilidadeProfessorRequest {
+function montarRequest(
+    dados: DadosDisponibilidade,
+): DisponibilidadeProfessorRequest {
     return {
         professor: { id: dados.professorId },
-        // O backend espera o enum do dia (string); o tipo do request em types/api.ts
-        // declara LongDTO. O contrato não foi alterado.
         diaSemana: dados.diaSemana as unknown as LongDTO,
         blocoHorario: { id: dados.blocoHorarioId },
     };
+}
+
+function formatarIntervalo(bloco: BlocoHorarioResponse) {
+    return `${formatarHora(bloco.horaInicio)} - ${formatarHora(bloco.horaFim)}`;
 }
 
 export function DisponibilidadeProfessorListagem() {
     const [disponibilidades, setDisponibilidades] = React.useState<
         DisponibilidadeProfessor[] | null
     >(null);
+
     const [professores, setProfessores] = React.useState<ProfessorResponse[]>([]);
     const [blocos, setBlocos] = React.useState<BlocoHorarioResponse[]>([]);
 
@@ -70,10 +90,14 @@ export function DisponibilidadeProfessorListagem() {
     const [feedback, setFeedback] = React.useState<Feedback | null>(null);
 
     const carregarDisponibilidades = React.useCallback(async () => {
-        const resposta = await disponibilidadesProfessoresService.listar({ size: TAMANHO_MAXIMO });
-        // a resposta real não segue DisponibilidadeProfessorResponse (ver ...-api.ts)
+        const resposta = await disponibilidadesProfessoresService.listar({
+            size: TAMANHO_MAXIMO,
+        });
+
         setDisponibilidades(
-            normalizarDisponibilidades(resposta.content as unknown as DisponibilidadeProfessorApi[]),
+            normalizarDisponibilidades(
+                resposta.content as unknown as DisponibilidadeProfessorApi[],
+            ),
         );
     }, []);
 
@@ -85,24 +109,37 @@ export function DisponibilidadeProfessorListagem() {
                     professoresService.listar({ size: TAMANHO_MAXIMO }),
                     blocoHorariosService.listar({ size: TAMANHO_MAXIMO }),
                 ]);
+
                 setProfessores(profs.content);
-                setBlocos(blocosResposta.content);
+
+                setBlocos(
+                    normalizarBlocosHorarios(
+                        blocosResposta.content as unknown as BlocoHorarioApi[],
+                    ),
+                );
             } catch {
                 setDisponibilidades([]);
-                setFeedback({ tipo: "error", mensagem: "Não foi possível carregar as disponibilidades!" });
+                setFeedback({
+                    tipo: "error",
+                    mensagem: "Não foi possível carregar as disponibilidades!",
+                });
             }
         }
+
         carregar();
     }, [carregarDisponibilidades]);
 
     React.useEffect(() => {
         if (!feedback) return;
+
         const timer = setTimeout(() => setFeedback(null), 1800);
+
         return () => clearTimeout(timer);
     }, [feedback]);
 
     const filtrados = React.useMemo(() => {
         if (disponibilidades === null) return [];
+
         const b = busca.trim().toLowerCase();
         const p = filtroProfessor.trim().toLowerCase();
         const h = filtroHorario.trim();
@@ -110,53 +147,106 @@ export function DisponibilidadeProfessorListagem() {
         return disponibilidades.filter((d) => {
             const professor = d.professor.nome.toLowerCase();
             const dia = rotuloDia(d.diaSemana).toLowerCase();
-            const horario = formatarHora(d.blocoHorario.horaInicio);
+            const horario = formatarIntervalo(d.blocoHorario).toLowerCase();
 
-            const buscaOk = !b || professor.includes(b) || dia.includes(b) || horario.includes(b);
+            const buscaOk =
+                !b ||
+                professor.includes(b) ||
+                dia.includes(b) ||
+                horario.includes(b);
+
             const professorOk = !p || professor.includes(p);
             const diaOk = !filtroDia || mesmoDia(d.diaSemana, filtroDia);
             const horarioOk = !h || horario.includes(h);
+
             return buscaOk && professorOk && diaOk && horarioOk;
         });
-    }, [disponibilidades, busca, filtroProfessor, filtroDia, filtroHorario]);
+    }, [
+        disponibilidades,
+        busca,
+        filtroProfessor,
+        filtroDia,
+        filtroHorario,
+    ]);
 
-    const totalPaginas = Math.max(1, Math.ceil(filtrados.length / itensPorPagina));
+    const totalPaginas = Math.max(
+        1,
+        Math.ceil(filtrados.length / itensPorPagina),
+    );
+
     const paginaSegura = Math.min(paginaAtual, totalPaginas);
     const inicioIndice = (paginaSegura - 1) * itensPorPagina;
-    const pagina = filtrados.slice(inicioIndice, inicioIndice + itensPorPagina);
+
+    const pagina = filtrados.slice(
+        inicioIndice,
+        inicioIndice + itensPorPagina,
+    );
 
     async function confirmarCadastro(dados: DadosDisponibilidade) {
         try {
-            await disponibilidadesProfessoresService.criar(montarRequest(dados));
+            await disponibilidadesProfessoresService.criar(
+                montarRequest(dados),
+            );
+
             await carregarDisponibilidades();
-            setFeedback({ tipo: "success", mensagem: "Disponibilidade cadastrada com sucesso!" });
+
+            setFeedback({
+                tipo: "success",
+                mensagem: "Disponibilidade cadastrada com sucesso!",
+            });
         } catch {
-            setFeedback({ tipo: "error", mensagem: "Não foi possível cadastrar a disponibilidade!" });
+            setFeedback({
+                tipo: "error",
+                mensagem: "Não foi possível cadastrar a disponibilidade!",
+            });
         }
+
         setCadastroAberto(false);
     }
 
     async function confirmarEdicao(dados: DadosDisponibilidade) {
         if (!editando) return;
+
         try {
-            await disponibilidadesProfessoresService.atualizar(editando.id, montarRequest(dados));
+            await disponibilidadesProfessoresService.atualizar(
+                editando.id,
+                montarRequest(dados),
+            );
+
             await carregarDisponibilidades();
-            setFeedback({ tipo: "success", mensagem: "Disponibilidade editada com sucesso!" });
+
+            setFeedback({
+                tipo: "success",
+                mensagem: "Disponibilidade editada com sucesso!",
+            });
         } catch {
-            setFeedback({ tipo: "error", mensagem: "Não foi possível editar a disponibilidade!" });
+            setFeedback({
+                tipo: "error",
+                mensagem: "Não foi possível editar a disponibilidade!",
+            });
         }
+
         setEditando(null);
     }
 
     async function confirmarExclusao() {
         if (!excluindo) return;
+
         try {
             await disponibilidadesProfessoresService.deletar(excluindo.id);
             await carregarDisponibilidades();
-            setFeedback({ tipo: "success", mensagem: "Disponibilidade excluída com sucesso!" });
+
+            setFeedback({
+                tipo: "success",
+                mensagem: "Disponibilidade excluída com sucesso!",
+            });
         } catch {
-            setFeedback({ tipo: "error", mensagem: "Não foi possível excluir a disponibilidade!" });
+            setFeedback({
+                tipo: "error",
+                mensagem: "Não foi possível excluir a disponibilidade!",
+            });
         }
+
         setExcluindo(null);
     }
 
@@ -164,7 +254,9 @@ export function DisponibilidadeProfessorListagem() {
         return (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
                 <Loader2 className="size-6 animate-spin text-[#0099AA]" />
-                <span className="text-sm text-[#17264D]/70">Carregando disponibilidades...</span>
+                <span className="text-sm text-[#17264D]/70">
+                    Carregando disponibilidades...
+                </span>
             </div>
         );
     }
@@ -180,10 +272,12 @@ export function DisponibilidadeProfessorListagem() {
                     >
                         <ArrowLeft className="size-6" />
                     </Link>
+
                     <div>
                         <h1 className="text-3xl font-bold text-[#17264D]">
                             Disponibilidade de Professor
                         </h1>
+
                         <p className="text-sm text-[#17264D]/70">
                             Gerencie as disponibilidades de professores da instituição
                         </p>
@@ -201,6 +295,7 @@ export function DisponibilidadeProfessorListagem() {
                             }}
                         />
                     </div>
+
                     <Button
                         variant="secondary"
                         size="small"
@@ -258,7 +353,11 @@ export function DisponibilidadeProfessorListagem() {
                         data={pagina}
                         getRowKey={(d) => d.id}
                         columns={[
-                            { key: "professor", label: "Professor", render: (d) => d.professor.nome },
+                            {
+                                key: "professor",
+                                label: "Professor",
+                                render: (d) => d.professor.nome,
+                            },
                             {
                                 key: "diaSemana",
                                 label: "Dia da Semana",
@@ -267,18 +366,26 @@ export function DisponibilidadeProfessorListagem() {
                             {
                                 key: "horario",
                                 label: "Horário",
-                                render: (d) => formatarHora(d.blocoHorario.horaInicio),
+                                render: (d) =>
+                                    formatarIntervalo(d.blocoHorario),
                             },
                         ]}
                         actions={[
                             {
                                 label: "Editar",
-                                icon: <Pencil className="size-[21px]" strokeWidth={2} />,
+                                icon: (
+                                    <Pencil
+                                        className="size-[21px]"
+                                        strokeWidth={2}
+                                    />
+                                ),
                                 onClick: (d) => setEditando(d),
                             },
                             {
                                 label: "Excluir",
-                                icon: <Trash2 className="size-[21px]" strokeWidth={2} />,
+                                icon: (
+                                    <Trash2 className="size-[21px]" />
+                                ),
                                 className: "text-[#FF0000] hover:bg-red-50",
                                 onClick: (d) => setExcluindo(d),
                             },
