@@ -39,11 +39,7 @@ import type {
 } from "@/types/api";
 
 import {
-    normalizarBlocosHorarios,
-    normalizarDisponibilidades,
-    type BlocoHorarioApi,
     type DisponibilidadeProfessor,
-    type DisponibilidadeProfessorApi,
 } from "./disponibilidade-professor-api";
 
 const TAMANHO_MAXIMO = 1000;
@@ -93,11 +89,7 @@ export function DisponibilidadeProfessorListagem() {
             size: TAMANHO_MAXIMO,
         });
 
-        setDisponibilidades(
-            normalizarDisponibilidades(
-                resposta.content as unknown as DisponibilidadeProfessorApi[],
-            ),
-        );
+        setDisponibilidades(resposta.content);
     }, []);
 
     React.useEffect(() => {
@@ -111,11 +103,7 @@ export function DisponibilidadeProfessorListagem() {
 
                 setProfessores(profs.content);
 
-                setBlocos(
-                    normalizarBlocosHorarios(
-                        blocosResposta.content as unknown as BlocoHorarioApi[],
-                    ),
-                );
+                setBlocos(blocosResposta.content);
             } catch {
                 setDisponibilidades([]);
                 setFeedback({
