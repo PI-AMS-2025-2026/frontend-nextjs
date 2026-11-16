@@ -106,10 +106,12 @@ function SalaFormConteudo({
         if (!open) return;
 
         let cancelado = false;
-        setCarregandoRecursos(true);
-        setErroRecursos(null);
 
         const carregarRecursos = async () => {
+            // Os resets ficam dentro da funcao assincrona para que o corpo do
+            // efeito nao execute setState de forma sincrona.
+            setCarregandoRecursos(true);
+            setErroRecursos(null);
             try {
                 const paginaRecursos = await recursosService.listar({ page: 0, size: 1000 });
                 if (cancelado) return;

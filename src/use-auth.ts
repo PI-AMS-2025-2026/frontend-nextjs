@@ -49,13 +49,21 @@ export function useAuth() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    const storedToken = authService.getToken();
-    if (storedToken) {
-      setToken(storedToken);
-      const decoded = parseJwt(storedToken);
-      setUser(decoded);
-    }
-    setIsLoading(false);
+    let vivo = true;
+    // O token so existe no cliente; a leitura e o setState sao adiados para um
+    // microtask para nao encadear um render sincrono dentro do efeito.
+    void Promise.resolve().then(() => {
+      if (!vivo) return;
+      const storedToken = authService.getToken();
+      if (storedToken) {
+        setToken(storedToken);
+        setUser(parseJwt(storedToken));
+      }
+      setIsLoading(false);
+    });
+    return () => {
+      vivo = false;
+    };
   }, []);
 
   const login = useCallback(

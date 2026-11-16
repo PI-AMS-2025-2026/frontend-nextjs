@@ -17,9 +17,6 @@ import type { CursoResponse, TurmaRequest, TurmaResponse } from "@/types/api";
 import { TurmaFormModal } from "../TurmaFormModal/turma-form-modal";
 
 import {
-    carregarTurmasSalvas,
-    gerarTurmasMock,
-    salvarTurmas,
     PERIODOS,
     ANOS,
     type Turma,
@@ -44,36 +41,21 @@ export function TurmasListagem() {
     React.useEffect(() => {
         let ativo = true;
 
-    async function carregarTurmas() {
-        try {
-            const resposta = await turmasService.listar({
-                page: 0,
-                size: 100,
-            });
-
-            if (ativo) {
-                setTurmas(resposta.content.map(converterTurma));
-            }
-        } catch (erro) {
-            console.error("Erro ao carregar turmas:", erro);
-
-            if (ativo) {
-                setTurmas([]);
+        async function carregarTurmas() {
+            try {
+                const resposta = await turmasService.listar({ page: 0, size: 100 });
+                if (ativo) setTurmas(resposta.content.map(converterTurma));
+            } catch (erro) {
+                console.error("Erro ao carregar turmas:", erro);
+                if (ativo) setTurmas([]);
             }
         }
-    }
 
-    carregarTurmas();
-
-    return () => {
-        ativo = false;
-    };
+        void carregarTurmas();
+        return () => {
+            ativo = false;
+        };
     }, []);
-
-    React.useEffect(() => {
-        if (turmas === null) return;
-        salvarTurmas(turmas);
-    }, [turmas]);
 
     const [busca, setBusca] = React.useState("");
     const [fPeriodo, setFPeriodo] = React.useState("");
