@@ -22,22 +22,29 @@ export function RecursosSalaModal({ open, onClose, sala }: RecursosSalaModalProp
         if (!open || !sala) return;
 
         let cancelado = false;
-        setCarregando(true);
-        setErro(null);
-        setRecursos([]);
 
-        recursoSalaService
-            .listar({ salaId: sala.id, page: 0, size: 200 })
-            .then((res) => {
+        // Os resets ficam dentro da funcao assincrona para que o corpo do efeito
+        // nao execute setState de forma sincrona (evita o cascading render).
+        const carregar = async () => {
+            setCarregando(true);
+            setErro(null);
+            setRecursos([]);
+            try {
+                const res = await recursoSalaService.listar({
+                    salaId: sala.id,
+                    page: 0,
+                    size: 200,
+                });
                 if (!cancelado) setRecursos(res.content);
-            })
-            .catch((e) => {
+            } catch (e) {
                 if (!cancelado)
                     setErro(e instanceof Error ? e.message : "Erro ao carregar recursos.");
-            })
-            .finally(() => {
+            } finally {
                 if (!cancelado) setCarregando(false);
-            });
+            }
+        };
+
+        void carregar();
 
         return () => {
             cancelado = true;

@@ -26,8 +26,18 @@ export function CursosListagem() {
     const [cursos, setCursos] = React.useState<Curso[] | null>(null);
 
     React.useEffect(() => {
-        const salvos = carregarCursosSalvos();
-        setCursos(salvos ?? gerarCursosMock());
+        let vivo = true;
+        // A leitura precisa ocorrer depois da hidratacao (localStorage nao existe
+        // no servidor) e o setState e adiado para um microtask, para nao encadear
+        // um render sincrono dentro do mesmo commit do efeito.
+        void Promise.resolve().then(() => {
+            if (!vivo) return;
+            const salvos = carregarCursosSalvos();
+            setCursos(salvos ?? gerarCursosMock());
+        });
+        return () => {
+            vivo = false;
+        };
     }, []);
 
     React.useEffect(() => {

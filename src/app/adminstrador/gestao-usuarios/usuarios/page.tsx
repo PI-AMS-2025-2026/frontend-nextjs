@@ -20,9 +20,11 @@ import { Pagination } from "@/components/ui/pagination";
 import { Modal } from "@/components/ui/modal";
 
 import { usuariosService } from "@/services/usuarios.service";
+import { cursosService } from "@/services/cursos.service";
 import type {
     UsuarioResponse,
     UsuarioRequest,
+    CursoResponse,
     Status,
     TipoUsuario,
     PageResponse,
@@ -34,6 +36,7 @@ interface FormUsuario {
     email: string;
     tipoUsuario: TipoUsuario;
     status: Status;
+    cursoId: string;
 }
 
 const formularioInicial: FormUsuario = {
@@ -41,6 +44,7 @@ const formularioInicial: FormUsuario = {
     email: "",
     tipoUsuario: "ADMINISTRADOR",
     status: "ATIVO",
+    cursoId: "",
 };
 
 export default function CadastroUsuario() {
@@ -52,6 +56,7 @@ export default function CadastroUsuario() {
         totalPages: 0,
     });
     const [loading, setLoading] = React.useState(true);
+    const [cursos, setCursos] = React.useState<CursoResponse[]>([]);
 
     const [search, setSearch] = React.useState("");
     const [filters, setFilters] = React.useState<{ status: string; tipo: string }>({
@@ -70,6 +75,22 @@ export default function CadastroUsuario() {
     const [modalSucesso, setModalSucesso] = React.useState(false);
     const [mensagemSucesso, setMensagemSucesso] = React.useState("");
     const [submitting, setSubmitting] = React.useState(false);
+
+    // Alterar a busca ou os filtros volta para a primeira pagina. O reset
+    // acontece junto da acao do usuario, em vez de um efeito reagindo ao
+    // estado derivado (o que causava um render extra a cada digitacao).
+    const aplicarBusca = React.useCallback((valor: string) => {
+        setSearch(valor);
+        setCurrentPage(1);
+    }, []);
+
+    const aplicarFiltros = React.useCallback(
+        (novos: { status: string; tipo: string }) => {
+            setFilters(novos);
+            setCurrentPage(1);
+        },
+        [],
+    );
 
     const carregarUsuarios = React.useCallback(async () => {
         setLoading(true);
@@ -93,12 +114,29 @@ export default function CadastroUsuario() {
     }, [currentPage, itemsPerPage, search, filters]);
 
     React.useEffect(() => {
-        carregarUsuarios();
+        let vivo = true;
+        // A chamada e adiada para um microtask porque o carregamento liga o
+        // estado de loading de forma sincrona; assim o efeito nao encadeia um
+        // render dentro do proprio commit. O guard evita atualizar apos desmontar.
+        void Promise.resolve().then(() => {
+            if (vivo) carregarUsuarios();
+        });
+        return () => {
+            vivo = false;
+        };
     }, [carregarUsuarios]);
 
     React.useEffect(() => {
-        setCurrentPage(1);
-    }, [search, filters]);
+        let ativo = true;
+        cursosService.listar({ page: 0, size: 1000 })
+            .then((resposta) => {
+                if (ativo) setCursos(resposta.content);
+            })
+            .catch((err) => console.error("Erro ao carregar cursos:", err));
+        return () => {
+            ativo = false;
+        };
+    }, []);
 
     function abrirCadastro() {
         setUsuarioEditando(null);
@@ -115,6 +153,7 @@ export default function CadastroUsuario() {
             email: usuario.email,
             tipoUsuario: usuario.tipoUsuario,
             status: usuario.status,
+            cursoId: usuario.curso?.id.toString() ?? "",
         });
         setSenha("");
         setErro("");
@@ -142,6 +181,11 @@ export default function CadastroUsuario() {
             return;
         }
 
+        if (formulario.tipoUsuario === "COORDENADOR" && !formulario.cursoId) {
+            setErro("Selecione o curso do coordenador.");
+            return;
+        }
+
         setErro("");
         setSubmitting(true);
 
@@ -152,6 +196,9 @@ export default function CadastroUsuario() {
                 tipoUsuario: formulario.tipoUsuario,
                 status: formulario.status,
                 ...(senha ? { senha } : {}),
+                ...(formulario.tipoUsuario === "COORDENADOR"
+                    ? { curso: { id: Number(formulario.cursoId) } }
+                    : {}),
             };
 
             if (usuarioEditando) {
@@ -210,7 +257,7 @@ export default function CadastroUsuario() {
                             <SearchInput
                                 placeholder="Pesquisar..."
                                 value={search}
-                                onChange={(event) => setSearch(event.target.value)}
+                                onChange={(event) => aplicarBusca(event.target.value)}
                                 className="h-[45px] w-[205px] rounded-[10px]"
                             />
 
@@ -252,14 +299,14 @@ export default function CadastroUsuario() {
                             },
                         ]}
                         onChange={(values) => {
-                            setFilters({
+                            aplicarFiltros({
                                 status: values.status ?? "",
                                 tipo: values.tipo ?? "",
                             });
                         }}
                         onClear={() => {
-                            setSearch("");
-                            setFilters({ status: "", tipo: "" });
+                            aplicarBusca("");
+                            aplicarFiltros({ status: "", tipo: "" });
                         }}
                         className="min-h-[94px] rounded-[6px] border-[#C8DDE2] bg-[#F1FBFD] px-6 py-3"
                     />
@@ -381,14 +428,15 @@ export default function CadastroUsuario() {
                                             ? "Administrador"
                                             : "Coordenador"
                                     }
-                                    onChange={(valor) =>
-                                        alterarCampo(
-                                            "tipoUsuario",
-                                            valor === "Administrador"
-                                                ? "ADMINISTRADOR"
-                                                : "COORDENADOR"
-                                        )
-                                    }
+                                    onChange={(valor) => {
+                                        const tipoUsuario = valor === "Administrador"
+                                            ? "ADMINISTRADOR"
+                                            : "COORDENADOR";
+                                        alterarCampo("tipoUsuario", tipoUsuario);
+                                        if (tipoUsuario === "ADMINISTRADOR") {
+                                            alterarCampo("cursoId", "");
+                                        }
+                                    }}
                                     placeholder="Selecione..."
                                     options={[
                                         { label: "Administrador", value: "Administrador" },
@@ -442,6 +490,24 @@ export default function CadastroUsuario() {
                                 </RadioGroup>
                             </div>
                         </div>
+
+                        {formulario.tipoUsuario === "COORDENADOR" && (
+                            <div className="col-span-2">
+                                <label className="mb-2 block text-[11px] font-medium text-black">
+                                    Curso do Coordenador
+                                </label>
+                                <Dropdown
+                                    value={cursos.find((curso) => String(curso.id) === formulario.cursoId)?.nome ?? ""}
+                                    onChange={(nomeCurso) => {
+                                        const curso = cursos.find((item) => item.nome === nomeCurso);
+                                        alterarCampo("cursoId", curso ? String(curso.id) : "");
+                                    }}
+                                    placeholder="Selecione o curso..."
+                                    options={cursos.map((curso) => ({ label: curso.nome, value: curso.nome }))}
+                                    className="[&>button]:h-[34px] [&>button]:rounded-[7px] [&>button]:border-[#17264D] [&>button]:bg-white [&>button]:text-[12px]"
+                                />
+                            </div>
+                        )}
 
                         {erro && (
                             <p className="col-span-2 text-[12px] font-medium text-[#BA1A1A]">

@@ -15,7 +15,8 @@ export type Discipline = {
 type DisciplineListProps = {
   disciplinas: Discipline[];
   arrastando: boolean;
-  onRemove: (id: string) => void;
+  // aulaId identifica a ocorrência na grade; callbacks antigos de um argumento continuam válidos.
+  onRemove: (id: string, aulaId?: string) => void;
   onRemoveAll?: () => void;
   onDragStateChange?: (arrastando: boolean) => void;
 };
@@ -28,57 +29,57 @@ export default function DisciplineList({
   onDragStateChange,
 }: DisciplineListProps) {
   const [hoverRemover, setHoverRemover] = useState(false);
-
-  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+  const handleDragOver = (event: React.DragEvent<HTMLElement>) => {
     event.preventDefault();
-
+    event.stopPropagation();
     event.dataTransfer.dropEffect = "move";
-
     setHoverRemover(true);
   };
-
-  const handleDragLeave = () => {
+  const handleDragLeave = (event: React.DragEvent<HTMLElement>) => {
+    if (
+      event.relatedTarget instanceof Node &&
+      event.currentTarget.contains(event.relatedTarget)
+    ) return;
     setHoverRemover(false);
   };
-
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = (event: React.DragEvent<HTMLElement>) => {
     event.preventDefault();
-
+    event.stopPropagation();
     const data =
       event.dataTransfer.getData(DISCIPLINE_DND_MIME) ||
       event.dataTransfer.getData("text/plain") ||
       event.dataTransfer.getData("discipline");
-
-    if (!data) {
-      setHoverRemover(false);
-      onDragStateChange?.(false);
-      return;
-    }
-
     try {
-      const disciplina: Discipline = JSON.parse(data);
-
-      onRemove(disciplina.id);
+      if (!data || data.length > 16384) return;
+      const valor: unknown = JSON.parse(data);
+      if (!valor || typeof valor !== "object") return;
+      const payload = valor as { id?: unknown; aulaId?: unknown };
+      if (typeof payload.id !== "string" || !payload.id) return;
+      const aulaId =
+        typeof payload.aulaId === "string" && payload.aulaId
+          ? payload.aulaId
+          : undefined;
+      onRemove(aulaId ?? payload.id, aulaId);
     } catch (error) {
       console.error("Erro ao ler disciplina:", error);
+    } finally {
+      setHoverRemover(false);
+      onDragStateChange?.(false);
     }
-
-    setHoverRemover(false);
-    onDragStateChange?.(false);
   };
 
   return (
-    <aside className="flex h-full min-h-0 w-full flex-col rounded-lg p-4">
+    <aside
+      className="flex h-full min-h-0 w-full flex-col rounded-lg p-4"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       <h2 className="mb-4 shrink-0 text-3xl font-semibold text-[#17264D]">
         Disciplinas
       </h2>
-
-      {/* Separador entre título e cards */}
       <div className="mb-4 w-full max-w-[280px] shrink-0 border-t border-[#D9D9D9]" />
-
-      {/* Área dos cards + espaço de remoção */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {/* SOMENTE OS CARDS POSSUEM SCROLL */}
         <div className="min-h-0 overflow-y-auto pr-4">
           <div className="flex flex-col gap-3">
             {disciplinas.map((disciplina) => (
@@ -96,13 +97,8 @@ export default function DisciplineList({
             ))}
           </div>
         </div>
-
-        {/* ÁREA DE REMOÇÃO - OCUPA AUTOMATICAMENTE O ESPAÇO RESTANTE */}
         {arrastando && (
           <div
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
             className={`mt-3 flex min-h-[72px] flex-1 items-center justify-center rounded-lg border-2 border-dashed px-4 text-center text-sm font-medium transition ${
               hoverRemover
                 ? "border-red-400 bg-red-50 text-red-600"
@@ -115,14 +111,9 @@ export default function DisciplineList({
           </div>
         )}
       </div>
-
-      {/* Separador antes da dica - FIXO */}
       <div className="mt-3 w-full max-w-[280px] shrink-0 border-t border-[#D9D9D9]" />
-
-      {/* Dica - FIXA */}
       <div className="flex w-full max-w-[280px] shrink-0 items-start gap-2 pt-1 text-sm text-[#777777]">
         <TbBulb className="mt-0.5 h-5 w-5 shrink-0 border-[#000000] text-[#FAD207]" />
-
         <p className="leading-relaxed">
           <span className="font-semibold text-[#17264D]">Dica:</span> arraste
           uma disciplina para a grade para adicioná-la. Para remover, arraste-a

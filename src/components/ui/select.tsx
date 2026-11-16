@@ -21,6 +21,8 @@ interface SelectProps {
   maxVisibleOptions?: number;
   buttonClassName?: string;
   slimScrollbar?: boolean;
+  "aria-label"?: string;
+  disabled?: boolean;
 }
 
 export function Select({
@@ -32,6 +34,8 @@ export function Select({
   maxVisibleOptions,
   buttonClassName,
   slimScrollbar,
+  "aria-label": ariaLabel,
+  disabled = false,
 }: SelectProps) {
   const [open, setOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -63,6 +67,8 @@ export function Select({
     <div ref={containerRef} className={`relative w-full overflow-visible ${className}`}>
       <button
         type="button"
+        aria-label={ariaLabel}
+        disabled={disabled}
         onClick={() => setOpen((prev) => !prev)}
         className={cn(
           "flex w-full items-center justify-between rounded-lg border bg-[#F2F2F2] px-3 py-2 text-sm transition-colors duration-200",

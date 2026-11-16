@@ -160,9 +160,9 @@ export function Header({
       : openGroup.links.length
     : 0;
 
-  function handleLogout() {
-    authService.logout();
-    router.push("/login");
+  async function handleLogout() {
+    await authService.logout();
+    router.replace("/login");
   }
 
   return (

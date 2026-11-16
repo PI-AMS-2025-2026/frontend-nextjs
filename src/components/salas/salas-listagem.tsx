@@ -2,13 +2,14 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Plus, Pencil, Trash2, Wrench, ArrowLeft, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/input";
 import { DataTable } from "@/components/ui/table";
 import { TableFilters } from "@/components/ui/tablefilters";
-import { Pagination } from "@/components/ui/pagination";
+import { Pagination } from "@/components/ui/pagination";   
 import { Modal } from "@/components/ui/modal";
 
 import { SalaFormModal, type DadosSala } from "@/components/salas/sala-form-modal";
@@ -18,6 +19,7 @@ import { RecursosSalaModal } from "@/components/salas/recursos-sala-modal";
 import { ApiError } from "@/lib/api";
 import { salasService } from "@/services/salas.service";
 import { tiposSalaService } from "@/services/tipos-sala.service";
+import { recursoSalaService } from "@/services/recurso-sala.service";
 import type { Id, SalaResponse, TipoSalaResponse } from "@/types/api";
 
 // Linha exibida na tabela (as chaves batem com as colunas do DataTable)
@@ -47,7 +49,42 @@ function mensagemErro(e: unknown, padrao: string) {
     return e instanceof Error && e.message ? e.message : padrao;
 }
 
+async function sincronizarRecursosSala(
+    salaId: Id,
+    recursosDesejados: DadosSala["recursos"],
+) {
+    const vinculados = await recursoSalaService.listar({ salaId, page: 0, size: 1000 });
+    const pendentes = new Map(recursosDesejados.map((item) => [item.recursoId, item.quantidade]));
+
+    for (const vinculo of vinculados.content) {
+        const quantidade = pendentes.get(vinculo.recurso.id);
+        if (quantidade === undefined) {
+            await recursoSalaService.deletar(vinculo.id);
+            continue;
+        }
+
+        if (quantidade !== vinculo.quantidade) {
+            await recursoSalaService.atualizar(vinculo.id, {
+                sala: { id: salaId },
+                recurso: { id: vinculo.recurso.id },
+                quantidade,
+            });
+        }
+        pendentes.delete(vinculo.recurso.id);
+    }
+
+    for (const [recursoId, quantidade] of pendentes) {
+        await recursoSalaService.criar({
+            sala: { id: salaId },
+            recurso: { id: recursoId },
+            quantidade,
+        });
+    }
+}
+
 export function SalasListagem() {
+    const pathname = usePathname();
+    const isCoordinatorRoute = pathname.startsWith("/coordenador/");
     const [salas, setSalas] = React.useState<SalaResponse[] | null>(null);
     const [tiposSala, setTiposSala] = React.useState<TipoSalaResponse[]>([]);
     const [erro, setErro] = React.useState<string | null>(null);
@@ -71,7 +108,16 @@ export function SalasListagem() {
     }, []);
 
     React.useEffect(() => {
-        carregar();
+        let vivo = true;
+        // A chamada e adiada para um microtask porque o carregamento liga o
+        // estado de loading de forma sincrona; assim o efeito nao encadeia um
+        // render dentro do proprio commit. O guard evita atualizar apos desmontar.
+        void Promise.resolve().then(() => {
+            if (vivo) carregar();
+        });
+        return () => {
+            vivo = false;
+        };
     }, [carregar]);
 
     const [busca, setBusca] = React.useState("");
@@ -126,11 +172,17 @@ export function SalasListagem() {
         try {
             setSalvando(true);
             setErroForm(null);
-            await salasService.criar({
+            const tipoSalaId = dados.novoTipo
+                ? (await tiposSalaService.criar({ nome: dados.novoTipo })).id
+                : dados.tipoSalaId;
+            if (!tipoSalaId) throw new Error("Selecione ou cadastre um tipo de sala.");
+
+            const criada = await salasService.criar({
                 codigo: dados.codigo,
                 capacidade: dados.capacidade,
-                tipoSala: { id: dados.tipoSalaId },
+                tipoSala: { id: tipoSalaId },
             });
+            await sincronizarRecursosSala(criada.id, dados.recursos);
             await carregar();
             setCadastrarAberto(false);
             setSucesso("Sala cadastrada com sucesso!");
@@ -146,11 +198,17 @@ export function SalasListagem() {
         try {
             setSalvando(true);
             setErroForm(null);
+            const tipoSalaId = dados.novoTipo
+                ? (await tiposSalaService.criar({ nome: dados.novoTipo })).id
+                : dados.tipoSalaId;
+            if (!tipoSalaId) throw new Error("Selecione ou cadastre um tipo de sala.");
+
             await salasService.atualizar(selecionada.id, {
                 codigo: dados.codigo,
                 capacidade: dados.capacidade,
-                tipoSala: { id: dados.tipoSalaId },
+                tipoSala: { id: tipoSalaId },
             });
+            await sincronizarRecursosSala(selecionada.id, dados.recursos);
             await carregar();
             setEditarAberto(false);
             setSelecionada(null);
@@ -196,7 +254,7 @@ export function SalasListagem() {
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                     <Link
-                        href="/adminstrador/home"
+                        href={isCoordinatorRoute ? "/coordenador/estrutura-academica" : "/adminstrador/home"}
                         aria-label="Voltar"
                         className="flex size-9 items-center justify-center rounded-lg text-[#17264D]/70 transition-colors hover:bg-[#F2F2F2]"
                     >
@@ -205,7 +263,9 @@ export function SalasListagem() {
                     <div>
                         <h1 className="text-3xl font-bold text-[#17264D]">Salas</h1>
                         <p className="text-sm text-[#17264D]/70">
-                            Gerencie as salas da instituição
+                            {isCoordinatorRoute
+                                ? "Visualize as salas da instituição"
+                                : "Gerencie as salas da instituição"}
                         </p>
                     </div>
                 </div>

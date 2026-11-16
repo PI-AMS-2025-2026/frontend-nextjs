@@ -3,7 +3,6 @@ import type {
   LoginRequest,
   LoginResponse,
   RefreshTokenRequest,
-  UsuarioRequest,
 } from "@/types/api";
 
 export const authService = {
@@ -12,6 +11,7 @@ export const authService = {
     if (typeof window !== "undefined") {
       localStorage.setItem("access_token", response.accessToken);
       localStorage.setItem("refresh_token", response.refreshToken);
+      localStorage.setItem("usuario", JSON.stringify(response.usuario));
     }
     return response;
   },
@@ -31,12 +31,11 @@ export const authService = {
     if (typeof window !== "undefined") {
       localStorage.setItem("access_token", response.accessToken);
       localStorage.setItem("refresh_token", response.refreshToken);
+      if (response.usuario) {
+        localStorage.setItem("usuario", JSON.stringify(response.usuario));
+      }
     }
     return response;
-  },
-
-  registrar(data: UsuarioRequest) {
-    return api.post<void>("/auth/registrar", data, false);
   },
 
   async logout() {
@@ -53,10 +52,15 @@ export const authService = {
       }
     }
 
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
-    }
+    this.clearSession();
+  },
+
+  clearSession() {
+    if (typeof window === "undefined") return;
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("usuario");
+    document.cookie = "role=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
   },
 
   getToken() {
@@ -67,6 +71,18 @@ export const authService = {
   getRefreshToken() {
     if (typeof window === "undefined") return null;
     return localStorage.getItem("refresh_token");
+  },
+
+  getUser() {
+    if (typeof window === "undefined") return null;
+    const storedUser = localStorage.getItem("usuario");
+    if (!storedUser) return null;
+    try {
+      return JSON.parse(storedUser);
+    } catch {
+      localStorage.removeItem("usuario");
+      return null;
+    }
   },
 };
 

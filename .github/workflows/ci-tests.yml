@@ -1,0 +1,84 @@
+# Validação de qualidade do código (lint, tipos, testes unitários e build).
+# É reutilizado pelo workflow de build/publicação via `workflow_call`, por isso
+# o push em dev/staging/main NÃO é um gatilho aqui (evita execução duplicada).
+name: ci-tests
+
+on:
+  pull_request:
+    branches: [dev, staging, main]
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-tests-${{ github.workflow }}-${{ github.ref }}
+  # Cancela execuções antigas apenas em PRs; em push/branch protegida o
+  # histórico de execuções é preservado.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  lint:
+    name: Lint (ESLint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+
+  typecheck:
+    name: Typecheck (tsc --noEmit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+
+  unit-tests:
+    name: Testes unitários (Vitest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm test -- --run --coverage
+      - name: Publicar relatório de cobertura
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: coverage/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  build-check:
+    name: Build de verificação (Next.js)
+    runs-on: ubuntu-latest
+    env:
+      # Valor fictício: aqui só validamos que o build compila. A URL real é
+      # injetada como build-arg no workflow de publicação da imagem.
+      NEXT_PUBLIC_API_URL: http://localhost:8080
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run build

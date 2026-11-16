@@ -1,36 +1,228 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Frontend — Projeto Integrador (Fatec Itu)
 
-## Getting Started
+Frontend em [Next.js](https://nextjs.org) 16 (App Router, React 19), TypeScript,
+Tailwind CSS 4 e componentes [shadcn/ui](https://ui.shadcn.com).
+Consome a API REST (Spring Boot) na porta `8080`.
 
-First, run the development server:
+> Convenções de componentes: ver [`INSTRUCTIONS.md`](./INSTRUCTIONS.md).
+> Camada de serviços da API: ver [`SERVICES.md`](./SERVICES.md).
+
+## Requisitos
+
+- Node.js **22 LTS** (o Next 16 exige Node >= 20.9)
+- npm (o repositório usa `package-lock.json`)
+
+## Desenvolvimento local (sem Docker)
 
 ```bash
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Crie um `.env.local` com a URL da API:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8080
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Abra [http://localhost:3000](http://localhost:3000).
 
-## Learn More
+## Scripts
 
-To learn more about Next.js, take a look at the following resources:
+| Script | Descrição |
+| --- | --- |
+| `npm run dev` | Servidor de desenvolvimento |
+| `npm run build` | Build de produção (saída `standalone`) |
+| `npm start` | Executa o build de produção |
+| `npm run lint` | ESLint (o `next lint` foi removido no Next 16) |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm test` | Testes unitários/de componente com Vitest |
+| `npm run test:coverage` | Testes com relatório de cobertura |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Executando com Docker
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+O `docker-compose.yml` sobe quatro serviços: `db` (Postgres 17), `mailpit`
+(caixa de entrada local do e-mail de recuperação de senha), `backend` (imagem
+já publicada no ghcr.io) e `frontend` (construído localmente). Assim não é
+necessário ter Java/Maven na máquina.
 
-## Deploy on Vercel
+As variáveis do backend espelham o compose do `backend-java` e o do
+repositório de infraestrutura: `FRONTEND_URL` (CORS e link do e-mail), SMTP
+apontando para o Mailpit e `APP_ENVIRONMENT=dev`. Se o backend passar a exigir
+uma variável nova, ela precisa ser adicionada aqui também.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 1. Autenticar no ghcr.io
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+A imagem do backend é **privada**. É preciso um PAT do GitHub com o escopo
+`read:packages`:
+
+```bash
+echo "<SEU_PAT>" | docker login ghcr.io -u <seu-usuario-github> --password-stdin
+```
+
+### 2. Configurar as variáveis
+
+```bash
+cp .env.example .env
+# edite o .env e substitua todos os valores CHANGE_ME
+```
+
+O `.env` é ignorado pelo Git — nunca versione segredos. O `JWT_SECRET` precisa
+ter 32+ caracteres (`openssl rand -hex 32`); o backend recusa subir sem isso.
+
+### 3. Subir o ambiente
+
+```bash
+docker compose up -d --build
+```
+
+Verificação:
+
+```bash
+curl -f http://localhost:3000/api/health      # {"status":"ok"}
+curl -f http://localhost:8080/actuator/health
+docker compose ps                             # todos os serviços "healthy"
+```
+
+E-mails enviados pelo backend (recuperação de senha) aparecem no Mailpit:
+<http://localhost:8025>.
+
+> **Atualizando de uma versão anterior do compose (Postgres 16):** o volume
+> antigo não é compatível com o Postgres 17. Rode `docker compose down -v` uma
+> vez antes de subir — os dados locais são recriados pelas migrations.
+
+Para derrubar (e apagar o volume do banco):
+
+```bash
+docker compose down -v
+```
+
+### Sobre a `NEXT_PUBLIC_API_URL`
+
+Variáveis `NEXT_PUBLIC_*` são **embutidas no bundle em tempo de build**, não
+lidas em tempo de execução. Por isso:
+
+- a imagem do frontend é **específica por ambiente/branch**;
+- a URL entra como `--build-arg NEXT_PUBLIC_API_URL=...`;
+- ao alterá-la é obrigatório reconstruir a imagem:
+
+```bash
+docker compose build frontend && docker compose up -d frontend
+```
+
+Build da imagem sem o compose:
+
+```bash
+docker build --build-arg NEXT_PUBLIC_API_URL=http://localhost:8080 -t frontend:test .
+docker run --rm -p 3000:3000 frontend:test
+```
+
+A imagem é multi-stage, roda como usuário **não-root** (uid 1001) e tem
+`HEALTHCHECK` apontando para `/api/health`.
+
+## Health check
+
+`GET /api/health` → `200 {"status":"ok"}`.
+
+É uma rota pública (não interceptada pelo guard de rotas em `src/proxy.ts`) e
+nunca cacheada. É usada pelo `HEALTHCHECK` do Docker, pelo compose e pelos
+orquestradores do repositório de infraestrutura.
+
+## CI/CD
+
+Dois workflows em `.github/workflows/`:
+
+### `ci-tests.yml`
+
+Roda em `pull_request` para `dev`, `staging` e `main`, e é reutilizável
+(`workflow_call`). Jobs paralelos: `lint`, `typecheck`, `unit-tests`
+(com cobertura publicada como artefato) e `build-check`.
+
+O push em `dev`/`staging`/`main` **não** dispara este workflow diretamente —
+ele é executado através do `build-release-images`, evitando execução duplicada.
+
+### `build-release-images.yml`
+
+Roda em push para `dev`, `staging`, `main` e em tags `v*.*.*`. Reutiliza o
+`ci-tests` e só publica a imagem no ghcr.io se tudo passar.
+
+Imagem: `ghcr.io/<owner>/<repo>` (em minúsculas). Tags publicadas:
+
+| Tag | Quando | Mutável? |
+| --- | --- | --- |
+| `sha-<7 chars>-<ambiente>` | sempre (usada nos deploys); ambiente = `dev`, `staging` ou `production` | não |
+| `dev` / `staging` / `main` | push na branch correspondente | sim |
+| `X.Y.Z` e `X.Y` | tag git `vX.Y.Z` | sim (`X.Y`) |
+| `latest` | somente a partir de `main` | sim |
+
+Somente na branch `dev` o job `notify-infra` envia um `repository_dispatch`
+ao repositório de infraestrutura, com `event_type: image-published` e
+`client_payload: { service: "frontend", tag, sha, branch }`.
+Os deploys de **staging** e **produção** são manuais, via `workflow_dispatch`
+no repositório de infraestrutura, informando a tag da imagem.
+
+> **Por que o ambiente está na tag imutável?** A URL da API é embutida no
+> build, então cada ambiente tem sua própria imagem. Um mesmo commit pode ser
+> buildado em `dev` e depois em `staging`/`main` (fast-forward ou rebase); com
+> só `sha-<7>`, o segundo build sobrescreveria o primeiro com outra URL. No
+> deploy manual, use a tag do ambiente certo (ex.: `sha-a1b2c3d-staging`).
+
+> **O deploy não é feito neste repositório.** Ele é responsabilidade exclusiva
+> do repositório de infraestrutura.
+
+### Secrets e Variables necessários
+
+Configurar em *Settings → Secrets and variables → Actions*:
+
+**Secrets**
+
+| Nome | Descrição |
+| --- | --- |
+| `INFRA_DISPATCH_TOKEN` | Token para disparar `repository_dispatch` no repositório de infraestrutura. Precisa de permissão de escrita em *Contents* (fine-grained PAT com `Contents: write`) ou ser um GitHub App com essa permissão. |
+
+> O `GITHUB_TOKEN` usado no login do ghcr.io é fornecido automaticamente pelo
+> GitHub Actions — não precisa ser criado.
+
+**Variables**
+
+| Nome | Exemplo |
+| --- | --- |
+| `INFRA_REPOSITORY` | `owner/repo-de-infra` |
+| `NEXT_PUBLIC_API_URL_DEV` | `https://api-dev.exemplo.com` |
+| `NEXT_PUBLIC_API_URL_STAGING` | `https://api-staging.exemplo.com` |
+| `NEXT_PUBLIC_API_URL_PRODUCTION` | `https://api.exemplo.com` |
+
+Se a variable do ambiente correspondente estiver vazia, o workflow falha com
+mensagem explícita, em vez de publicar uma imagem apontando para a URL errada.
+
+## Testes
+
+Testes unitários e de componente com [Vitest](https://vitest.dev) +
+`@testing-library/react` em ambiente `jsdom`.
+
+```bash
+npm test                 # modo watch
+npm test -- --run        # execução única (usada no CI)
+npm run test:coverage
+```
+
+Os arquivos de teste ficam ao lado do código, em `__tests__/*.test.tsx`.
+
+### E2E está fora do escopo desta fase
+
+Testes end-to-end (Playwright/Cypress) **não** foram incluídos porque:
+
+- o backend não está disponível no CI (a imagem é privada e exige banco);
+- várias telas ainda usam dados mockados (ex.:
+  `src/app/coordenador/listagens/sala/mock.ts`), então os fluxos reais ainda
+  não são estáveis o suficiente para serem asseverados.
+
+Deve ser reavaliado quando a integração com a API estiver concluída.
+
+## Branches
+
+| Branch | Ambiente |
+| --- | --- |
+| `main` | produção |
+| `staging` | homologação |
+| `dev` | desenvolvimento |

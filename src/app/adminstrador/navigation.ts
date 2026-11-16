@@ -48,7 +48,7 @@ export const administratorHeaderConfig = {
     },
     {
       label: "Controle e auditoria",
-      links: [{ label: "Histórico de Alterações", href: "#historico-de-alteracoes" }],
+      links: [{ label: "Histórico de Alterações", href: "/adminstrador/historico-alteracao" }],
     },
   ],
 } satisfies HeaderConfig;

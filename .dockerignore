@@ -1,0 +1,28 @@
+# Dependências e artefatos de build (reinstalados/regerados dentro da imagem)
+node_modules
+.next
+out
+build
+coverage
+
+# Controle de versão e CI
+.git
+.gitignore
+.github
+
+# Arquivos de Docker (não precisam entrar no contexto da imagem)
+Dockerfile*
+.dockerignore
+docker-compose*
+
+# Variáveis de ambiente: nunca copiar segredos para a imagem.
+# NEXT_PUBLIC_API_URL é passada como build-arg.
+.env*
+!.env.example
+
+# Logs e arquivos de editor/SO
+*.log
+npm-debug.log*
+.vscode
+.idea
+.DS_Store
