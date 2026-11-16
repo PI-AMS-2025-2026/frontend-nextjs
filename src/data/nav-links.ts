@@ -1,5 +1,15 @@
-type NavChild = { label: string; href: string; description?: string };
-export type NavItem = { label: string; href?: string; children?: NavChild[] };
+
+type NavChild = {
+  label: string;
+  href: string;
+  description?: string;
+};
+
+export type NavItem = {
+  label: string;
+  href?: string;
+  children?: NavChild[];
+};
 
 export const navItems: NavItem[] = [
   {
@@ -12,15 +22,33 @@ export const navItems: NavItem[] = [
   {
     label: "Estrutura acadêmica",
     children: [
-      { label: "Vínculo Professor x Disciplina", href: "/estrutura/vinculo" },
+      {
+        label: "Vínculo Professor x Disciplina",
+        href: "/estrutura/vinculo",
+      },
       {
         label: "Disponibilidade do Professor",
         href: "/estrutura/disponibilidade",
       },
     ],
   },
-  { label: "Infraestrutura", href: "/infraestrutura" },
-  { label: "Organização de tempo", href: "/organizacao" },
-  { label: "Grade e planejamento", href: "/grade" },
-  { label: "Controle e auditoria", href: "/controle" },
+  {
+    label: "Infraestrutura",
+    children: [
+      { label: "Salas", href: "/infraestrutura/salas" },
+      { label: "Recursos", href: "/infraestrutura/recursos" },
+    ],
+  },
+  {
+    label: "Organização de tempo",
+    children: [
+      { label: "Bloco horário", href: "/organizacao/bloco-horario" },
+    ],
+  },
+  {
+    label: "Grade e planejamento",
+    children: [
+      { label: "Quadro horário", href: "/grade/quadro-horario" },
+    ],
+  },
 ];

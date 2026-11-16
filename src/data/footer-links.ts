@@ -1,3 +1,4 @@
+import { Footer } from "@/components/created/footer";
 export const footerColumns = [
   {
     title: "Exemple 1",

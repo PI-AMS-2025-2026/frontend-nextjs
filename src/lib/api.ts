@@ -17,7 +17,7 @@ function getToken(): string | null {
   return localStorage.getItem("access_token");
 }
 
-function buildUrl(endpoint: string, params?: Record<string, unknown>) {
+function buildUrl(endpoint: string, params?: object) {
   const url = new URL(endpoint, API_URL.endsWith("/") ? API_URL : `${API_URL}/`);
 
   if (params) {
@@ -46,19 +46,19 @@ async function parseResponse(response: Response): Promise<unknown> {
 async function request<T>(
   endpoint: string,
   options: RequestInit = {},
-  params?: Record<string, unknown>,
+  params?: object,
   authenticated = true,
 ): Promise<T> {
   const token = authenticated ? getToken() : null;
   const headers = new Headers(options.headers);
 
- if (
-  options.body &&
-  !(options.body instanceof FormData) &&
-  !headers.has("Content-Type")
-) {
-  headers.set("Content-Type", "application/json");
-} 
+  if (
+    options.body &&
+    !(options.body instanceof FormData) &&
+    !headers.has("Content-Type")
+  ) {
+    headers.set("Content-Type", "application/json");
+  }
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
@@ -83,7 +83,7 @@ async function request<T>(
 }
 
 export const api = {
-  get<T>(endpoint: string, params?: Record<string, unknown>, authenticated = true) {
+  get<T>(endpoint: string, params?: object, authenticated = true) {
     return request<T>(endpoint, { method: "GET" }, params, authenticated);
   },
 
