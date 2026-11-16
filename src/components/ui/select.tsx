@@ -14,6 +14,7 @@ interface SelectProps {
   onChange?: (value: string) => void;
   placeholder?: string;
   className?: string;
+  menuClassName?: string;
   "aria-label"?: string;
   disabled?: boolean;
 }
@@ -24,6 +25,7 @@ export function Select({
   onChange,
   placeholder = "Selecione uma opção",
   className = "",
+  menuClassName = "",
   "aria-label": ariaLabel,
   disabled = false,
 }: SelectProps) {
@@ -52,7 +54,7 @@ export function Select({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-[99999] mt-1 w-full overflow-visible rounded-lg border bg-background shadow-md">
+        <div className={`absolute left-0 top-full z-[99999] mt-1 max-h-60 w-full overflow-y-auto overscroll-contain rounded-lg border bg-background shadow-md ${menuClassName}`}>
           {options.map((option, index) => (
             <button
               key={option.value}

@@ -11,6 +11,10 @@ export const coordinatorHeaderConfig = {
           label: "Alocação",
           href: "/coordenador/grade-planejamento/alocacao",
         },
+        {
+          label: "Grade Horária",
+          href: "/coordenador/grade-planejamento/grade-horaria",
+        },
       ],
     },
     {
