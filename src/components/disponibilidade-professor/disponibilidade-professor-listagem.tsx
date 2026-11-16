@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -34,8 +33,8 @@ import {
 
 import type {
     BlocoHorarioResponse,
+    DiaSemana,
     DisponibilidadeProfessorRequest,
-    LongDTO,
     ProfessorResponse,
 } from "@/types/api";
 
@@ -59,7 +58,7 @@ function montarRequest(
 ): DisponibilidadeProfessorRequest {
     return {
         professor: { id: dados.professorId },
-        diaSemana: dados.diaSemana as unknown as LongDTO,
+        diaSemana: dados.diaSemana as DiaSemana,
         blocoHorario: { id: dados.blocoHorarioId },
     };
 }
