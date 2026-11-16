@@ -1,10 +1,12 @@
+
 "use client";
 
 import * as React from "react";
-
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 
 type FilterOption = {
   label: string;
@@ -16,10 +18,13 @@ type FilterField = {
   label?: string;
   showLabel?: boolean;
   type?: "input" | "select";
+  inputType?: React.HTMLInputTypeAttribute;
   placeholder?: string;
   options?: FilterOption[];
   defaultValue?: string;
   width?: string;
+  /** Usa o dropdown customizado (com scroll) em vez do select nativo */
+  maxVisibleOptions?: number;
 };
 
 interface TableFiltersProps {
@@ -83,34 +88,55 @@ function TableFilters({
           {field.type === "select" ? (
             <div className="w-full">
               {field.showLabel !== false && field.label && (
-                <label className="mb-2 block text-sm font-medium text-[#17264D]">
+                <label className="mb-2 block text-base font-semibold text-[#17264D]">
                   {field.label}
                 </label>
               )}
 
-              <select
-                value={filters[field.name] ?? ""}
-                onChange={(event) =>
-                  handleChange(field.name, event.target.value)
-                }
-                className="h-[32px] w-full rounded-[10px] border border-[#17264D] bg-[#F2F2F2] px-3 text-[14px] text-[#17264D] outline-none transition-colors focus:border-[#4471E6]"
-              >
-                {field.placeholder && (
-                  <option value="">{field.placeholder}</option>
-                )}
+              {field.maxVisibleOptions ? (
+                <Select
+                  options={[
+                    { label: field.placeholder ?? "", value: "" },
+                    ...(field.options ?? []),
+                  ]}
+                  value={filters[field.name] ?? ""}
+                  onChange={(value) => handleChange(field.name, value)}
+                  maxVisibleOptions={field.maxVisibleOptions}
+                  buttonClassName="h-[36px] py-0"
+                  slimScrollbar
+                />
+              ) : (
+                <div className="relative w-full">
+                  <select
+                    aria-label={field.label ?? field.placeholder ?? field.name}
+                    value={filters[field.name] ?? ""}
+                    onChange={(event) =>
+                      handleChange(field.name, event.target.value)
+                    }
+                    className="h-[36px] w-full appearance-none rounded-[10px] border border-[#17264D] bg-[#F2F2F2] px-3 pr-9 text-[15px] text-[#17264D] outline-none transition-colors focus:border-[#4471E6]"
+                  >
+                    {field.placeholder && (
+                      <option value="">{field.placeholder}</option>
+                    )}
 
-                {field.options?.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                    {field.options?.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-5 -translate-y-1/2 text-[#17264D]" />
+                </div>
+              )}
             </div>
           ) : (
             <Input
+              aria-label={field.label ?? field.placeholder ?? field.name}
               label={field.label}
               showLabel={field.showLabel ?? true}
               height="32px"
+              type={field.inputType ?? "text"}
               placeholder={field.placeholder}
               value={filters[field.name] ?? ""}
               onChange={(event) => handleChange(field.name, event.target.value)}
@@ -120,11 +146,16 @@ function TableFilters({
         </div>
       ))}
 
-      <div className="ml-auto">
-        <Button variant="secondary" size="small" onClick={handleClear}>
+      <div className="ml-auto flex items-center justify-center">
+        <Button
+          variant="secondary"
+          size="small"
+          onClick={handleClear}
+          className="-translate-y-3"
+        >
           {clearButtonLabel}
         </Button>
-      </div> 
+      </div>
     </div>
   );
 }

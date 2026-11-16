@@ -5,7 +5,8 @@ import { cn } from "@/lib/utils";
 
 interface TableColumn<T> {
   key: string;
-  label: string;
+  label: React.ReactNode;
+  headerClassName?: string;
   render?: (item: T, index: number) => React.ReactNode;
 }
 
@@ -19,6 +20,7 @@ interface TableAction<T> {
 interface DataTableProps<T> {
   data: T[];
   columns: TableColumn<T>[];
+  emptyMessage?: string;
   actions?: TableAction<T>[];
   getRowKey?: (item: T, index: number) => React.Key;
   className?: string;
@@ -27,6 +29,7 @@ interface DataTableProps<T> {
 function DataTable<T>({
   data,
   columns,
+  emptyMessage = "Nenhum registro encontrado.",
   actions = [],
   getRowKey,
   className,
@@ -45,7 +48,7 @@ function DataTable<T>({
             {columns.map((column) => (
               <th
                 key={column.key}
-                className="px-6 text-left text-[16px] font-semibold"
+                className={cn("px-6 text-left text-[16px] font-semibold", column.headerClassName)} 
               >
                 {column.label}
               </th>
@@ -61,7 +64,16 @@ function DataTable<T>({
 
         {/* Corpo */}
         <tbody>
-          {data.map((item, index) => (
+          {data.length === 0 ? (
+            <tr>
+              <td
+                colSpan={columns.length + (actions.length > 0 ? 1 : 0)}
+                className="px-6 py-8 text-center text-sm text-[#17264D]/70"
+              >
+                {emptyMessage}
+              </td>
+            </tr>
+          ) : data.map((item, index) => (
             <tr
               key={getRowKey?.(item, index) ?? index}
               className={cn(
@@ -77,8 +89,8 @@ function DataTable<T>({
                   {column.render
                     ? column.render(item, index)
                     : String(
-                        (item as Record<string, unknown>)[column.key] ?? "",
-                      )}
+                      (item as Record<string, unknown>)[column.key] ?? "",
+                    )}
                 </td>
               ))}
 
