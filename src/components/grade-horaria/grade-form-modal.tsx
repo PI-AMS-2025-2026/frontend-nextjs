@@ -8,7 +8,7 @@ import { Select } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
     CURSOS_DISPONIVEIS,
-    PERIODOS_LETIVOS,
+    PERIODO_ATIVIDADE_QUADRO,
     type GradeHoraria,
     type StatusGrade,
 } from "@/lib/grade-horaria";
@@ -70,7 +70,7 @@ function GradeFormConteudo({
     const [erro, setErro] = React.useState("");
 
     const titulo =
-        mode === "cadastrar" ? "Cadastro de Grade Horária" : "Edição de Grade Horária";
+        mode === "cadastrar" ? "Cadastro de Quadro Horário" : "Edição de Quadro Horário";
 
     function atualizar<K extends keyof GradeFormValues>(campo: K, valor: GradeFormValues[K]) {
         setValores((prev) => ({ ...prev, [campo]: valor }));
@@ -117,9 +117,9 @@ function GradeFormConteudo({
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-[#17264D]">Período Letivo</label>
+                    <label className="text-sm font-medium text-[#17264D]">Período Atividade Quadro</label>
                     <Select
-                        options={PERIODOS_LETIVOS.map((p) => ({ label: p, value: p }))}
+                        options={PERIODO_ATIVIDADE_QUADRO.map((p) => ({ label: p, value: p }))}
                         value={valores.periodoLetivo}
                         onChange={(v) => atualizar("periodoLetivo", v)}
                         placeholder="Selecione..."

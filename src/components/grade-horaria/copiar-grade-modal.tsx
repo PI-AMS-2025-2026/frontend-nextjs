@@ -13,10 +13,10 @@ export function CopiarGradeModal({ open, onClose, onConfirm }: CopiarGradeModalP
     return (
         <Modal open={open} onClose={onClose}>
             <div className="flex flex-col gap-4">
-                <h2 className="pr-12 text-xl font-semibold text-[#17264D]">Copiar Grade</h2>
+                <h2 className="pr-12 text-xl font-semibold text-[#17264D]">Copiar Quadro Horário</h2>
 
                 <p className="text-sm text-[#17264D]">
-                    Tem certeza que deseja copiar esta grade?
+                    Tem certeza que deseja copiar este quadro horário?
                 </p>
 
                 <div className="flex justify-end gap-3">
