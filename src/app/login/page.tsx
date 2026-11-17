@@ -84,8 +84,9 @@ export default function LoginPage() {
           alt="Fatec Itu — Dom Amaury Castanho"
           width={866}
           height={288}
-          priority
-          className="absolute left-[-4.35%] top-[-21.88%] h-[143.75%] w-[240.3%] max-w-none"
+          loading="eager"
+          className="absolute left-[-4.35%] top-[-21.88%] w-[240.3%] max-w-none"
+          style={{ height: "auto" }}
         />
       </div>
 

@@ -72,6 +72,7 @@ export default function CadastroUsuario() {
     const [formulario, setFormulario] = React.useState<FormUsuario>(formularioInicial);
     const [senha, setSenha] = React.useState("");
     const [erro, setErro] = React.useState("");
+    const [errosCampos, setErrosCampos] = React.useState<Record<string, string>>({});
     const [modalSucesso, setModalSucesso] = React.useState(false);
     const [mensagemSucesso, setMensagemSucesso] = React.useState("");
     const [submitting, setSubmitting] = React.useState(false);
@@ -143,6 +144,7 @@ export default function CadastroUsuario() {
         setFormulario(formularioInicial);
         setSenha("");
         setErro("");
+        setErrosCampos({});
         setModalAberto(true);
     }
 
@@ -157,6 +159,7 @@ export default function CadastroUsuario() {
         });
         setSenha("");
         setErro("");
+        setErrosCampos({});
         setModalAberto(true);
     }
 
@@ -166,27 +169,33 @@ export default function CadastroUsuario() {
         setFormulario(formularioInicial);
         setSenha("");
         setErro("");
+        setErrosCampos({});
     }
 
     async function salvarUsuario(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
         if (!formulario.nome.trim() || !formulario.email.trim() || !formulario.tipoUsuario) {
-            setErro("Preencha todos os campos obrigatórios.");
+            setErrosCampos({
+                ...(!formulario.nome.trim() ? { nome: "Nome é obrigatório." } : {}),
+                ...(!formulario.email.trim() ? { email: "E-mail é obrigatório." } : {}),
+                ...(!formulario.tipoUsuario ? { tipoUsuario: "Tipo de usuário é obrigatório." } : {}),
+            });
             return;
         }
 
         if (!usuarioEditando && !senha.trim()) {
-            setErro("A senha é obrigatória para cadastrar um novo usuário.");
+            setErrosCampos({ senha: "A senha é obrigatória para cadastrar um novo usuário." });
             return;
         }
 
         if (formulario.tipoUsuario === "COORDENADOR" && !formulario.cursoId) {
-            setErro("Selecione o curso do coordenador.");
+            setErrosCampos({ curso: "Selecione o curso do coordenador." });
             return;
         }
 
         setErro("");
+        setErrosCampos({});
         setSubmitting(true);
 
         try {
@@ -214,7 +223,26 @@ export default function CadastroUsuario() {
             carregarUsuarios();
         } catch (err) {
             if (err instanceof ApiError) {
-                setErro(err.message || "Erro ao salvar usuário.");
+                const data = err.data as { fieldErrors?: Array<{ field?: string; message?: string }>; errors?: string[] } | undefined;
+                const fieldErrors: Record<string, string> = {};
+                for (const item of data?.fieldErrors ?? []) {
+                    if (item.field && item.message) fieldErrors[item.field] = item.message;
+                }
+                for (const message of data?.errors ?? []) {
+                    const normalized = message.toLocaleLowerCase("pt-BR");
+                    const field = normalized.includes("nome") ? "nome"
+                        : normalized.includes("e-mail") || normalized.includes("email") ? "email"
+                        : normalized.includes("senha") ? "senha"
+                        : normalized.includes("tipo de usuário") ? "tipoUsuario"
+                        : normalized.includes("curso") ? "curso"
+                        : undefined;
+                    if (field && !fieldErrors[field]) fieldErrors[field] = message;
+                }
+                if (err.message.toLocaleLowerCase("pt-BR").includes("curso")) {
+                    fieldErrors.curso ??= err.message;
+                }
+                setErrosCampos(fieldErrors);
+                setErro(Object.keys(fieldErrors).length ? "" : err.message || "Erro ao salvar usuário.");
             } else {
                 setErro("Erro inesperado ao salvar usuário.");
             }
@@ -223,17 +251,17 @@ export default function CadastroUsuario() {
         }
     }
 
-    async function excluirUsuario(usuario: UsuarioResponse) {
-        const confirmou = window.confirm(`Deseja excluir o usuário "${usuario.nome}"?`);
+    async function inativarUsuario(usuario: UsuarioResponse) {
+        const confirmou = window.confirm(`Deseja inativar o usuário "${usuario.nome}"? Ele poderá ser reativado depois.`);
         if (!confirmou) return;
 
         try {
             await usuariosService.deletar(usuario.id);
-            setMensagemSucesso("Usuário excluído com sucesso!");
+            setMensagemSucesso("Usuário inativado com sucesso!");
             setModalSucesso(true);
             carregarUsuarios();
         } catch (err) {
-            alert(err instanceof ApiError ? err.message : "Erro ao excluir usuário.");
+            alert(err instanceof ApiError ? err.message : "Erro ao inativar usuário.");
         }
     }
 
@@ -242,6 +270,12 @@ export default function CadastroUsuario() {
             ...prev,
             [campo]: valor,
         }));
+        setErrosCampos((prev) => {
+            if (!(campo in prev)) return prev;
+            const proximo = { ...prev };
+            delete proximo[campo];
+            return proximo;
+        });
     }
 
     return (
@@ -362,9 +396,9 @@ export default function CadastroUsuario() {
                                         onClick: abrirEdicao,
                                     },
                                     {
-                                        label: "Excluir usuário",
+                                        label: "Inativar usuário",
                                         icon: <Trash2 className="size-5 text-red-500" />,
-                                        onClick: excluirUsuario,
+                                        onClick: inativarUsuario,
                                     },
                                 ]}
                             />
@@ -394,17 +428,23 @@ export default function CadastroUsuario() {
                         </h2>
                     </div>
 
-                    <form onSubmit={salvarUsuario} className="grid grid-cols-2 gap-x-5 gap-y-6">
+                    <form onSubmit={salvarUsuario} className="grid grid-cols-2 items-start gap-x-5 gap-y-5">
+                        <div className="min-w-0">
                         <Input
                             label="Nome"
                             showLabel
                             placeholder="Digite o nome..."
                             value={formulario.nome}
                             onChange={(event) => alterarCampo("nome", event.target.value)}
+                            aria-invalid={!!errosCampos.nome}
+                            aria-describedby={errosCampos.nome ? "usuario-nome-erro" : undefined}
                             height="34px"
-                            className="rounded-[7px] bg-white text-[12px]"
+                            className={`rounded-[7px] bg-white text-[12px] ${errosCampos.nome ? "border-[#BA1A1A] focus:border-[#BA1A1A]" : ""}`}
                         />
+                        {errosCampos.nome && <p id="usuario-nome-erro" className="mt-1.5 text-[11px] leading-4 text-[#BA1A1A]">{errosCampos.nome}</p>}
+                        </div>
 
+                        <div className="min-w-0">
                         <Input
                             label="Email"
                             showLabel
@@ -412,9 +452,13 @@ export default function CadastroUsuario() {
                             placeholder="Digite o email..."
                             value={formulario.email}
                             onChange={(event) => alterarCampo("email", event.target.value)}
+                            aria-invalid={!!errosCampos.email}
+                            aria-describedby={errosCampos.email ? "usuario-email-erro" : undefined}
                             height="34px"
-                            className="rounded-[7px] bg-white text-[12px]"
+                            className={`rounded-[7px] bg-white text-[12px] ${errosCampos.email ? "border-[#BA1A1A] focus:border-[#BA1A1A]" : ""}`}
                         />
+                        {errosCampos.email && <p id="usuario-email-erro" className="mt-1.5 text-[11px] leading-4 text-[#BA1A1A]">{errosCampos.email}</p>}
+                        </div>
 
                         <div className="col-span-2 grid grid-cols-[1fr_1fr_auto] items-end gap-5">
                             <div>
@@ -446,6 +490,7 @@ export default function CadastroUsuario() {
                                 />
                             </div>
 
+                            <div className="min-w-0">
                             <Input
                                 label="Senha"
                                 showLabel
@@ -453,9 +498,13 @@ export default function CadastroUsuario() {
                                 placeholder={usuarioEditando ? "Manter senha atual" : "Digite a senha..."}
                                 value={senha}
                                 onChange={(event) => setSenha(event.target.value)}
+                                aria-invalid={!!errosCampos.senha}
+                                aria-describedby={errosCampos.senha ? "usuario-senha-erro" : undefined}
                                 height="34px"
-                                className="rounded-[7px] bg-white text-[12px]"
+                                className={`rounded-[7px] bg-white text-[12px] ${errosCampos.senha ? "border-[#BA1A1A] focus:border-[#BA1A1A]" : ""}`}
                             />
+                            {errosCampos.senha && <p id="usuario-senha-erro" className="mt-1.5 text-[11px] leading-4 text-[#BA1A1A]">{errosCampos.senha}</p>}
+                            </div>
 
                             <div>
                                 <label className="mb-2 block text-[11px] font-medium text-black">
@@ -506,8 +555,11 @@ export default function CadastroUsuario() {
                                     options={cursos.map((curso) => ({ label: curso.nome, value: curso.nome }))}
                                     className="[&>button]:h-[34px] [&>button]:rounded-[7px] [&>button]:border-[#17264D] [&>button]:bg-white [&>button]:text-[12px]"
                                 />
+                                {errosCampos.curso && <p className="mt-1 text-[12px] text-[#BA1A1A]">{errosCampos.curso}</p>}
                             </div>
                         )}
+
+                        {errosCampos.tipoUsuario && <p className="col-span-2 -mt-3 text-[11px] leading-4 text-[#BA1A1A]">{errosCampos.tipoUsuario}</p>}
 
                         {erro && (
                             <p className="col-span-2 text-[12px] font-medium text-[#BA1A1A]">
