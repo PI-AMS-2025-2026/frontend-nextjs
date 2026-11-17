@@ -1,4 +1,4 @@
-import { HorariosListagem } from "./horarios-listagem";
+import { HorariosListagem } from "../../../../components/bloco-horario/horarios-listagem";
 
 export default function HorariosPage() {
     return (
