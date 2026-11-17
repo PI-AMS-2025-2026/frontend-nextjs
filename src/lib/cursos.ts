@@ -1,11 +1,11 @@
-export type Periodicidade = "Semestral" | "Anual" | "Trimestral";
+export type Periodicidade = "Semestral" | "Anual";
 export type StatusCurso = "Ativo" | "Inativo";
 
 export interface Curso {
     id: string;
     nome: string;
     periodicidade: Periodicidade;
-    duracao: string; // ex: "2 anos"
+    duracao: string; // número de anos (Anual) ou semestres (Semestral)
     status: StatusCurso;
 }
 
@@ -20,7 +20,7 @@ const NOMES_BASE = [
     "Comércio Exterior",
 ];
 
-const PERIODICIDADES: Periodicidade[] = ["Semestral", "Anual", "Trimestral"];
+const PERIODICIDADES: Periodicidade[] = ["Semestral", "Anual"];
 
 /** Gera uma lista mock de cursos para popular a listagem inicialmente. */
 export function gerarCursosMock(): Curso[] {
@@ -31,7 +31,7 @@ export function gerarCursosMock(): Curso[] {
         NOMES_BASE.forEach((nome, index) => {
             const status: StatusCurso = index % 2 === 0 ? "Ativo" : "Inativo";
             const periodicidade = PERIODICIDADES[(index + ciclo) % PERIODICIDADES.length];
-            const duracao = index % 3 === 0 ? "3 anos" : "2 anos";
+            const duracao = periodicidade === "Anual" ? "3" : "6";
 
             cursos.push({
                 id: String(id++),

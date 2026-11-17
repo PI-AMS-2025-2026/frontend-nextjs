@@ -58,7 +58,9 @@ function CursoFormConteudo({
     const [periodicidade, setPeriodicidade] = React.useState<Periodicidade | "">(
         curso?.periodicidade ?? ""
     );
-    const [duracao, setDuracao] = React.useState(curso?.duracao ?? "");
+    const [duracao, setDuracao] = React.useState(
+        curso?.duracao.match(/^\d+/)?.[0] ?? ""
+    );
     const [status, setStatus] = React.useState<StatusCurso>(curso?.status ?? "Ativo");
     const [erro, setErro] = React.useState("");
 
@@ -69,10 +71,16 @@ function CursoFormConteudo({
         if (!periodicidade) return setErro("Selecione a periodicidade.");
         if (!duracao.trim()) return setErro("Informe a duração do curso.");
 
+        const duracaoNumero = Number(duracao);
+        const limites = periodicidade === "Anual" ? { min: 1, max: 4, unidade: "anos" } : { min: 4, max: 10, unidade: "semestres" };
+        if (!Number.isInteger(duracaoNumero) || duracaoNumero < limites.min || duracaoNumero > limites.max) {
+            return setErro(`Para periodicidade ${periodicidade}, informe uma duração inteira entre ${limites.min} e ${limites.max} ${limites.unidade}.`);
+        }
+
         onConfirm({
             nome: nome.trim(),
             periodicidade,
-            duracao: duracao.trim(),
+            duracao: String(duracaoNumero),
             status,
         });
     }
@@ -99,7 +107,6 @@ function CursoFormConteudo({
                         options={[
                             { label: "Semestral", value: "Semestral" },
                             { label: "Anual", value: "Anual" },
-                            { label: "Trimestral", value: "Trimestral" },
                         ]}
                         value={periodicidade}
                         onChange={(v) => {
@@ -113,13 +120,22 @@ function CursoFormConteudo({
                 <Input
                     label="Duração"
                     showLabel
+                    type="number"
+                    min={periodicidade === "Anual" ? 1 : periodicidade === "Semestral" ? 4 : undefined}
+                    max={periodicidade === "Anual" ? 4 : periodicidade === "Semestral" ? 10 : undefined}
+                    step={1}
                     value={duracao}
                     onChange={(e) => {
                         setDuracao(e.target.value);
                         setErro("");
                     }}
-                    placeholder="Ex: 3 anos"
+                    placeholder={periodicidade === "Semestral" ? "4 a 10 semestres" : "1 a 4 anos"}
                 />
+                {periodicidade && (
+                    <p className="text-xs text-[#17264D]/70">
+                        {periodicidade === "Anual" ? "Informe de 1 a 4 anos." : "Informe de 4 a 10 semestres."}
+                    </p>
+                )}
             </div>
 
             <div className="flex flex-col gap-2">
