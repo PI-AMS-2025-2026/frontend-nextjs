@@ -29,7 +29,7 @@ import {
     CURSOS_DISPONIVEIS,
     formatarDataBR,
     gerarGradesMock,
-    PERIODOS_LETIVOS,
+    PERIODO_ATIVIDADE_QUADRO,
     salvarGrades,
     type GradeHoraria,
     type StatusGrade,
@@ -115,7 +115,7 @@ export function GradeListagem() {
         setGrades((prev) => [...(prev ?? []), nova]);
         setCadastrarAberto(false);
         setRecemCriadaId(nova.id);
-        setSucesso("Grade horária cadastrada com sucesso!");
+        setSucesso("Quadro Horário cadastrado com sucesso!");
     }
 
     function confirmarEdicao(dados: {
@@ -132,7 +132,7 @@ export function GradeListagem() {
         setEditarAberto(false);
         setSelecionada(null);
         setRecemCriadaId(null);
-        setSucesso("Grade horária editada com sucesso!");
+        setSucesso("Quadro Horário editado com sucesso!");
     }
 
     function confirmarCopia() {
@@ -153,7 +153,7 @@ export function GradeListagem() {
         return (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
                 <Loader2 className="size-6 animate-spin text-[#0099AA]" />
-                <span className="text-sm text-[#17264D]/70">Carregando grades...</span>
+                <span className="text-sm text-[#17264D]/70">Carregando quadros horários...</span>
             </div>
         );
     }
@@ -170,9 +170,9 @@ export function GradeListagem() {
                         <ArrowLeft className="size-6" />
                     </Link>
                     <div>
-                        <h1 className="text-3xl font-bold text-[#17264D]">Grade Horária</h1>
+                        <h1 className="text-3xl font-bold text-[#17264D]">Quadro Horário</h1>
                         <p className="text-sm text-[#17264D]/70">
-                            Gerencie as grades da instituição
+                            Gerencie os quadros horários da instituição
                         </p>
                     </div>
                 </div>
@@ -212,11 +212,11 @@ export function GradeListagem() {
                         options: CURSOS_DISPONIVEIS.map((c) => ({ label: c, value: c })),
                     },
                     {
-                        name: "periodo",
-                        label: "Período Letivo",
+                        name: "período atividade quadro",
+                        label: "Período Atividade Quadro",
                         type: "select",
                         placeholder: "Selecione...",
-                        options: PERIODOS_LETIVOS.map((p) => ({ label: p, value: p })),
+                        options: PERIODO_ATIVIDADE_QUADRO.map((p) => ({ label: p, value: p })),
                         width: "w-[220px]",
                     },
                 ]}
@@ -231,7 +231,7 @@ export function GradeListagem() {
 
             {pagina.length === 0 ? (
                 <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">
-                    Nenhuma grade encontrada.
+                    Nenhum quadro horário encontrado.
                 </div>
             ) : (
                 <DataTable
@@ -249,7 +249,7 @@ export function GradeListagem() {
                             render: (g) => formatarDataBR(g.dataCriacao),
                         },
                         { key: "cursoVinculado", label: "Curso Vinculado" },
-                        { key: "periodoLetivo", label: "Período Letivo" },
+                        { key: "periodoLetivo", label: "Período Atividade Quadro" },
                         {
                             key: "status",
                             label: "Status",
@@ -341,7 +341,7 @@ export function GradeListagem() {
                 acao={
                     recemCriadaId
                         ? {
-                            label: "VISUALIZAR GRADE",
+                            label: "VISUALIZAR QUADRO HORÁRIO",
                             onClick: () => router.push(`${BASE}/${recemCriadaId}`),
                         }
                         : undefined

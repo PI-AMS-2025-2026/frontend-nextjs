@@ -36,7 +36,7 @@ export function GradeVisualizacao({ gradeId }: { gradeId: string }) {
         return (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
                 <Loader2 className="size-6 animate-spin text-[#0099AA]" />
-                <span className="text-sm text-[#17264D]/70">Carregando grade...</span>
+                <span className="text-sm text-[#17264D]/70">Carregando quadro horário...</span>
             </div>
         );
     }
@@ -44,7 +44,7 @@ export function GradeVisualizacao({ gradeId }: { gradeId: string }) {
     if (grade === "nao-encontrada") {
         return (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
-                <span className="text-sm text-[#17264D]/70">Grade não encontrada.</span>
+                <span className="text-sm text-[#17264D]/70">Quadro horário não encontrado.</span>
                 <Link href={BASE} className="text-sm font-medium text-[#0099AA] hover:underline">
                     Voltar para a listagem
                 </Link>
@@ -71,7 +71,7 @@ export function GradeVisualizacao({ gradeId }: { gradeId: string }) {
                 >
                     <ArrowLeft className="size-6" />
                 </Link>
-                <h1 className="text-3xl font-bold text-[#17264D]">Visualização de Grade</h1>
+                <h1 className="text-3xl font-bold text-[#17264D]">Visualização de Quadro Horário</h1>
             </div>
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-[220px_1fr]">

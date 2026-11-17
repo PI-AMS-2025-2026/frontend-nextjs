@@ -19,7 +19,7 @@ export const CURSOS_DISPONIVEIS = [
     "Mecatronica",
 ];
 
-export const PERIODOS_LETIVOS = [
+export const PERIODO_ATIVIDADE_QUADRO = [
     "1º Semestre de 2024",
     "2º Semestre de 2024",
     "1º Semestre de 2025",
@@ -87,7 +87,7 @@ export function gerarGradesMock(): GradeHoraria[] {
                 versao: item.versao + ciclo * 10,
                 dataCriacao: item.dataCriacao,
                 cursoVinculado: item.curso,
-                periodoLetivo: PERIODOS_LETIVOS[(index + ciclo) % PERIODOS_LETIVOS.length],
+                periodoLetivo: PERIODO_ATIVIDADE_QUADRO[(index + ciclo) % PERIODO_ATIVIDADE_QUADRO.length],
                 turno: TURNOS[(index + ciclo) % TURNOS.length],
                 status: index % 5 === 4 ? "Inativo" : "Ativo",
             });
