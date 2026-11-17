@@ -63,7 +63,31 @@ const administratorIcons = [
 ];
 const coordinatorIcons = [CalendarCheck2, BookOpen, School];
 
+function subscribeToStoredUser(onStoreChange: () => void) {
+  window.addEventListener("storage", onStoreChange);
+  return () => window.removeEventListener("storage", onStoreChange);
+}
+
+function getStoredUserName() {
+  return authService.getUser()?.nome?.trim() || "Usuário";
+}
+
 export function Navbar({
+  tipo,
+  ...props
+}: NavbarProps) {
+  const pathname = usePathname();
+
+  return (
+    <NavbarContent
+      key={`${pathname}:${tipo}`}
+      tipo={tipo}
+      {...props}
+    />
+  );
+}
+
+function NavbarContent({
   tipo,
   homeHref,
   navigationGroups,
@@ -100,17 +124,14 @@ export function Navbar({
 
   const [loggingOut, setLoggingOut] =
     React.useState(false);
-  const [userName, setUserName] = React.useState("Usuário");
+  const userName = React.useSyncExternalStore(
+    subscribeToStoredUser,
+    getStoredUserName,
+    () => "Usuário",
+  );
 
   const profileRef = React.useRef<HTMLDivElement>(null);
   const navigationRef = React.useRef<HTMLElement>(null);
-
-  React.useEffect(() => {
-    const storedUser = authService.getUser();
-    const name = storedUser?.nome?.trim();
-
-    if (name) setUserName(name);
-  }, []);
 
   React.useEffect(() => {
     function handleOutsideClick(event: MouseEvent) {
@@ -161,12 +182,6 @@ export function Navbar({
       );
     };
   }, []);
-
-  React.useEffect(() => {
-    setActiveGroup(null);
-    setProfileOpen(false);
-    setMobileOpen(false);
-  }, [pathname, tipo]);
 
   function closeMenus() {
     setActiveGroup(null);
