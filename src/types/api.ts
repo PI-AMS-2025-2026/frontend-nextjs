@@ -132,7 +132,7 @@ export interface RecursoSalaResponse {
   quantidade: number;
 }
 
-export type TipoPeriodoAtividadeQuadro = "SEMENSTRAL" | "ANUAL";
+export type TipoPeriodoAtividadeQuadro = "SEMESTRAL" | "ANUAL";
 
 export interface PeriodoAtividadeQuadroRequest {
   ano: number;

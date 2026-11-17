@@ -16,6 +16,7 @@ export type Discipline = {
   sala: string;
   cor?: string;
   professorId?: number;
+  professores?: { id: number; nome: string }[];
 };
 
 export type Sala = {
@@ -29,6 +30,7 @@ export type Aula = AulaDoComponente & {
   // id identifica a alocação. disciplinaId identifica o cadastro da disciplina.
   disciplinaId: string;
   salaId: string;
+  professorId?: number;
 };
 
 export type Grade = {
@@ -147,7 +149,7 @@ export function alocarAula(input: AlocarInput): {
     return {
       status,
       aulas: aulas.map((aula) =>
-        aula.id === aulaId ? { ...aula, dia, ...horario, salaId: sala.id, sala: sala.nome } : aula,
+        aula.id === aulaId ? { ...aula, dia, ...horario, salaId: sala.id, sala: sala.nome, professor: disciplina.professor, professorId: disciplina.professorId } : aula,
       ),
     };
   }
@@ -163,6 +165,7 @@ export function alocarAula(input: AlocarInput): {
         ...horario,
         disciplina: disciplina.disciplina,
         professor: disciplina.professor,
+        professorId: disciplina.professorId,
         sala: sala.nome,
         cor: disciplina.cor,
       },

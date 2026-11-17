@@ -33,6 +33,7 @@ import {
 
 import { carregarDados, erroAlocacao, exportarGrade, interpretarSugestao, salvarGrade, validar } from "./integracao";
 import { SelecaoQuadro } from "./selecao-quadro";
+import { pertenceAoTurno, type Turno } from "./turnos";
 
 export type AlocacaoScreenProps = {
   grades: Grade[];
@@ -73,10 +74,12 @@ export function TelaAlocacao({
   const [selecionada, setSelecionada] = useState<string | null>(null);
   const [mostrarSelecao, setMostrarSelecao] = useState(false);
   const [diaSelecionado, setDiaSelecionado] = useState<DiaSemana>("segunda");
-  const [turnoSelecionado, setTurnoSelecionado] = useState("todos");
-  const [horarioSelecionado, setHorarioSelecionado] = useState("0");
+  const [turnoSelecionado, setTurnoSelecionado] = useState<Turno>("todos");
+  const [horarioSelecionado, setHorarioSelecionado] = useState("");
   const [modal, setModal] = useState<EstadoModal>(null);
   const [salaId, setSalaId] = useState("");
+  const [professorId, setProfessorId] = useState("");
+  const [erroProfessor, setErroProfessor] = useState("");
   const [erroSala, setErroSala] = useState(false);
   const [erroValidacao, setErroValidacao] = useState("");
   const [salvando, setSalvando] = useState(false);
@@ -96,18 +99,9 @@ export function TelaAlocacao({
     ? salas.filter((item) => grade.salaIds.includes(item.id))
     : [];
   const bloqueado = salvando || processando;
-  const horariosDoTurno =
-    grade?.horarios
-      .map((horario, indice) => ({ horario, indice }))
-      .filter(({ horario }) => {
-        const [hora, minuto] = horario.inicio.split(":").map(Number);
-        const minutos = hora * 60 + minuto;
-        if (turnoSelecionado === "todos") return true;
-        if (turnoSelecionado === "manha") return minutos < 12 * 60;
-        if (turnoSelecionado === "tarde")
-          return minutos >= 12 * 60 && minutos < 18 * 60;
-        return minutos >= 18 * 60;
-      }) ?? [];
+  const horariosDoTurno = grade?.horarios
+    .map((horario, indice) => ({ horario, indice }))
+    .filter(({ horario }) => pertenceAoTurno(horario.inicio, turnoSelecionado)) ?? [];
 
   useEffect(() => {
     if (!modal) return;
@@ -188,7 +182,7 @@ export function TelaAlocacao({
       try {
         const validacao = await validar(
           grade,
-          disciplina,
+          { ...disciplina, professorId: origem.professorId, professor: origem.professor },
           sala.id,
           dia,
           horario,
@@ -203,6 +197,8 @@ export function TelaAlocacao({
             aulaId: origem.id,
           });
           setSalaId(sala.id);
+          setProfessorId(String(origem.professorId ?? ""));
+          setErroProfessor("");
           setErroValidacao(validacao.mensagem);
           setSugestoes(
             validacao.sugestoes.flatMap((s) => {
@@ -225,7 +221,7 @@ export function TelaAlocacao({
       }
       const resultado = alocarAula({
         aulas,
-        disciplina,
+        disciplina: { ...disciplina, professorId: origem.professorId, professor: origem.professor },
         dia,
         horario,
         sala,
@@ -250,6 +246,8 @@ export function TelaAlocacao({
         !aulas.some((rascunho) => rascunho.id === aula.id),
     );
     setSalaId(aulaOriginalRemovida?.salaId ?? "");
+    setProfessorId(aulaOriginalRemovida?.professorId ? String(aulaOriginalRemovida.professorId) : "");
+    setErroProfessor("");
     setSugestoes([]);
     setErroValidacao("");
     setErroSala(false);
@@ -273,11 +271,14 @@ export function TelaAlocacao({
       return;
     }
     if (!disciplina) return;
+    const professor = disciplina.professores?.find(p => String(p.id) === professorId);
+    if (!professor) { setErroProfessor("Selecione um professor vinculado à disciplina."); return; }
+    const disciplinaComProfessor = { ...disciplina, professorId: professor.id, professor: professor.nome };
     setProcessando(true);
     try {
       const validacao = await validar(
         grade,
-        disciplina,
+        disciplinaComProfessor,
         sala.id,
         modal.dia,
         modal.horario,
@@ -303,7 +304,7 @@ export function TelaAlocacao({
     }
     const resultado = alocarAula({
       aulas,
-      disciplina,
+      disciplina: disciplinaComProfessor,
       sala,
       dia: modal.dia,
       horario: modal.horario,
@@ -431,7 +432,7 @@ export function TelaAlocacao({
             </div>
           </div>
           {grade && (
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-end gap-2">
               {!editando && (
                 <Button
                   type="button"
@@ -450,6 +451,22 @@ export function TelaAlocacao({
                 </Button>
               )}
 
+              <div className="w-[220px] max-w-full">
+                <label className="mb-2 block text-sm font-medium text-[#17264D]">Turno</label>
+                <Select
+                  aria-label="Turno"
+                  className="[&>button]:h-10"
+                  options={[
+                    { label: "Todos os turnos", value: "todos" },
+                    { label: "Manhã", value: "manha" },
+                    { label: "Tarde", value: "tarde" },
+                    { label: "Noite", value: "noite" },
+                  ]}
+                  value={turnoSelecionado}
+                  onChange={(turno) => { setTurnoSelecionado(turno as Turno); setHorarioSelecionado(""); }}
+                  disabled={bloqueado}
+                />
+              </div>
               <Button
                 type="button"
                 disabled={bloqueado}
@@ -521,7 +538,7 @@ export function TelaAlocacao({
               {editando && mostrarSelecao && (
                 <div
                   id="alocacao-por-selecao"
-                  className="grid gap-3 rounded-lg border border-[#D9D9D9] bg-[#F2F2F2] p-3 lg:grid-cols-[2fr_1fr_1fr_1fr_auto]"
+                  className="grid gap-3 rounded-lg border border-[#D9D9D9] bg-[#F2F2F2] p-3 lg:grid-cols-[2fr_1fr_1fr_auto]"
                 >
                   <Select
                     options={disciplinasDaGrade.map((disciplina) => ({
@@ -544,21 +561,6 @@ export function TelaAlocacao({
                       if (dia) setDiaSelecionado(dia.key);
                     }}
                     placeholder="Selecione o dia"
-                    className="[&>div]:bg-white"
-                  />
-                  <Select
-                    options={[
-                      { label: "Todos os turnos", value: "todos" },
-                      { label: "Manhã", value: "manha" },
-                      { label: "Tarde", value: "tarde" },
-                      { label: "Noite", value: "noite" },
-                    ]}
-                    value={turnoSelecionado}
-                    onChange={(turno) => {
-                      setTurnoSelecionado(turno);
-                      setHorarioSelecionado("0");
-                    }}
-                    placeholder="Selecione o turno"
                     className="[&>div]:bg-white"
                   />
                   <Select
@@ -607,7 +609,7 @@ export function TelaAlocacao({
               <div className="max-w-full overflow-x-auto">
                 <div className="min-w-[1050px]">
                   <Timetable
-                    horarios={grade.horarios}
+                    horarios={horariosDoTurno.map(({ horario }) => horario)}
                     intervalos={grade.intervalos}
                     aulas={aulas}
                     somenteLeitura={!editando || bloqueado}
@@ -627,6 +629,7 @@ export function TelaAlocacao({
                   />
                 </div>
               </div>
+              {horariosDoTurno.length === 0 && <p role="status" className="text-sm text-[#777777]">Nenhum bloco de horário disponível neste turno.</p>}
               <p
                 className="mt-3 text-right text-xs text-[#777777]"
                 aria-live="polite"
@@ -646,7 +649,7 @@ export function TelaAlocacao({
               setArrastando(false);
               setMostrarSelecao(false);
               setDiaSelecionado("segunda");
-              setHorarioSelecionado("0");
+              setHorarioSelecionado("");
               origemDoArraste.current = null;
               setMensagem("Grade aberta para visualização.");
             }}
@@ -675,8 +678,13 @@ export function TelaAlocacao({
               {modal.horario.inicio} - {modal.horario.fim}
             </span>
           </p>
-          {!erroValidacao && (
-            <div className="mb-8 mt-6">
+          <div className="mt-6">
+            <label className="mb-2 block text-sm font-medium">Professor</label>
+            <Select aria-label="Professor" options={(disciplinaPendente?.professores ?? []).map(p => ({ value: String(p.id), label: p.nome }))} value={professorId} placeholder="Selecione o professor" disabled={bloqueado || !disciplinaPendente?.professores?.length} onChange={valor => { setProfessorId(valor); setErroProfessor(""); setErroValidacao(""); setSugestoes([]); }} />
+            {!disciplinaPendente?.professores?.length && <p role="alert" className="mt-2 text-sm text-red-700">Esta disciplina não possui professor ativo vinculado.</p>}
+            {erroProfessor && <p role="alert" className="mt-2 text-sm text-red-700">{erroProfessor}</p>}
+          </div>
+          <div className="mb-8 mt-6">
               <RoomSelect
                 salas={salasDaGrade}
                 value={salaId}
@@ -687,7 +695,6 @@ export function TelaAlocacao({
                 }}
               />
             </div>
-          )}
           {erroValidacao && (
             <p role="alert" className="mt-6 text-sm text-red-700">
               {erroValidacao}
@@ -734,10 +741,9 @@ export function TelaAlocacao({
             >
               {erroValidacao ? "Voltar à grade" : "Cancelar"}
             </Button>
-            {!erroValidacao && (
               <Button
                 type="button"
-                disabled={bloqueado || !salasDaGrade.length}
+                disabled={bloqueado || !salasDaGrade.length || !disciplinaPendente?.professores?.length}
                 onClick={() => void confirmarSala()}
                 variant="secondary"
                 size="small"
@@ -745,7 +751,6 @@ export function TelaAlocacao({
               >
                 Confirmar
               </Button>
-            )}
           </div>
         </Modal>
       )}
