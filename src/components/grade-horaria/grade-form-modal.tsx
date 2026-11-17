@@ -86,7 +86,7 @@ function GradeFormConteudo({
     });
     const [erro, setErro] = React.useState("");
 
-    const titulo = mode === "cadastrar" ? "Cadastro de Grade Horária" : "Edição de Grade Horária";
+    const titulo = mode === "cadastrar" ? "Cadastro de Quadro Horário" : "Edição de Quadro Horário";
     const opcoesPeriodo = periodos.map((periodo) => ({
         label: rotuloPeriodo(periodo),
         value: String(periodo.id),
@@ -125,7 +125,7 @@ function GradeFormConteudo({
                 </div>
 
                 <div className="flex flex-col gap-2 sm:col-span-2">
-                    <label className="text-sm font-medium text-[#17264D]">Período letivo</label>
+                    <label className="text-sm font-medium text-[#17264D]">Período Atividade Quadro</label>
                     <Select
                         options={opcoesPeriodo}
                         value={valores.periodoAtividadeQuadroId ? String(valores.periodoAtividadeQuadroId) : ""}

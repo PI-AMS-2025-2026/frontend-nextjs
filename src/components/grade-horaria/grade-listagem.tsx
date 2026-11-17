@@ -125,7 +125,7 @@ export function GradeListagem() {
             const criada = await quadroHorariosService.criar(request(dados, "ATIVO"));
             setCadastrarAberto(false);
             setRecemCriadaId(criada.id);
-            setSucesso("Grade horária cadastrada com sucesso!");
+            setSucesso("Quadro horário cadastrado com sucesso!");
             await carregar();
         } catch (error) {
             setErroModal(mensagemErro(error));
@@ -144,7 +144,7 @@ export function GradeListagem() {
             setEditarAberto(false);
             setSelecionada(null);
             setRecemCriadaId(null);
-            setSucesso("Grade horária atualizada com sucesso!");
+            setSucesso("Quadro horário atualizado com sucesso!");
             await carregar();
         } catch (error) {
             setErroModal(mensagemErro(error));
@@ -193,7 +193,7 @@ export function GradeListagem() {
     }
 
     if (autenticando || (carregando && cursoId)) {
-        return <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24"><Loader2 className="size-6 animate-spin text-[#0099AA]" /><span className="text-sm text-[#17264D]/70">Carregando grades...</span></div>;
+        return <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24"><Loader2 className="size-6 animate-spin text-[#0099AA]" /><span className="text-sm text-[#17264D]/70">Carregando quadros horários...</span></div>;
     }
 
     const erroVisivel = !cursoId
@@ -205,7 +205,7 @@ export function GradeListagem() {
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                     <Link href="/coordenador/home" aria-label="Voltar" className="flex size-9 items-center justify-center rounded-lg text-[#17264D]/70 transition-colors hover:bg-[#F2F2F2]"><ArrowLeft className="size-6" /></Link>
-                    <div><h1 className="text-3xl font-bold text-[#17264D]">Grade Horária</h1><p className="text-sm text-[#17264D]/70">Gerencie as grades do curso {cursoNome}</p></div>
+                    <div><h1 className="text-3xl font-bold text-[#17264D]">Quadro Horário</h1><p className="text-sm text-[#17264D]/70">Gerencie os quadros horários do curso {cursoNome}</p></div>
                 </div>
                 <div className="flex items-center gap-3">
                     <div className="w-64"><SearchInput placeholder="Pesquisar..." value={busca} onChange={(e) => { setBusca(e.target.value); setPaginaAtual(1); }} /></div>
@@ -219,12 +219,12 @@ export function GradeListagem() {
                 fields={[
                     { name: "versao", label: "Versão", type: "input", inputType: "number" },
                     { name: "data", label: "Data de Criação", type: "input", inputType: "date" },
-                    { name: "periodo", label: "Período Letivo", type: "select", placeholder: "Selecione...", width: "w-[220px]", options: [...new Map((grades ?? []).map((g) => [g.periodoAtividadeQuadro.id, { label: nomePeriodo(g.periodoAtividadeQuadro), value: String(g.periodoAtividadeQuadro.id) }])).values()] },
+                    { name: "periodo", label: "Período Atividade Quadro", type: "select", placeholder: "Selecione...", width: "w-[220px]", options: [...new Map((grades ?? []).map((g) => [g.periodoAtividadeQuadro.id, { label: nomePeriodo(g.periodoAtividadeQuadro), value: String(g.periodoAtividadeQuadro.id) }])).values()] },
                 ]}
                 onChange={(f) => { setFiltroVersao(f.versao ?? ""); setFiltroData(f.data ?? ""); setFiltroPeriodo(f.periodo ?? ""); setPaginaAtual(1); }}
             />
 
-            {pagina.length === 0 ? <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">{erroVisivel ? "Não foi possível carregar as grades." : "Nenhuma grade encontrada para o curso."}</div> : (
+            {pagina.length === 0 ? <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">{erroVisivel ? "Não foi possível carregar os quadros horários." : "Nenhum quadro horário encontrado para o curso."}</div> : (
                 <DataTable
                     data={pagina}
                     getRowKey={(grade) => grade.id}
@@ -232,7 +232,7 @@ export function GradeListagem() {
                         { key: "versao", label: "Versão", render: (grade) => String(grade.versao).padStart(2, "0") },
                         { key: "dataCriacao", label: "Data de Criação", render: (grade) => dataBR(grade.dataCriacao) },
                         { key: "curso", label: "Curso Vinculado", render: (grade) => grade.curso.nome },
-                        { key: "periodoAtividadeQuadro", label: "Período Letivo", render: (grade) => nomePeriodo(grade.periodoAtividadeQuadro) },
+                        { key: "periodoAtividadeQuadro", label: "Período Atividade Quadro", render: (grade) => nomePeriodo(grade.periodoAtividadeQuadro) },
                         { key: "status", label: "Status", render: (grade) => grade.status === "ATIVO" ? <span className="flex items-center gap-1.5 font-medium text-emerald-600"><CheckCircle2 className="size-4" />Ativo</span> : <span className="flex items-center gap-1.5 font-medium text-[#BA1A1A]"><XCircle className="size-4" />Inativo</span> },
                     ]}
                     actions={[
