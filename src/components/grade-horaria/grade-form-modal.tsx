@@ -6,16 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-<<<<<<< HEAD
 import type { PeriodoAtividadeQuadroResponse, QuadroHorarioResponse, Status } from "@/types/api";
-=======
-import {
-    CURSOS_DISPONIVEIS,
-    PERIODO_ATIVIDADE_QUADRO,
-    type GradeHoraria,
-    type StatusGrade,
-} from "@/lib/grade-horaria";
->>>>>>> dev
 
 export interface GradeFormValues {
     versao: number;
@@ -95,16 +86,11 @@ function GradeFormConteudo({
     });
     const [erro, setErro] = React.useState("");
 
-<<<<<<< HEAD
     const titulo = mode === "cadastrar" ? "Cadastro de Grade Horária" : "Edição de Grade Horária";
     const opcoesPeriodo = periodos.map((periodo) => ({
         label: rotuloPeriodo(periodo),
         value: String(periodo.id),
     }));
-=======
-    const titulo =
-        mode === "cadastrar" ? "Cadastro de Quadro Horário" : "Edição de Quadro Horário";
->>>>>>> dev
 
     function atualizar<K extends keyof GradeFormValues>(campo: K, valor: GradeFormValues[K]) {
         setValores((prev) => ({ ...prev, [campo]: valor }));
@@ -138,21 +124,12 @@ function GradeFormConteudo({
                     <p className="rounded-lg border border-[#D0D4D8] bg-[#F2F2F2] px-3 py-2 text-sm">{cursoNome}</p>
                 </div>
 
-<<<<<<< HEAD
                 <div className="flex flex-col gap-2 sm:col-span-2">
                     <label className="text-sm font-medium text-[#17264D]">Período letivo</label>
                     <Select
                         options={opcoesPeriodo}
                         value={valores.periodoAtividadeQuadroId ? String(valores.periodoAtividadeQuadroId) : ""}
                         onChange={(value) => atualizar("periodoAtividadeQuadroId", Number(value))}
-=======
-                <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-[#17264D]">Período Atividade Quadro</label>
-                    <Select
-                        options={PERIODO_ATIVIDADE_QUADRO.map((p) => ({ label: p, value: p }))}
-                        value={valores.periodoLetivo}
-                        onChange={(v) => atualizar("periodoLetivo", v)}
->>>>>>> dev
                         placeholder="Selecione..."
                         disabled={!periodos.length || submitting}
                     />

@@ -45,7 +45,6 @@ export function GradeVisualizacao({ gradeId }: { gradeId: string }) {
         return () => { ativa = false; };
     }, [gradeId]);
 
-<<<<<<< HEAD
     if (carregando) {
         return <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24"><Loader2 className="size-6 animate-spin text-[#0099AA]" /><span className="text-sm text-[#17264D]/70">Carregando grade...</span></div>;
     }
@@ -55,48 +54,6 @@ export function GradeVisualizacao({ gradeId }: { gradeId: string }) {
             <div className="flex items-center gap-3">
                 <Link href={BASE} aria-label="Voltar para as grades" className="flex size-9 items-center justify-center rounded-lg text-[#17264D]/70 transition-colors hover:bg-[#F2F2F2]"><ArrowLeft className="size-6" /></Link>
                 <h1 className="text-3xl font-bold text-[#17264D]">Visualização de Grade</h1>
-=======
-    if (grade === null) {
-        return (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
-                <Loader2 className="size-6 animate-spin text-[#0099AA]" />
-                <span className="text-sm text-[#17264D]/70">Carregando quadro horário...</span>
-            </div>
-        );
-    }
-
-    if (grade === "nao-encontrada") {
-        return (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
-                <span className="text-sm text-[#17264D]/70">Quadro horário não encontrado.</span>
-                <Link href={BASE} className="text-sm font-medium text-[#0099AA] hover:underline">
-                    Voltar para a listagem
-                </Link>
-            </div>
-        );
-    }
-
-    const horarios = horariosDoTurno(grade.turno);
-
-    const infos = [
-        { titulo: "Versão", valor: String(grade.versao).padStart(2, "0") },
-        { titulo: "Curso", valor: grade.cursoVinculado },
-        { titulo: "Período Letivo", valor: grade.periodoLetivo },
-        { titulo: "Período", valor: grade.turno },
-    ];
-
-    return (
-        <div className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col gap-6 px-6 py-8">
-            <div className="flex items-center gap-3">
-                <Link
-                    href={BASE}
-                    aria-label="Voltar"
-                    className="flex size-9 items-center justify-center rounded-lg text-[#17264D]/70 transition-colors hover:bg-[#F2F2F2]"
-                >
-                    <ArrowLeft className="size-6" />
-                </Link>
-                <h1 className="text-3xl font-bold text-[#17264D]">Visualização de Quadro Horário</h1>
->>>>>>> dev
             </div>
             {erro ? <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{erro}</div> : grade && (
                 <section className="max-w-xl rounded-[10px] border border-[#C8CDD2] p-6">
