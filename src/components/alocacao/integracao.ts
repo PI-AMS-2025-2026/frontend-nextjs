@@ -17,9 +17,9 @@ export function erroAlocacao(error: unknown) {
   }
   return error instanceof Error && error.message.startsWith("ALOCACAO:") ? error.message.slice(9) : "Não foi possível conectar ao serviço. Tente novamente.";
 }
-export async function carregarDados() {
+export async function carregarDados(quadroId?: number) {
   const [quadros, disciplinas, salas, professores, vinculos] = await Promise.all([
-    api.get<PageResponse<QuadroHorarioResponse> | QuadroHorarioResponse[]>("/quadros-horarios", { size: 1000 }),
+    quadroId ? api.get<QuadroHorarioResponse>(`/quadros-horarios/${quadroId}`).then(q => [q]) : api.get<PageResponse<QuadroHorarioResponse> | QuadroHorarioResponse[]>("/quadros-horarios", { size: 1000 }),
     api.get<PageResponse<DisciplinaResponse> | DisciplinaResponse[]>("/disciplinas", { size: 1000 }),
     api.get<PageResponse<SalaResponse> | SalaResponse[]>("/salas", { size: 1000 }),
     api.get<PageResponse<ProfessorResponse> | ProfessorResponse[]>("/professores", { size: 1000 }),
@@ -28,9 +28,8 @@ export async function carregarDados() {
   const ds: Discipline[] = lista(disciplinas).map(d => { const vinculo = lista(vinculos).find(v => v.disciplinaId === d.id); const professor = lista(professores).find(p => p.id === vinculo?.professorId); return { id: String(d.id), disciplina: d.nome, cor: d.cor, professor: professor?.nome ?? "Professor não vinculado", professorId: professor?.id, sala: "" }; });
   const ss: Sala[] = lista(salas).map(s => ({ id: String(s.id), nome: s.codigo, capacidade: s.capacidade, recursos: [] }));
   const grades = (await Promise.all(lista(quadros).map(async quadro => {
-    const motor = await api.get<Motor>(`/motor-quadro/cursos/${quadro.curso.id}`);
-    // O motor retorna apenas o quadro atual do curso; não atribuir suas turmas a outra versão.
-    if (motor.quadroHorario.id !== quadro.id) return [];
+    if (!quadro.turma || quadro.status !== "ATIVO") return [];
+    const motor = await api.get<Motor>(`/motor-quadro/quadros/${quadro.id}`);
     const alocacoes = lista(await api.get<PageResponse<AlocacaoResponse> | AlocacaoResponse[]>("/alocacoes", { id_quadro_horario: quadro.id, size: 1000 }));
     const blocos = motor.blocos.map(b => ({ id: b.id, inicio: tempo(b.horaInicio), fim: tempo(b.horaFim) }));
     return motor.turmas.map(turma => ({ id: `${quadro.id}:${turma.id}`, quadroId: quadro.id, cursoId: quadro.curso.id, turmaId: turma.id, turma: turma.codigo, versao: quadro.versao, dataCriacao: quadro.dataCriacao.slice(0, 10), curso: quadro.curso.nome, periodoLetivo: `${quadro.periodoAtividadeQuadro.periodo}º período de ${quadro.periodoAtividadeQuadro.ano}`, blocos, horarios: blocos.map(({inicio, fim}) => ({inicio, fim})), intervalos: [], disciplinaIds: lista(disciplinas).filter(d => d.curso.id === quadro.curso.id).map(d => String(d.id)), salaIds: ss.map(s => s.id), aulas: alocacoes.filter(a => a.turma.id === turma.id).flatMap(a => { const dia = diaVisual(a.diaSemana); if (!dia) return []; return [{ id: String(a.id), disciplinaId: String(a.disciplina.id), salaId: String(a.sala.id), dia, inicio: tempo(a.blocoHorario.horaInicio), fim: tempo(a.blocoHorario.horaFim), disciplina: a.disciplina.nome, professor: a.professor?.nome ?? "Professor não vinculado", sala: a.sala.codigo, cor: a.disciplina.cor }]; }) } satisfies Grade));
@@ -67,4 +66,21 @@ export async function salvarGrade(grade: Grade, aulas: Aula[], disciplinas: Disc
   for (const a of alteradas) await api.put(`/alocacoes/${a.id}`, a.payload);
   if (novas.length) await api.post("/alocacoes/lote", novas);
 }
-export async function exportarGrade(grade: Grade) { const blob = await api.getBlob(`/motor-quadro/cursos/${grade.cursoId}/exportar/pdf`); if (!(blob instanceof Blob)) throw new Error("Resposta inválida"); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = `quadro-horario-${grade.cursoId}.pdf`; link.click(); URL.revokeObjectURL(url); }
+export async function exportarGrade(grade: Grade) {
+  if (!grade.quadroId) throw new Error("ALOCACAO:Não foi possível identificar o quadro selecionado.");
+  const blob = await api.getBlob(`/motor-quadro/quadros/${grade.quadroId}/exportar/pdf`);
+  if (!(blob instanceof Blob) || !blob.size || blob.type.split(";")[0] !== "application/pdf") {
+    throw new Error("ALOCACAO:O serviço não retornou um PDF válido. Tente novamente.");
+  }
+  const url = URL.createObjectURL(blob);
+  try {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `quadro-horario-${grade.quadroId}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}

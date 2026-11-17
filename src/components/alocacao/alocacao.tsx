@@ -32,6 +32,7 @@ import {
 } from "./tipos";
 
 import { carregarDados, erroAlocacao, exportarGrade, interpretarSugestao, salvarGrade, validar } from "./integracao";
+import { SelecaoQuadro } from "./selecao-quadro";
 
 export type AlocacaoScreenProps = {
   grades: Grade[];
@@ -39,6 +40,8 @@ export type AlocacaoScreenProps = {
   salas: Sala[];
   // O projeto fornece a implementação real da API. Não há endpoint inventado aqui.
   salvarAlocacao: (gradeId: string, aulas: Aula[]) => Promise<Aula[]>;
+  gradeInicialId?: string;
+  aoVoltar?: () => void;
 };
 
 type EstadoModal =
@@ -52,8 +55,10 @@ export function TelaAlocacao({
   disciplinas,
   salas,
   salvarAlocacao,
+  gradeInicialId,
+  aoVoltar,
 }: AlocacaoScreenProps) {
-  const [gradeId, setGradeId] = useState<string | null>(null);
+  const [gradeId, setGradeId] = useState<string | null>(gradeInicialId ?? null);
   const [editando, setEditando] = useState(false);
   const [rascunhos, setRascunhos] = useState<Record<string, Aula[]>>({});
   const [salvas, setSalvas] = useState<Record<string, Aula[]>>({});
@@ -307,6 +312,7 @@ export function TelaAlocacao({
                 aria-label="Voltar para a listagem de grades"
                 disabled={bloqueado}
                 onClick={() => {
+                  if (aoVoltar) { aoVoltar(); return; }
                   setGradeId(null);
                   setEditando(false);
                   setSelecionada(null);
@@ -372,7 +378,14 @@ export function TelaAlocacao({
               <Button
                 type="button"
                 disabled={bloqueado}
-                onClick={async () => { setProcessando(true); try { await exportarGrade(grade); } catch (error) { setModal({ tipo: "aviso", titulo: "Não foi possível exportar", texto: erroAlocacao(error) }); } finally { setProcessando(false); } }}
+                onClick={async () => {
+                  if (editando && JSON.stringify(aulas) !== JSON.stringify(aulasSalvas)) {
+                    setModal({ tipo: "aviso", titulo: "Salve as alterações antes de exportar", texto: "O arquivo contém as alocações salvas do quadro." });
+                    return;
+                  }
+                  setProcessando(true);
+                  try { await exportarGrade(grade); } catch (error) { setModal({ tipo: "aviso", titulo: "Não foi possível exportar", texto: erroAlocacao(error) }); } finally { setProcessando(false); }
+                }}
                 variant="primary"
                 size="small"
                 className="gap-2"
@@ -649,23 +662,27 @@ export function TelaAlocacao({
 
 export default function Alocacao() {
   const [dados, setDados] = useState<Awaited<ReturnType<typeof carregarDados>> | null>(null);
+  const [quadroId, setQuadroId] = useState<number | null>(null);
   const [erro, setErro] = useState("");
   const [tentativa, setTentativa] = useState(0);
   useEffect(() => {
     let ativo = true;
-    carregarDados().then(resultado => { if (ativo) { setDados(resultado); setErro(""); } }).catch(error => { if (ativo) setErro(erroAlocacao(error)); });
+    if (quadroId === null) return () => { ativo = false; };
+    carregarDados(quadroId).then(resultado => { if (ativo) { setDados(resultado); setErro(""); } }).catch(error => { if (ativo) setErro(erroAlocacao(error)); });
     return () => { ativo = false; };
-  }, [tentativa]);
+  }, [tentativa, quadroId]);
+  if (quadroId === null) return <SelecaoQuadro aoSelecionar={setQuadroId} />;
   if (erro) return <div role="alert" className="p-8">{erro} <Button onClick={() => { setErro(""); setTentativa(n => n + 1); }}>Tentar novamente</Button></div>;
   if (!dados) return <div role="status" className="p-8">Carregando grades...</div>;
-  return <TelaAlocacao grades={dados.grades} disciplinas={dados.disciplinas} salas={dados.salas} salvarAlocacao={async (id, aulas) => {
+  if (!dados.grades.length) return <div role="alert" className="p-8">O quadro selecionado não está ativo ou não possui turma. <Button onClick={() => { setDados(null); setQuadroId(null); }}>Voltar</Button></div>;
+  return <TelaAlocacao key={quadroId} gradeInicialId={dados.grades[0].id} aoVoltar={() => { setDados(null); setQuadroId(null); }} grades={dados.grades} disciplinas={dados.disciplinas} salas={dados.salas} salvarAlocacao={async (id, aulas) => {
     const grade = dados.grades.find(g => g.id === id);
     if (!grade) throw new Error("ALOCACAO:Grade não encontrada.");
     try { await salvarGrade(grade, aulas, dados.disciplinas); } catch (error) {
-      try { setDados(await carregarDados()); } catch { setDados(null); setTentativa(n => n + 1); }
+      try { setDados(await carregarDados(quadroId)); } catch { setDados(null); setTentativa(n => n + 1); }
       throw error;
     }
-    const atualizados = await carregarDados();
+    const atualizados = await carregarDados(quadroId);
     setDados(atualizados);
     return atualizados.grades.find(g => g.id === id)?.aulas ?? [];
   }} />;

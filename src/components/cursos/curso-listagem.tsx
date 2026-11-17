@@ -14,36 +14,40 @@ import { Modal } from "@/components/ui/modal";
 import { CursoFormModal } from "@/components/cursos/curso-form-modal";
 
 import {
-    carregarCursosSalvos,
-    gerarCursosMock,
-    salvarCursos,
     type Curso,
     type Periodicidade,
     type StatusCurso,
 } from "@/lib/cursos";
+import { cursosService } from "@/services/cursos.service";
+import type { CursoRequest, CursoResponse } from "@/types/api";
+
+function paraCurso(curso: CursoResponse): Curso {
+    return { id: String(curso.id), nome: curso.nome, periodicidade: curso.periodicidade as Periodicidade,
+        duracao: String(curso.duracao), status: curso.status === "ATIVO" ? "Ativo" : "Inativo" };
+}
+
+function paraRequest(dados: { nome: string; periodicidade: Periodicidade; duracao: string; status: StatusCurso }): CursoRequest {
+    return { nome: dados.nome, periodicidade: dados.periodicidade, duracao: Number(dados.duracao),
+        status: dados.status === "Ativo" ? "ATIVO" : "INATIVO" };
+}
 
 export function CursosListagem() {
     const [cursos, setCursos] = React.useState<Curso[] | null>(null);
+    const [erroCarga, setErroCarga] = React.useState("");
+    const [tentativa, setTentativa] = React.useState(0);
 
     React.useEffect(() => {
         let vivo = true;
-        // A leitura precisa ocorrer depois da hidratacao (localStorage nao existe
-        // no servidor) e o setState e adiado para um microtask, para nao encadear
-        // um render sincrono dentro do mesmo commit do efeito.
-        void Promise.resolve().then(() => {
-            if (!vivo) return;
-            const salvos = carregarCursosSalvos();
-            setCursos(salvos ?? gerarCursosMock());
+        void cursosService.listarTodos().then((resultado) => {
+            if (vivo) { setCursos(resultado.map(paraCurso)); setErroCarga(""); }
+        }).catch((error: unknown) => {
+            if (vivo) setErroCarga(error instanceof Error && error.message !== "Failed to fetch"
+                ? error.message : "Não foi possível carregar os cursos. Tente novamente.");
         });
         return () => {
             vivo = false;
         };
-    }, []);
-
-    React.useEffect(() => {
-        if (cursos === null) return;
-        salvarCursos(cursos);
-    }, [cursos]);
+    }, [tentativa]);
 
     const [busca, setBusca] = React.useState("");
     const [filtroNome, setFiltroNome] = React.useState("");
@@ -87,32 +91,38 @@ export function CursosListagem() {
     const inicioIndice = (paginaSegura - 1) * itensPorPagina;
     const pagina = filtrados.slice(inicioIndice, inicioIndice + itensPorPagina);
 
-    function confirmarCadastro(dados: {
+    async function confirmarCadastro(dados: {
         nome: string;
         periodicidade: Periodicidade;
         duracao: string;
         status: StatusCurso;
     }) {
-        setCursos((prev) => [...(prev ?? []), { id: crypto.randomUUID(), ...dados }]);
+        const salvo = await cursosService.criar(paraRequest(dados));
+        setCursos((prev) => [...(prev ?? []), paraCurso(salvo)]);
         setCadastrarAberto(false);
         setSucesso("Curso cadastrado com sucesso!");
     }
 
-    function confirmarEdicao(dados: {
+    async function confirmarEdicao(dados: {
         nome: string;
         periodicidade: Periodicidade;
         duracao: string;
         status: StatusCurso;
     }) {
         if (!selecionado) return;
-        setCursos((prev) =>
-            (prev ?? []).map((c) => (c.id === selecionado.id ? { ...c, ...dados } : c))
-        );
+        const salvo = await cursosService.atualizar(Number(selecionado.id), paraRequest(dados));
+        setCursos((prev) => (prev ?? []).map((c) => c.id === selecionado.id ? paraCurso(salvo) : c));
         setEditarAberto(false);
         setSelecionado(null);
         setSucesso("Curso editado com sucesso!");
     }
 
+    if (cursos === null && erroCarga) {
+        return <div role="alert" className="flex flex-col items-center gap-3 py-24">
+            <p>{erroCarga}</p>
+            <Button onClick={() => { setErroCarga(""); setTentativa((atual) => atual + 1); }}>Tentar novamente</Button>
+        </div>;
+    }
     if (cursos === null) {
         return (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
@@ -181,7 +191,6 @@ export function CursosListagem() {
                         options: [
                             { label: "Semestral", value: "Semestral" },
                             { label: "Anual", value: "Anual" },
-                            { label: "Trimestral", value: "Trimestral" },
                         ],
                     },
                     {

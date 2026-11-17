@@ -57,6 +57,8 @@ export default function CadastroUsuario() {
     });
     const [loading, setLoading] = React.useState(true);
     const [cursos, setCursos] = React.useState<CursoResponse[]>([]);
+    const [erroCursos, setErroCursos] = React.useState("");
+    const [tentativaCursos, setTentativaCursos] = React.useState(0);
 
     const [search, setSearch] = React.useState("");
     const [filters, setFilters] = React.useState<{ status: string; tipo: string }>({
@@ -129,17 +131,18 @@ export default function CadastroUsuario() {
 
     React.useEffect(() => {
         let ativo = true;
-        cursosService.listar({ page: 0, size: 1000 })
+        cursosService.listarTodos({ status: "ATIVO" })
             .then((resposta) => {
-                if (ativo) setCursos(resposta.content);
+                if (ativo) { setCursos(resposta); setErroCursos(""); }
             })
-            .catch((err) => console.error("Erro ao carregar cursos:", err));
+            .catch(() => { if (ativo) { setCursos([]); setErroCursos("Não foi possível carregar os cursos."); } });
         return () => {
             ativo = false;
         };
-    }, []);
+    }, [tentativaCursos]);
 
     function abrirCadastro() {
+        setTentativaCursos((atual) => atual + 1);
         setUsuarioEditando(null);
         setFormulario(formularioInicial);
         setSenha("");
@@ -149,6 +152,7 @@ export default function CadastroUsuario() {
     }
 
     function abrirEdicao(usuario: UsuarioResponse) {
+        setTentativaCursos((atual) => atual + 1);
         setUsuarioEditando(usuario);
         setFormulario({
             nome: usuario.nome,
@@ -546,15 +550,18 @@ export default function CadastroUsuario() {
                                     Curso do Coordenador
                                 </label>
                                 <Dropdown
-                                    value={cursos.find((curso) => String(curso.id) === formulario.cursoId)?.nome ?? ""}
-                                    onChange={(nomeCurso) => {
-                                        const curso = cursos.find((item) => item.nome === nomeCurso);
-                                        alterarCampo("cursoId", curso ? String(curso.id) : "");
-                                    }}
+                                    value={formulario.cursoId}
+                                    onChange={(id) => alterarCampo("cursoId", id)}
                                     placeholder="Selecione o curso..."
-                                    options={cursos.map((curso) => ({ label: curso.nome, value: curso.nome }))}
+                                    options={[
+                                        ...cursos,
+                                        ...(usuarioEditando?.curso?.status === "INATIVO"
+                                            && String(usuarioEditando.curso.id) === formulario.cursoId
+                                            ? [usuarioEditando.curso] : []),
+                                    ].map((curso) => ({ label: `${curso.nome} — ${curso.periodicidade}, ${curso.duracao} ${curso.periodicidade === "Anual" ? "anos" : "semestres"}${curso.status === "INATIVO" ? " (inativo)" : ""}`, value: String(curso.id) }))}
                                     className="[&>button]:h-[34px] [&>button]:rounded-[7px] [&>button]:border-[#17264D] [&>button]:bg-white [&>button]:text-[12px]"
                                 />
+                                {erroCursos && <p role="alert" className="mt-1 text-[12px] text-[#BA1A1A]">{erroCursos} <button type="button" className="underline" onClick={() => setTentativaCursos((atual) => atual + 1)}>Tentar novamente</button></p>}
                                 {errosCampos.curso && <p className="mt-1 text-[12px] text-[#BA1A1A]">{errosCampos.curso}</p>}
                             </div>
                         )}

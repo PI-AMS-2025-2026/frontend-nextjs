@@ -20,7 +20,7 @@ interface CursoFormModalProps {
     onClose: () => void;
     mode: "cadastrar" | "editar";
     curso?: Curso | null;
-    onConfirm: (dados: DadosCurso) => void;
+    onConfirm: (dados: DadosCurso) => void | Promise<void>;
 }
 
 export function CursoFormModal({
@@ -52,7 +52,7 @@ function CursoFormConteudo({
     mode: "cadastrar" | "editar";
     curso?: Curso | null;
     onCancel: () => void;
-    onConfirm: (dados: DadosCurso) => void;
+    onConfirm: (dados: DadosCurso) => void | Promise<void>;
 }) {
     const [nome, setNome] = React.useState(curso?.nome ?? "");
     const [periodicidade, setPeriodicidade] = React.useState<Periodicidade | "">(
@@ -63,10 +63,12 @@ function CursoFormConteudo({
     );
     const [status, setStatus] = React.useState<StatusCurso>(curso?.status ?? "Ativo");
     const [erro, setErro] = React.useState("");
+    const [salvando, setSalvando] = React.useState(false);
 
     const titulo = mode === "cadastrar" ? "Cadastro de Curso" : "Edição de Curso";
 
-    function handleConfirmar() {
+    async function handleConfirmar() {
+        if (salvando) return;
         if (!nome.trim()) return setErro("Informe o nome do curso.");
         if (!periodicidade) return setErro("Selecione a periodicidade.");
         if (!duracao.trim()) return setErro("Informe a duração do curso.");
@@ -77,12 +79,16 @@ function CursoFormConteudo({
             return setErro(`Para periodicidade ${periodicidade}, informe uma duração inteira entre ${limites.min} e ${limites.max} ${limites.unidade}.`);
         }
 
-        onConfirm({
-            nome: nome.trim(),
-            periodicidade,
-            duracao: String(duracaoNumero),
-            status,
-        });
+        setSalvando(true);
+        setErro("");
+        try {
+            await onConfirm({ nome: nome.trim(), periodicidade, duracao: String(duracaoNumero), status });
+        } catch (error) {
+            setErro(error instanceof Error && error.message && error.message !== "Failed to fetch"
+                ? error.message : "Não foi possível conectar ao serviço de cursos. Tente novamente.");
+        } finally {
+            setSalvando(false);
+        }
     }
 
     return (
@@ -159,14 +165,18 @@ function CursoFormConteudo({
                 </RadioGroup>
             </div>
 
-            {erro && <p className="text-sm text-[#BA1A1A]">{erro}</p>}
+            {mode === "editar" && curso?.status === "Ativo" && status === "Inativo" && (
+                <p className="text-sm text-[#BA1A1A]">Ao inativar o curso, suas turmas também serão inativadas.</p>
+            )}
+
+            {erro && <p role="alert" className="text-sm text-[#BA1A1A]">{erro}</p>}
 
             <div className="flex justify-end gap-3">
-                <Button variant="ghost" size="small" onClick={onCancel}>
+                <Button variant="ghost" size="small" onClick={onCancel} disabled={salvando}>
                     Cancelar
                 </Button>
-                <Button variant="secondary" size="small" onClick={handleConfirmar}>
-                    Confirmar
+                <Button variant="secondary" size="small" onClick={handleConfirmar} disabled={salvando}>
+                    {salvando ? "Salvando..." : "Confirmar"}
                 </Button>
             </div>
         </div>

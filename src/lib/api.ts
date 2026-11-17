@@ -44,7 +44,7 @@ const QUERY_ALIASES: Record<string, Record<string, string>> = {
   "/salas": { tipo_sala: "id_tipo_sala" },
   "/recursos": { tipo_recurso: "id_tipo_recurso" },
   "/recursos-salas": { salaId: "id_sala", recursoId: "id_recurso", sala_id: "id_sala", recurso_id: "id_recurso" },
-  "/quadros-horarios": { curso: "id_curso", periodo_atividade_quadro: "id_periodo_atividade_quadro" },
+  "/quadros-horarios": { curso: "id_curso", turma: "id_turma", periodo_atividade_quadro: "id_periodo_atividade_quadro" },
   "/professores-disciplinas": { usuario: "id_professor", disciplina: "id_disciplina" },
   "/periodos-atividade-quadro": { dataInicio: "data_inicio", dataFim: "data_fim" },
   "/disponibilidades-professores": { professor: "id_professor", bloco_horario: "id_bloco_horario" },
@@ -163,7 +163,7 @@ async function request<T>(
         ? String((data as { message?: unknown }).message)
         : `Erro na API (${response.status})`;
 
-    throw new ApiError(message, response.status, data);
+    throw new ApiError(message, response.status, mapKeys(data, fromApiKey));
   }
 
   return mapKeys(data, fromApiKey) as T;
