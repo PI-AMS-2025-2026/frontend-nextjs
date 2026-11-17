@@ -45,7 +45,13 @@ export type AlocacaoScreenProps = {
 };
 
 type EstadoModal =
-  | { tipo: "sala"; disciplinaId: string; dia: DiaSemana; horario: Horario; aulaId?: string }
+  | {
+      tipo: "sala";
+      disciplinaId: string;
+      dia: DiaSemana;
+      horario: Horario;
+      aulaId?: string;
+    }
   | { tipo: "detalhes"; aulaId: string }
   | { tipo: "aviso"; titulo: string; texto?: string; sucesso?: boolean }
   | null;
@@ -67,6 +73,7 @@ export function TelaAlocacao({
   const [selecionada, setSelecionada] = useState<string | null>(null);
   const [mostrarSelecao, setMostrarSelecao] = useState(false);
   const [diaSelecionado, setDiaSelecionado] = useState<DiaSemana>("segunda");
+  const [turnoSelecionado, setTurnoSelecionado] = useState("todos");
   const [horarioSelecionado, setHorarioSelecionado] = useState("0");
   const [modal, setModal] = useState<EstadoModal>(null);
   const [salaId, setSalaId] = useState("");
@@ -74,13 +81,14 @@ export function TelaAlocacao({
   const [erroValidacao, setErroValidacao] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [processando, setProcessando] = useState(false);
-  const [sugestoes, setSugestoes] = useState<{ dia: DiaSemana; horario: Horario; salaId: string }[]>([]);
+  const [sugestoes, setSugestoes] = useState<
+    { dia: DiaSemana; horario: Horario; salaId: string }[]
+  >([]);
   const [mensagem, setMensagem] = useState("");
   const grade = grades.find((item) => item.id === gradeId);
-  const aulasSalvas = grade ? salvas[grade.id] ?? grade.aulas : [];
-  const aulas = grade && editando
-    ? rascunhos[grade.id] ?? aulasSalvas
-    : aulasSalvas;
+  const aulasSalvas = grade ? (salvas[grade.id] ?? grade.aulas) : [];
+  const aulas =
+    grade && editando ? (rascunhos[grade.id] ?? aulasSalvas) : aulasSalvas;
   const disciplinasDaGrade = grade
     ? disciplinas.filter((item) => grade.disciplinaIds.includes(item.id))
     : [];
@@ -88,6 +96,18 @@ export function TelaAlocacao({
     ? salas.filter((item) => grade.salaIds.includes(item.id))
     : [];
   const bloqueado = salvando || processando;
+  const horariosDoTurno =
+    grade?.horarios
+      .map((horario, indice) => ({ horario, indice }))
+      .filter(({ horario }) => {
+        const [hora, minuto] = horario.inicio.split(":").map(Number);
+        const minutos = hora * 60 + minuto;
+        if (turnoSelecionado === "todos") return true;
+        if (turnoSelecionado === "manha") return minutos < 12 * 60;
+        if (turnoSelecionado === "tarde")
+          return minutos >= 12 * 60 && minutos < 18 * 60;
+        return minutos >= 18 * 60;
+      }) ?? [];
 
   useEffect(() => {
     if (!modal) return;
@@ -166,16 +186,43 @@ export function TelaAlocacao({
       if (!sala) return;
       setProcessando(true);
       try {
-        const validacao = await validar(grade, disciplina, sala.id, dia, horario, origem.id);
+        const validacao = await validar(
+          grade,
+          disciplina,
+          sala.id,
+          dia,
+          horario,
+          origem.id,
+        );
         if (!validacao.valido) {
-          setModal({ tipo: "sala", disciplinaId: disciplina.id, dia, horario, aulaId: origem.id });
+          setModal({
+            tipo: "sala",
+            disciplinaId: disciplina.id,
+            dia,
+            horario,
+            aulaId: origem.id,
+          });
           setSalaId(sala.id);
           setErroValidacao(validacao.mensagem);
-          setSugestoes(validacao.sugestoes.flatMap(s => { const item = interpretarSugestao(grade, s); return item ? [item] : []; }));
+          setSugestoes(
+            validacao.sugestoes.flatMap((s) => {
+              const item = interpretarSugestao(grade, s);
+              return item ? [item] : [];
+            }),
+          );
           setMensagem(validacao.mensagem);
           return;
         }
-      } catch (error) { setModal({ tipo: "aviso", titulo: "Não foi possível validar a alocação", texto: erroAlocacao(error) }); return; } finally { setProcessando(false); }
+      } catch (error) {
+        setModal({
+          tipo: "aviso",
+          titulo: "Não foi possível validar a alocação",
+          texto: erroAlocacao(error),
+        });
+        return;
+      } finally {
+        setProcessando(false);
+      }
       const resultado = alocarAula({
         aulas,
         disciplina,
@@ -194,18 +241,25 @@ export function TelaAlocacao({
     // Se a aula original foi removida apenas do rascunho e está sendo recolocada
     // no mesmo dia/bloco, preserve o ID dela. A API então valida como edição e
     // desconsidera a alocação que ainda existe no servidor.
-    const aulaOriginalRemovida = grade.aulas.find((aula) =>
-      aula.disciplinaId === disciplina.id &&
-      aula.dia === dia &&
-      aula.inicio === horario.inicio &&
-      aula.fim === horario.fim &&
-      !aulas.some((rascunho) => rascunho.id === aula.id),
+    const aulaOriginalRemovida = grade.aulas.find(
+      (aula) =>
+        aula.disciplinaId === disciplina.id &&
+        aula.dia === dia &&
+        aula.inicio === horario.inicio &&
+        aula.fim === horario.fim &&
+        !aulas.some((rascunho) => rascunho.id === aula.id),
     );
     setSalaId(aulaOriginalRemovida?.salaId ?? "");
     setSugestoes([]);
     setErroValidacao("");
     setErroSala(false);
-    setModal({ tipo: "sala", disciplinaId: disciplina.id, dia, horario, aulaId: aulaOriginalRemovida?.id });
+    setModal({
+      tipo: "sala",
+      disciplinaId: disciplina.id,
+      dia,
+      horario,
+      aulaId: aulaOriginalRemovida?.id,
+    });
   }
 
   async function confirmarSala() {
@@ -221,15 +275,32 @@ export function TelaAlocacao({
     if (!disciplina) return;
     setProcessando(true);
     try {
-      const validacao = await validar(grade, disciplina, sala.id, modal.dia, modal.horario, modal.aulaId);
+      const validacao = await validar(
+        grade,
+        disciplina,
+        sala.id,
+        modal.dia,
+        modal.horario,
+        modal.aulaId,
+      );
       if (!validacao.valido) {
-        setSugestoes(validacao.sugestoes.flatMap(s => { const item = interpretarSugestao(grade, s); return item ? [item] : []; }));
+        setSugestoes(
+          validacao.sugestoes.flatMap((s) => {
+            const item = interpretarSugestao(grade, s);
+            return item ? [item] : [];
+          }),
+        );
         setMensagem(validacao.mensagem);
         setErroValidacao(validacao.mensagem);
         return;
       }
       setErroValidacao("");
-    } catch (error) { setErroValidacao(erroAlocacao(error)); return; } finally { setProcessando(false); }
+    } catch (error) {
+      setErroValidacao(erroAlocacao(error));
+      return;
+    } finally {
+      setProcessando(false);
+    }
     const resultado = alocarAula({
       aulas,
       disciplina,
@@ -281,7 +352,11 @@ export function TelaAlocacao({
         sucesso: true,
       });
     } catch (error) {
-      setModal({ tipo: "aviso", titulo: "Não foi possível salvar a alocação", texto: `${erroAlocacao(error)} Sua edição continua aberta para você corrigir o horário ou escolher uma sugestão.` });
+      setModal({
+        tipo: "aviso",
+        titulo: "Não foi possível salvar a alocação",
+        texto: `${erroAlocacao(error)} Sua edição continua aberta para você corrigir o horário ou escolher uma sugestão.`,
+      });
     } finally {
       setSalvando(false);
     }
@@ -446,7 +521,7 @@ export function TelaAlocacao({
               {editando && mostrarSelecao && (
                 <div
                   id="alocacao-por-selecao"
-                  className="grid gap-3 rounded-lg border border-[#D9D9D9] bg-[#F2F2F2] p-3 lg:grid-cols-[2fr_1fr_1fr_auto]"
+                  className="grid gap-3 rounded-lg border border-[#D9D9D9] bg-[#F2F2F2] p-3 lg:grid-cols-[2fr_1fr_1fr_1fr_auto]"
                 >
                   <Select
                     options={disciplinasDaGrade.map((disciplina) => ({
@@ -472,13 +547,34 @@ export function TelaAlocacao({
                     className="[&>div]:bg-white"
                   />
                   <Select
-                    options={grade.horarios.map((horario, indice) => ({
+                    options={[
+                      { label: "Todos os turnos", value: "todos" },
+                      { label: "Manhã", value: "manha" },
+                      { label: "Tarde", value: "tarde" },
+                      { label: "Noite", value: "noite" },
+                    ]}
+                    value={turnoSelecionado}
+                    onChange={(turno) => {
+                      setTurnoSelecionado(turno);
+                      setHorarioSelecionado("0");
+                    }}
+                    placeholder="Selecione o turno"
+                    className="[&>div]:bg-white"
+                  />
+                  <Select
+                    options={horariosDoTurno.map(({ horario, indice }) => ({
                       label: horario.inicio + " - " + horario.fim,
                       value: String(indice),
                     }))}
-                    value={horarioSelecionado}
+                    value={
+                      horariosDoTurno.some(
+                        ({ indice }) => String(indice) === horarioSelecionado,
+                      )
+                        ? horarioSelecionado
+                        : ""
+                    }
                     onChange={setHorarioSelecionado}
-                    placeholder="Selecione o horário"
+                    placeholder="Selecione o bloco"
                     className="[&>div]:bg-white"
                   />
                   <Button
@@ -488,11 +584,14 @@ export function TelaAlocacao({
                     className="h-9 text-sm"
                     disabled={
                       !selecionada ||
-                      !grade.horarios[Number(horarioSelecionado)]
+                      !horariosDoTurno.some(
+                        ({ indice }) => String(indice) === horarioSelecionado,
+                      )
                     }
                     onClick={() => {
-                      const horario =
-                        grade.horarios[Number(horarioSelecionado)];
+                      const horario = horariosDoTurno.find(
+                        ({ indice }) => String(indice) === horarioSelecionado,
+                      )?.horario;
                       if (selecionada && horario)
                         handleDrop(
                           { id: selecionada },
@@ -512,13 +611,19 @@ export function TelaAlocacao({
                     intervalos={grade.intervalos}
                     aulas={aulas}
                     somenteLeitura={!editando || bloqueado}
-                    onAulaDrop={(...args) => { void handleDrop(...args); }}
-                    onDragStateChange={(ativo) => alterarArraste("grade", ativo)}
+                    onAulaDrop={(...args) => {
+                      void handleDrop(...args);
+                    }}
+                    onDragStateChange={(ativo) =>
+                      alterarArraste("grade", ativo)
+                    }
                     onAulaClick={(aula) => {
                       if (!bloqueado)
                         setModal({ tipo: "detalhes", aulaId: aula.id });
                     }}
-                    onDropOcupado={(...args) => { void handleDrop(...args); }}
+                    onDropOcupado={(...args) => {
+                      void handleDrop(...args);
+                    }}
                   />
                 </div>
               </div>
@@ -555,7 +660,9 @@ export function TelaAlocacao({
       {modal?.tipo === "sala" && (
         <Modal
           open
-          onClose={() => { if (!bloqueado) setModal(null); }}
+          onClose={() => {
+            if (!bloqueado) setModal(null);
+          }}
           className="max-w-xl overflow-visible [&>img]:rounded-[20px]"
         >
           <h2 className="pr-10 text-xl font-semibold">
@@ -568,19 +675,55 @@ export function TelaAlocacao({
               {modal.horario.inicio} - {modal.horario.fim}
             </span>
           </p>
-          {!erroValidacao && <div className="mb-8 mt-6">
-            <RoomSelect
-              salas={salasDaGrade}
-              value={salaId}
-              erro={erroSala}
-              onChange={(id) => {
-                setSalaId(id);
-                setErroSala(false);
-              }}
-            />
-          </div>}
-          {erroValidacao && <p role="alert" className="mt-6 text-sm text-red-700">{erroValidacao}</p>}
-          {sugestoes.length > 0 && <div className="mt-3 space-y-2"><p className="text-sm">Sugestões disponíveis:</p>{sugestoes.map((item, i) => <Button key={i} type="button" variant="ghost" size="small" disabled={bloqueado} onClick={() => { setModal({ tipo: "sala", disciplinaId: modal.disciplinaId, aulaId: modal.aulaId, dia: item.dia, horario: item.horario }); setSalaId(item.salaId); setErroValidacao(""); setSugestoes([]); }}>{DIAS.find(d => d.key === item.dia)?.label} {item.horario.inicio} - {salasDaGrade.find(s => s.id === item.salaId)?.nome ?? item.salaId}</Button>)}</div>}
+          {!erroValidacao && (
+            <div className="mb-8 mt-6">
+              <RoomSelect
+                salas={salasDaGrade}
+                value={salaId}
+                erro={erroSala}
+                onChange={(id) => {
+                  setSalaId(id);
+                  setErroSala(false);
+                }}
+              />
+            </div>
+          )}
+          {erroValidacao && (
+            <p role="alert" className="mt-6 text-sm text-red-700">
+              {erroValidacao}
+            </p>
+          )}
+          {sugestoes.length > 0 && (
+            <div className="mt-3 space-y-2">
+              <p className="text-sm">Sugestões disponíveis:</p>
+              {sugestoes.map((item, i) => (
+                <Button
+                  key={i}
+                  type="button"
+                  variant="ghost"
+                  size="small"
+                  disabled={bloqueado}
+                  onClick={() => {
+                    setModal({
+                      tipo: "sala",
+                      disciplinaId: modal.disciplinaId,
+                      aulaId: modal.aulaId,
+                      dia: item.dia,
+                      horario: item.horario,
+                    });
+                    setSalaId(item.salaId);
+                    setErroValidacao("");
+                    setSugestoes([]);
+                  }}
+                >
+                  {DIAS.find((d) => d.key === item.dia)?.label}{" "}
+                  {item.horario.inicio} -{" "}
+                  {salasDaGrade.find((s) => s.id === item.salaId)?.nome ??
+                    item.salaId}
+                </Button>
+              ))}
+            </div>
+          )}
           <div className="mt-7 flex justify-end gap-3">
             <Button
               type="button"
@@ -591,16 +734,18 @@ export function TelaAlocacao({
             >
               {erroValidacao ? "Voltar à grade" : "Cancelar"}
             </Button>
-            {!erroValidacao && <Button
-              type="button"
-              disabled={bloqueado || !salasDaGrade.length}
-              onClick={() => void confirmarSala()}
-              variant="secondary"
-              size="small"
-              className="gap-2"
-            >
-              Confirmar
-            </Button>}
+            {!erroValidacao && (
+              <Button
+                type="button"
+                disabled={bloqueado || !salasDaGrade.length}
+                onClick={() => void confirmarSala()}
+                variant="secondary"
+                size="small"
+                className="gap-2"
+              >
+                Confirmar
+              </Button>
+            )}
           </div>
         </Modal>
       )}

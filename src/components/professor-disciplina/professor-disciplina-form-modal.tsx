@@ -89,6 +89,7 @@ function ProfessorDisciplinaFormConteudo({
                             setErro("");
                         }}
                         placeholder="Selecione o Professor"
+                        menuClassName="max-h-60 overflow-y-auto overscroll-contain"
                     />
                 </div>
 
@@ -105,6 +106,7 @@ function ProfessorDisciplinaFormConteudo({
                             setErro("");
                         }}
                         placeholder="Selecione a Disciplina"
+                        menuClassName="max-h-60 overflow-y-auto overscroll-contain"
                     />
                 </div>
             </div>

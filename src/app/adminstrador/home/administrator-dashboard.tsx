@@ -8,7 +8,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
-type MetricId = "professors" | "users" | "courses" | "schedule";
+type MetricId = "professors" | "users" | "courses";
 
 type Metric = {
   id: MetricId;
@@ -83,24 +83,6 @@ const metrics: Metric[] = [
     manageHref: "/adminstrador/estrutura-academica/cursos",
     values: [22, 25, 28, 35, 33, 31, 34, 37, 40, 43, 46, 50],
     chartMax: 80,
-  },
-  {
-    id: "schedule",
-    title: "Grade Horária",
-    total: 90,
-    increase: 9,
-    color: "#E8588B",
-    softColor: "#FBE1EA",
-    icon: "/images/administrator/schedule.svg",
-    iconWidth: 69,
-    iconHeight: 70,
-    description: "Cadastre, edite e gerencie as grades horárias da instituição",
-    chartTitle: "Grades horárias cadastradas por mês",
-    chartDescription: "Total de grades horárias cadastradas no ano de 2025",
-    manageLabel: "Gerenciar grades horárias",
-    manageHref: "/adminstrador/grade-planejamento/grade-horaria",
-    values: [60, 65, 70, 90, 85, 80, 88, 92, 96, 100, 103, 110],
-    chartMax: 140,
   },
 ];
 
