@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -39,28 +38,21 @@ function TableFilters({
   clearButtonLabel = "Limpar filtros",
   className,
 }: TableFiltersProps) {
-  const createInitialValues = React.useCallback(() => {
-    return fields.reduce<Record<string, string>>((acc, field) => {
-      acc[field.name] = field.defaultValue ?? "";
-      return acc;
-    }, {});
-  }, [fields]);
+  // Guarda só o que o usuário alterou; o resto vem do defaultValue.
+  const [overrides, setOverrides] = React.useState<Record<string, string>>({});
 
-  const [filters, setFilters] =
-    React.useState<Record<string, string>>(createInitialValues);
-
-  React.useEffect(() => {
-    setFilters(createInitialValues());
-  }, [createInitialValues]);
+  const filters = React.useMemo(
+    () =>
+      fields.reduce<Record<string, string>>((acc, field) => {
+        acc[field.name] = overrides[field.name] ?? field.defaultValue ?? "";
+        return acc;
+      }, {}),
+    [fields, overrides],
+  );
 
   const handleChange = (name: string, value: string) => {
-    const updatedFilters = {
-      ...filters,
-      [name]: value,
-    };
-
-    setFilters(updatedFilters);
-    onChange?.(updatedFilters);
+    setOverrides((prev) => ({ ...prev, [name]: value }));
+    onChange?.({ ...filters, [name]: value });
   };
 
   const handleClear = () => {
@@ -72,7 +64,7 @@ function TableFilters({
       {},
     );
 
-    setFilters(clearedFilters);
+    setOverrides(clearedFilters);
     onClear?.();
     onChange?.(clearedFilters);
   };
