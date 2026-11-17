@@ -29,7 +29,22 @@ const inputClass =
 const labelClass =
   "mb-2 block text-xs font-semibold text-[#17264D]";
 
-export function PeriodoModal({
+export function PeriodoModal(props: PeriodoModalProps) {
+  if (!props.open) return null;
+
+  const periodoKey = props.periodo
+    ? `${props.periodo.id}-${props.periodo.updatedAt}`
+    : "novo";
+
+  return (
+    <PeriodoModalForm
+      key={`${props.mode}-${periodoKey}`}
+      {...props}
+    />
+  );
+}
+
+function PeriodoModalForm({
   open,
   mode,
   periodo,
@@ -37,33 +52,22 @@ export function PeriodoModal({
   onConfirm,
 }: PeriodoModalProps) {
   const [dados, setDados] =
-    React.useState<PeriodoAtividadeQuadroRequest>({
-      ...formularioInicial,
-    });
+    React.useState<PeriodoAtividadeQuadroRequest>(() =>
+      mode === "editar" && periodo
+        ? {
+            ano: periodo.ano,
+            periodo: periodo.periodo,
+            tipoPeridoAtividadeQuadro:
+              periodo.tipoPeridoAtividadeQuadro,
+            dataInicio: periodo.dataInicio,
+            dataFim: periodo.dataFim,
+            status: periodo.status,
+          }
+        : { ...formularioInicial }
+    );
 
   const [salvando, setSalvando] = React.useState(false);
   const [erro, setErro] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (!open) return;
-
-    if (mode === "editar" && periodo) {
-      setDados({
-        ano: periodo.ano,
-        periodo: periodo.periodo,
-        tipoPeridoAtividadeQuadro:
-          periodo.tipoPeridoAtividadeQuadro,
-        dataInicio: periodo.dataInicio,
-        dataFim: periodo.dataFim,
-        status: periodo.status,
-      });
-    } else {
-      setDados({ ...formularioInicial });
-    }
-
-    setErro(null);
-    setSalvando(false);
-  }, [open, mode, periodo]);
 
   React.useEffect(() => {
     if (!open || salvando) return;
@@ -78,8 +82,6 @@ export function PeriodoModal({
       document.removeEventListener("keydown", aoTeclar);
     };
   }, [open, salvando, onClose]);
-
-  if (!open) return null;
 
   function atualizar<K extends keyof PeriodoAtividadeQuadroRequest>(
     campo: K,
