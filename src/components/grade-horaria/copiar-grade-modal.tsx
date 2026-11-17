@@ -27,8 +27,8 @@ export function CopiarGradeModal({ open, onClose, periodos, onConfirm, submittin
     return (
         <Modal open={open} onClose={() => { if (!submitting) onClose(); }} className="max-w-xl overflow-visible">
             <div className="flex flex-col gap-4">
-                <h2 className="pr-12 text-xl font-semibold text-[#17264D]">Copiar Grade</h2>
-                <p className="text-sm text-[#17264D]">Selecione o período letivo para a nova versão da grade.</p>
+                <h2 className="pr-12 text-xl font-semibold text-[#17264D]">Copiar Quadro Horário</h2>
+                <p className="text-sm text-[#17264D]">Selecione o período letivo para a nova versão do quadro horário.</p>
                 <Select
                     options={periodos.map((periodo) => ({ label: rotuloPeriodo(periodo), value: String(periodo.id) }))}
                     value={periodoId}
