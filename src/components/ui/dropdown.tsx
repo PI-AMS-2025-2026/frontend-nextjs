@@ -14,6 +14,7 @@ interface DropdownProps {
   onChange?: (value: string) => void;
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
 }
 
 export function Dropdown({
@@ -22,6 +23,7 @@ export function Dropdown({
   onChange,
   placeholder = "Selecione uma opção",
   className = "",
+  disabled = false,
 }: DropdownProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -31,8 +33,9 @@ export function Dropdown({
     <div className={`relative w-full overflow-visible ${className}`}>
       <button
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        className={`flex w-full items-center justify-between rounded-lg border bg-[#F2F2F2] px-3 py-2 text-sm transition-colors duration-200 ${
+        disabled={disabled}
+        onClick={() => { if (!disabled) setOpen((prev) => !prev); }}
+        className={`flex w-full items-center justify-between rounded-lg border bg-[#F2F2F2] px-3 py-2 text-sm transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${
           open ? "border-[#4471E6]" : "border-[#17264D]"
         }`}
       >
@@ -46,11 +49,12 @@ export function Dropdown({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-[99999] mt-1 w-full overflow-visible rounded-lg border bg-background shadow-md">
+        <div className="absolute left-0 top-full z-[99999] mt-1 max-h-60 w-full overflow-y-auto overscroll-contain rounded-lg border bg-background shadow-md">
           {options.map((option, index) => (
             <button
               key={option.value}
               type="button"
+              disabled={disabled}
               onClick={() => {
                 onChange?.(option.value);
                 setOpen(false);
