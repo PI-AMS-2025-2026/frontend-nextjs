@@ -36,10 +36,10 @@ export function GradeVisualizacao({ gradeId }: { gradeId: string }) {
                 if (!ativa) return;
                 const apiError = error instanceof ApiError ? error : null;
                 setErro(apiError?.status === 403
-                    ? "Você não tem permissão para visualizar esta grade."
+                    ? "Você não tem permissão para visualizar este quadro horário."
                     : apiError?.status === 404
-                        ? "Grade horária não encontrada."
-                        : error instanceof Error ? error.message : "Não foi possível carregar a grade horária.");
+                        ? "Quadro horário não encontrado."
+                        : error instanceof Error ? error.message : "Não foi possível carregar o quadro horário.");
             })
             .finally(() => { if (ativa) setCarregando(false); });
         return () => { ativa = false; };
@@ -52,8 +52,8 @@ export function GradeVisualizacao({ gradeId }: { gradeId: string }) {
     return (
         <div className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col gap-6 px-6 py-8">
             <div className="flex items-center gap-3">
-                <Link href={BASE} aria-label="Voltar para as grades" className="flex size-9 items-center justify-center rounded-lg text-[#17264D]/70 transition-colors hover:bg-[#F2F2F2]"><ArrowLeft className="size-6" /></Link>
-                <h1 className="text-3xl font-bold text-[#17264D]">Visualização de Grade</h1>
+                <Link href={BASE} aria-label="Voltar para os quadros horários" className="flex size-9 items-center justify-center rounded-lg text-[#17264D]/70 transition-colors hover:bg-[#F2F2F2]"><ArrowLeft className="size-6" /></Link>
+                <h1 className="text-3xl font-bold text-[#17264D]">Visualização de Quadro Horário</h1>
             </div>
             {erro ? <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{erro}</div> : grade && (
                 <section className="max-w-xl rounded-[10px] border border-[#C8CDD2] p-6">

@@ -125,8 +125,8 @@ function TurmaFormConteudo({
         }
 
         const anoNumero = Number(ano);
-        if (!ano.trim() || !Number.isInteger(anoNumero) || anoNumero < 2009 || anoNumero > 9999) {
-            return setErro("Informe um ano entre 2009 e 9999.");
+        if (!ano.trim() || !Number.isInteger(anoNumero) || anoNumero < 2008 || anoNumero > 9999) {
+            return setErro("O ano da turma deve ser maior ou igual a 2008 e possuir no máximo 4 dígitos.");
         }
 
         setSubmitting(true);
@@ -204,7 +204,7 @@ function TurmaFormConteudo({
                     label="Ano:"
                     showLabel
                     type="number"
-                    min={2009}
+                    min={2008}
                     max={9999}
                     value={ano}
                     onChange={(e) => {
