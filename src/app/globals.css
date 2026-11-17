@@ -1,6 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "../../node_modules/shadcn/dist/tailwind.css";
+@import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -20,7 +20,6 @@
   --color-alert-red: var(--alert-red);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-navbar-background: var(--navbar-background);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
@@ -63,7 +62,7 @@
 }
 
 :root {
-  /* Paleta da identidade visual e tokens legados da navegação. */
+  /* Paleta do protótipo Figma (frame 4001:1000). */
   --brand-navy: #17264d;
   --brand-teal: #0099aa;
   --brand-blue: #4471e6;
@@ -77,14 +76,6 @@
   --discipline-pink: #e8588b;
   --discipline-teal: #0bafa8;
   --alert-red: #ff0000;
-  --cyan: var(--brand-teal);
-  --middle-blue: var(--brand-blue);
-  --lavender: var(--brand-blue-light);
-  --dark-purple: var(--brand-purple);
-  --wine: var(--brand-burgundy);
-  --navbar-background: #0f1a30;
-  --border-focus: var(--brand-blue);
-
   --background: oklch(1 0 0);
   --foreground: var(--brand-navy);
   --card: oklch(1 0 0);

@@ -12,7 +12,7 @@ export default function GradeVisualizacaoPage({
 
     return (
         <div className="flex min-h-screen w-full flex-col bg-white">
-            <GradeVisualizacao gradeId={id} />
+            <GradeVisualizacao key={id} gradeId={id} />
         </div>
     );
 }

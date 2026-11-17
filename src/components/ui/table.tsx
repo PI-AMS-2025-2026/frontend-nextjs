@@ -16,6 +16,7 @@ interface TableAction<T> {
   icon: React.ReactNode;
   onClick: (item: T) => void;
   className?: string;
+  disabled?: (item: T) => boolean;
 }
 
 interface DataTableProps<T> {

@@ -61,12 +61,7 @@ function queryParameter(endpoint: string, key: string) {
 
 function mapKeys(value: unknown, convert: (key: string) => string): unknown {
   if (Array.isArray(value)) return value.map((item) => mapKeys(item, convert));
-  if (
-    value &&
-    typeof value === "object" &&
-    !(value instanceof Date) &&
-    !(typeof Blob !== "undefined" && value instanceof Blob)
-  ) {
+  if (value && typeof value === "object" && !(value instanceof Date)) {
     return Object.fromEntries(Object.entries(value).map(([key, item]) => [convert(key), mapKeys(item, convert)]));
   }
   return value;
@@ -106,6 +101,7 @@ async function request<T>(
   ) {
     headers.set("Content-Type", "application/json");
   }
+
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }

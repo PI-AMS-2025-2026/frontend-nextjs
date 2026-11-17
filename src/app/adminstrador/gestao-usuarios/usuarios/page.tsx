@@ -57,6 +57,8 @@ export default function CadastroUsuario() {
     });
     const [loading, setLoading] = React.useState(true);
     const [cursos, setCursos] = React.useState<CursoResponse[]>([]);
+    const [carregandoCursos, setCarregandoCursos] = React.useState(false);
+    const [erroCursos, setErroCursos] = React.useState("");
 
     const [search, setSearch] = React.useState("");
     const [filters, setFilters] = React.useState<{ status: string; tipo: string }>({
@@ -126,17 +128,32 @@ export default function CadastroUsuario() {
         };
     }, [carregarUsuarios]);
 
-    React.useEffect(() => {
-        let ativo = true;
-        cursosService.listar({ page: 0, size: 1000 })
-            .then((resposta) => {
-                if (ativo) setCursos(resposta.content);
-            })
-            .catch((err) => console.error("Erro ao carregar cursos:", err));
-        return () => {
-            ativo = false;
-        };
+    const carregarCursos = React.useCallback(async () => {
+        setCarregandoCursos(true);
+        setErroCursos("");
+        try {
+            const primeiraPagina = await cursosService.listar({ page: 0, size: 100 });
+            const paginasRestantes = await Promise.all(
+                Array.from({ length: Math.max(0, primeiraPagina.totalPages - 1) }, (_, index) =>
+                    cursosService.listar({ page: index + 1, size: 100 }),
+                ),
+            );
+            setCursos(
+                [...primeiraPagina.content, ...paginasRestantes.flatMap((pagina) => pagina.content)]
+                    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
+            );
+        } catch (err) {
+            console.error("Erro ao carregar cursos:", err);
+            setCursos([]);
+            setErroCursos("Não foi possível carregar os cursos do servidor.");
+        } finally {
+            setCarregandoCursos(false);
+        }
     }, []);
+
+    React.useEffect(() => {
+        void Promise.resolve().then(() => carregarCursos());
+    }, [carregarCursos]);
 
     function abrirCadastro() {
         setUsuarioEditando(null);
@@ -144,6 +161,7 @@ export default function CadastroUsuario() {
         setSenha("");
         setErro("");
         setModalAberto(true);
+        void carregarCursos();
     }
 
     function abrirEdicao(usuario: UsuarioResponse) {
@@ -158,6 +176,7 @@ export default function CadastroUsuario() {
         setSenha("");
         setErro("");
         setModalAberto(true);
+        void carregarCursos();
     }
 
     function fecharModal() {
@@ -242,6 +261,13 @@ export default function CadastroUsuario() {
             ...prev,
             [campo]: valor,
         }));
+    }
+
+    const cursosAtivos = cursos.filter((curso) => curso.status === "ATIVO");
+    const cursosParaSelecionar = [...cursosAtivos];
+    const cursoAtual = usuarioEditando?.curso;
+    if (cursoAtual && !cursosParaSelecionar.some((curso) => curso.id === cursoAtual.id)) {
+        cursosParaSelecionar.push(cursoAtual);
     }
 
     return (
@@ -497,15 +523,25 @@ export default function CadastroUsuario() {
                                     Curso do Coordenador
                                 </label>
                                 <Dropdown
-                                    value={cursos.find((curso) => String(curso.id) === formulario.cursoId)?.nome ?? ""}
-                                    onChange={(nomeCurso) => {
-                                        const curso = cursos.find((item) => item.nome === nomeCurso);
-                                        alterarCampo("cursoId", curso ? String(curso.id) : "");
-                                    }}
-                                    placeholder="Selecione o curso..."
-                                    options={cursos.map((curso) => ({ label: curso.nome, value: curso.nome }))}
+                                    value={formulario.cursoId}
+                                    onChange={(cursoId) => alterarCampo("cursoId", cursoId)}
+                                    placeholder={carregandoCursos ? "Carregando cursos..." : "Selecione o curso..."}
+                                    options={cursosParaSelecionar.map((curso) => ({
+                                        label: `${curso.nome}${curso.status === "INATIVO" ? " (inativo)" : ""}`,
+                                        value: String(curso.id),
+                                    }))}
+                                    disabled={carregandoCursos || !!erroCursos || !cursosParaSelecionar.length}
                                     className="[&>button]:h-[34px] [&>button]:rounded-[7px] [&>button]:border-[#17264D] [&>button]:bg-white [&>button]:text-[12px]"
                                 />
+                                {erroCursos && (
+                                    <div className="mt-1 flex items-center gap-2 text-[11px] text-[#BA1A1A]">
+                                        <span>{erroCursos}</span>
+                                        <button type="button" className="font-semibold underline" onClick={() => void carregarCursos()}>Tentar novamente</button>
+                                    </div>
+                                )}
+                                {!carregandoCursos && !erroCursos && cursosAtivos.length === 0 && (
+                                    <p className="mt-1 text-[11px] text-[#666]">Nenhum curso ativo disponível.</p>
+                                )}
                             </div>
                         )}
 
@@ -528,7 +564,7 @@ export default function CadastroUsuario() {
                                 type="submit"
                                 variant="secondary"
                                 size="small"
-                                disabled={submitting}
+                                disabled={submitting || carregandoCursos || (formulario.tipoUsuario === "COORDENADOR" && !formulario.cursoId)}
                                 className="h-[35px] rounded-[7px] px-6 text-[12px]"
                             >
                                 {submitting ? "SALVANDO..." : "CONFIRMAR"}
