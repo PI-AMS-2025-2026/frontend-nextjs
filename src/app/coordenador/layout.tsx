@@ -1,18 +1,13 @@
 import { Roboto } from "next/font/google";
 
-import { Footer } from "@/components/footer";
-import { Header, type HeaderUser } from "@/components/header";
+import { Footer as CreatedFooter } from "@/components/created/footer";
+import { Navbar } from "@/components/created/navbar";
 import { coordinatorHeaderConfig } from "./navigation";
 
 const roboto = Roboto({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700", "800", "900"],
 });
-
-const coordinatorUser: HeaderUser = {
-  name: "UserName",
-  role: "Coordenador",
-};
 
 export default function CoordinatorLayout({
   children,
@@ -21,9 +16,13 @@ export default function CoordinatorLayout({
 }>) {
   return (
     <div className={`${roboto.className} flex min-h-svh flex-col`}>
-      <Header {...coordinatorHeaderConfig} user={coordinatorUser} />
+      <Navbar
+        tipo="coordenador"
+        homeHref={coordinatorHeaderConfig.homeHref}
+        navigationGroups={coordinatorHeaderConfig.navigationGroups}
+      />
       <div className="flex-1">{children}</div>
-      <Footer />
+      <CreatedFooter />
     </div>
   );
 }

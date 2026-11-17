@@ -27,6 +27,7 @@ export function CopiarGradeModal({ open, onClose, periodos, onConfirm, submittin
     return (
         <Modal open={open} onClose={() => { if (!submitting) onClose(); }} className="max-w-xl overflow-visible">
             <div className="flex flex-col gap-4">
+<<<<<<< HEAD
                 <h2 className="pr-12 text-xl font-semibold text-[#17264D]">Copiar Grade</h2>
                 <p className="text-sm text-[#17264D]">Selecione o período letivo para a nova versão da grade.</p>
                 <Select
@@ -37,6 +38,14 @@ export function CopiarGradeModal({ open, onClose, periodos, onConfirm, submittin
                     disabled={submitting || !periodos.length}
                 />
                 {errorMessage && <p role="alert" className="text-sm text-[#BA1A1A]">{errorMessage}</p>}
+=======
+                <h2 className="pr-12 text-xl font-semibold text-[#17264D]">Copiar Quadro Horário</h2>
+
+                <p className="text-sm text-[#17264D]">
+                    Tem certeza que deseja copiar este quadro horário?
+                </p>
+
+>>>>>>> dev
                 <div className="flex justify-end gap-3">
                     <Button variant="ghost" size="small" onClick={onClose} disabled={submitting}>Cancelar</Button>
                     <Button variant="secondary" size="small" onClick={() => onConfirm(Number(periodoId))} disabled={submitting || !periodoId}>

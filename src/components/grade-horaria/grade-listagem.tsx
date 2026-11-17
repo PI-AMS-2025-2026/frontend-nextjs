@@ -18,7 +18,20 @@ import { ApiError } from "@/lib/api";
 import { periodoAtividadeQuadroService, quadroHorariosService } from "@/services";
 import type { PeriodoAtividadeQuadroResponse, QuadroHorarioRequest, QuadroHorarioResponse, Status } from "@/types/api";
 
+<<<<<<< HEAD
 const BASE = "/coordenador/grade-planejamento/grade-horaria";
+=======
+import {
+    carregarGradesSalvas,
+    CURSOS_DISPONIVEIS,
+    formatarDataBR,
+    gerarGradesMock,
+    PERIODO_ATIVIDADE_QUADRO,
+    salvarGrades,
+    type GradeHoraria,
+    type StatusGrade,
+} from "@/lib/grade-horaria";
+>>>>>>> dev
 
 function nomePeriodo(periodo: PeriodoAtividadeQuadroResponse) {
     return periodo.tipoPeridoAtividadeQuadro === "ANUAL"
@@ -115,6 +128,13 @@ export function GradeListagem() {
             curso: { id: cursoId },
             periodoAtividadeQuadro: { id: dados.periodoAtividadeQuadroId },
         };
+<<<<<<< HEAD
+=======
+        setGrades((prev) => [...(prev ?? []), nova]);
+        setCadastrarAberto(false);
+        setRecemCriadaId(nova.id);
+        setSucesso("Quadro Horário cadastrado com sucesso!");
+>>>>>>> dev
     }
 
     async function confirmarCadastro(dados: GradeFormValues) {
@@ -136,6 +156,7 @@ export function GradeListagem() {
 
     async function confirmarEdicao(dados: GradeFormValues) {
         if (!selecionada) return;
+<<<<<<< HEAD
         setMutando(true);
         setErro("");
         setErroModal("");
@@ -151,6 +172,15 @@ export function GradeListagem() {
         } finally {
             setMutando(false);
         }
+=======
+        setGrades((prev) =>
+            (prev ?? []).map((g) => (g.id === selecionada.id ? { ...g, ...dados } : g))
+        );
+        setEditarAberto(false);
+        setSelecionada(null);
+        setRecemCriadaId(null);
+        setSucesso("Quadro Horário editado com sucesso!");
+>>>>>>> dev
     }
 
     async function confirmarCopia(periodoId: number) {
@@ -177,6 +207,7 @@ export function GradeListagem() {
         }
     }
 
+<<<<<<< HEAD
     async function inativar(grade: QuadroHorarioResponse) {
         if (!window.confirm(`Deseja inativar a grade versão ${String(grade.versao).padStart(2, "0")}?`)) return;
         setMutando(true);
@@ -190,6 +221,15 @@ export function GradeListagem() {
         } finally {
             setMutando(false);
         }
+=======
+    if (grades === null) {
+        return (
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
+                <Loader2 className="size-6 animate-spin text-[#0099AA]" />
+                <span className="text-sm text-[#17264D]/70">Carregando quadros horários...</span>
+            </div>
+        );
+>>>>>>> dev
     }
 
     if (autenticando || (carregando && cursoId)) {
@@ -204,8 +244,24 @@ export function GradeListagem() {
         <div className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col gap-6 px-6 py-8">
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
+<<<<<<< HEAD
                     <Link href="/coordenador/home" aria-label="Voltar" className="flex size-9 items-center justify-center rounded-lg text-[#17264D]/70 transition-colors hover:bg-[#F2F2F2]"><ArrowLeft className="size-6" /></Link>
                     <div><h1 className="text-3xl font-bold text-[#17264D]">Grade Horária</h1><p className="text-sm text-[#17264D]/70">Gerencie as grades do curso {cursoNome}</p></div>
+=======
+                    <Link
+                        href="/adminstrador/home"
+                        aria-label="Voltar"
+                        className="flex size-9 items-center justify-center rounded-lg text-[#17264D]/70 transition-colors hover:bg-[#F2F2F2]"
+                    >
+                        <ArrowLeft className="size-6" />
+                    </Link>
+                    <div>
+                        <h1 className="text-3xl font-bold text-[#17264D]">Quadro Horário</h1>
+                        <p className="text-sm text-[#17264D]/70">
+                            Gerencie os quadros horários da instituição
+                        </p>
+                    </div>
+>>>>>>> dev
                 </div>
                 <div className="flex items-center gap-3">
                     <div className="w-64"><SearchInput placeholder="Pesquisar..." value={busca} onChange={(e) => { setBusca(e.target.value); setPaginaAtual(1); }} /></div>
@@ -219,21 +275,78 @@ export function GradeListagem() {
                 fields={[
                     { name: "versao", label: "Versão", type: "input", inputType: "number" },
                     { name: "data", label: "Data de Criação", type: "input", inputType: "date" },
+<<<<<<< HEAD
                     { name: "periodo", label: "Período Letivo", type: "select", placeholder: "Selecione...", width: "w-[220px]", options: [...new Map((grades ?? []).map((g) => [g.periodoAtividadeQuadro.id, { label: nomePeriodo(g.periodoAtividadeQuadro), value: String(g.periodoAtividadeQuadro.id) }])).values()] },
+=======
+                    {
+                        name: "curso",
+                        label: "Curso Vinculado",
+                        type: "select",
+                        placeholder: "Selecione...",
+                        options: CURSOS_DISPONIVEIS.map((c) => ({ label: c, value: c })),
+                    },
+                    {
+                        name: "período atividade quadro",
+                        label: "Período Atividade Quadro",
+                        type: "select",
+                        placeholder: "Selecione...",
+                        options: PERIODO_ATIVIDADE_QUADRO.map((p) => ({ label: p, value: p })),
+                        width: "w-[220px]",
+                    },
+>>>>>>> dev
                 ]}
                 onChange={(f) => { setFiltroVersao(f.versao ?? ""); setFiltroData(f.data ?? ""); setFiltroPeriodo(f.periodo ?? ""); setPaginaAtual(1); }}
             />
 
+<<<<<<< HEAD
             {pagina.length === 0 ? <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">{erroVisivel ? "Não foi possível carregar as grades." : "Nenhuma grade encontrada para o curso."}</div> : (
+=======
+            {pagina.length === 0 ? (
+                <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">
+                    Nenhum quadro horário encontrado.
+                </div>
+            ) : (
+>>>>>>> dev
                 <DataTable
                     data={pagina}
                     getRowKey={(grade) => grade.id}
                     columns={[
+<<<<<<< HEAD
                         { key: "versao", label: "Versão", render: (grade) => String(grade.versao).padStart(2, "0") },
                         { key: "dataCriacao", label: "Data de Criação", render: (grade) => dataBR(grade.dataCriacao) },
                         { key: "curso", label: "Curso Vinculado", render: (grade) => grade.curso.nome },
                         { key: "periodoAtividadeQuadro", label: "Período Letivo", render: (grade) => nomePeriodo(grade.periodoAtividadeQuadro) },
                         { key: "status", label: "Status", render: (grade) => grade.status === "ATIVO" ? <span className="flex items-center gap-1.5 font-medium text-emerald-600"><CheckCircle2 className="size-4" />Ativo</span> : <span className="flex items-center gap-1.5 font-medium text-[#BA1A1A]"><XCircle className="size-4" />Inativo</span> },
+=======
+                        {
+                            key: "versao",
+                            label: "Versão",
+                            render: (g) => String(g.versao).padStart(2, "0"),
+                        },
+                        {
+                            key: "dataCriacao",
+                            label: "Data de Criação",
+                            render: (g) => formatarDataBR(g.dataCriacao),
+                        },
+                        { key: "cursoVinculado", label: "Curso Vinculado" },
+                        { key: "periodoLetivo", label: "Período Atividade Quadro" },
+                        {
+                            key: "status",
+                            label: "Status",
+                            render: (g) =>
+                                g.status === "Ativo" ? (
+                                    <span className="flex items-center gap-1.5 font-medium text-emerald-600">
+                                        <CheckCircle2 className="size-4" />
+                                        Ativo
+                                    </span>
+                                ) : (
+                                    <span className="flex items-center gap-1.5 font-medium text-[#BA1A1A]">
+                                        <XCircle className="size-4" />
+                                        Inativo
+                                    </span>
+                                ),
+                        },
+>>>>>>> dev
                     ]}
                     actions={[
                         { label: "Ver Grade", icon: <Grid3x3 className="size-[21px]" strokeWidth={2} />, onClick: (grade) => router.push(`${BASE}/${grade.id}`) },
@@ -246,10 +359,56 @@ export function GradeListagem() {
 
             <Pagination totalItems={filtradas.length} currentPage={paginaSegura} itemsPerPage={itensPorPagina} onPageChange={setPaginaAtual} onItemsPerPageChange={(n) => { setItensPorPagina(n); setPaginaAtual(1); }} />
 
+<<<<<<< HEAD
             <GradeFormModal open={cadastrarAberto} onClose={() => setCadastrarAberto(false)} mode="cadastrar" periodos={periodos} cursoNome={cursoNome} onConfirm={(dados) => void confirmarCadastro(dados)} submitting={mutando} errorMessage={erroModal} />
             <GradeFormModal open={editarAberto} onClose={() => { setEditarAberto(false); setSelecionada(null); }} mode="editar" grade={selecionada} periodos={periodos} cursoNome={cursoNome} onConfirm={(dados) => void confirmarEdicao(dados)} submitting={mutando} errorMessage={erroModal} />
             <CopiarGradeModal key={copiarAberto ? `copiar-${selecionada?.id ?? "grade"}` : "copiar-fechado"} open={copiarAberto} onClose={() => { setCopiarAberto(false); setSelecionada(null); }} periodos={periodos.filter((periodo) => selecionada?.status !== "ATIVO" || periodo.id !== selecionada.periodoAtividadeQuadro.id)} onConfirm={(periodoId) => void confirmarCopia(periodoId)} submitting={mutando} errorMessage={erroModal} />
             <SucessoGradeModal open={sucesso !== null} onClose={() => { setSucesso(null); setRecemCriadaId(null); }} mensagem={sucesso ?? ""} acao={recemCriadaId ? { label: "VISUALIZAR GRADE", onClick: () => router.push(`${BASE}/${recemCriadaId}`) } : undefined} />
+=======
+            <GradeFormModal
+                open={cadastrarAberto}
+                onClose={() => setCadastrarAberto(false)}
+                mode="cadastrar"
+                onConfirm={confirmarCadastro}
+            />
+
+            <GradeFormModal
+                open={editarAberto}
+                onClose={() => {
+                    setEditarAberto(false);
+                    setSelecionada(null);
+                }}
+                mode="editar"
+                grade={selecionada}
+                onConfirm={confirmarEdicao}
+            />
+
+            <CopiarGradeModal
+                open={copiarAberto}
+                onClose={() => {
+                    setCopiarAberto(false);
+                    setSelecionada(null);
+                }}
+                onConfirm={confirmarCopia}
+            />
+
+            <SucessoGradeModal
+                open={sucesso !== null}
+                onClose={() => {
+                    setSucesso(null);
+                    setRecemCriadaId(null);
+                }}
+                mensagem={sucesso ?? ""}
+                acao={
+                    recemCriadaId
+                        ? {
+                            label: "VISUALIZAR QUADRO HORÁRIO",
+                            onClick: () => router.push(`${BASE}/${recemCriadaId}`),
+                        }
+                        : undefined
+                }
+            />
+>>>>>>> dev
         </div>
     );
 }
