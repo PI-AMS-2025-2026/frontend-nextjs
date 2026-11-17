@@ -203,7 +203,6 @@ export function Header({
           <strong className="text-xl font-semibold sm:text-2xl">Bem-vindo!</strong>{" "}
           <span className="font-medium text-black/80 max-sm:hidden">Explore abaixo um pouco do nosso sistema</span>
         </p>
-
         <div className="flex shrink-0 items-center gap-2">
           <div className="relative h-[53px] w-[55px] max-sm:hidden" aria-hidden="true">
             <Image src="/images/administrator/profile-ring.svg" alt="" fill sizes="55px" className="object-fill" />
