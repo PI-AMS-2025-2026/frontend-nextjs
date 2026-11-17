@@ -38,15 +38,6 @@ export const administratorHeaderConfig = {
       links: [{ label: "Horários", href: "/adminstrador/grade-planejamento" }],
     },
     {
-      label: "Grade e planejamento",
-      links: [
-        {
-          label: "Grade Horária",
-          href: "/adminstrador/grade-planejamento/grade-horaria",
-        },
-      ],
-    },
-    {
       label: "Controle e auditoria",
       links: [{ label: "Histórico de Alterações", href: "/adminstrador/historico-alteracao" }],
     },

@@ -7,8 +7,7 @@ import { Plus, Pencil, CheckCircle2, XCircle, ArrowLeft, Loader2 } from "lucide-
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/input";
 import { DataTable } from "@/components/ui/table";
-import { TableFilterHead } from "@/components/ui/table-filter-head";
-import { TableSortHead } from "@/components/ui/table-sort-head";
+import { TableFilters } from "@/components/ui/tablefilters";
 import { Pagination } from "@/components/ui/pagination";
 import { Modal } from "@/components/ui/modal";
 
@@ -41,16 +40,11 @@ type DadosDisciplina = {
     status: StatusDisciplina;
 };
 
-type CampoOrdenavel = "nome" | "cargaHoraria" | "codigo";
-
 export function DisciplinasListagem() {
     const [disciplinas, setDisciplinas] = React.useState<Disciplina[] | null>(null);
 
     React.useEffect(() => {
         let vivo = true;
-        // A leitura precisa ocorrer depois da hidratacao (localStorage nao existe
-        // no servidor) e o setState e adiado para um microtask, para nao encadear
-        // um render sincrono dentro do mesmo commit do efeito.
         void Promise.resolve().then(() => {
             if (!vivo) return;
             const salvas = carregarDisciplinasSalvas();
@@ -67,19 +61,14 @@ export function DisciplinasListagem() {
     }, [disciplinas]);
 
     const [busca, setBusca] = React.useState("");
-
-    const [ordem, setOrdem] = React.useState<{
-        campo: CampoOrdenavel | null;
-        direcao: "asc" | "desc";
-    }>({ campo: null, direcao: "asc" });
-
-    const [fTipo, setFTipo] = React.useState("");
-    const [fPeriodo, setFPeriodo] = React.useState("");
-    const [fModalidade, setFModalidade] = React.useState("");
-    const [fCor, setFCor] = React.useState("");
-    const [fCurso, setFCurso] = React.useState("");
-    const [fTipoSala, setFTipoSala] = React.useState("");
-    const [fStatus, setFStatus] = React.useState("");
+    const [filtroNome, setFiltroNome] = React.useState("");
+    const [filtroTipo, setFiltroTipo] = React.useState("");
+    const [filtroPeriodo, setFiltroPeriodo] = React.useState("");
+    const [filtroModalidade, setFiltroModalidade] = React.useState("");
+    const [filtroCor, setFiltroCor] = React.useState("");
+    const [filtroCurso, setFiltroCurso] = React.useState("");
+    const [filtroTipoSala, setFiltroTipoSala] = React.useState("");
+    const [filtroStatus, setFiltroStatus] = React.useState("");
 
     const [itensPorPagina, setItensPorPagina] = React.useState(10);
     const [paginaAtual, setPaginaAtual] = React.useState(1);
@@ -95,85 +84,43 @@ export function DisciplinasListagem() {
         return () => clearTimeout(timer);
     }, [sucesso]);
 
-    function filtrar(setter: (v: string) => void) {
-        return (valor: string) => {
-            setter(valor);
-            setPaginaAtual(1);
-        };
-    }
-
-    function ordenar(campo: CampoOrdenavel) {
-        return (direcao: "asc" | "desc") => {
-            setOrdem({ campo, direcao });
-            setPaginaAtual(1);
-        };
-    }
-
-    const temFiltro =
-        !!busca || !!fTipo || !!fPeriodo || !!fModalidade || !!fCor || !!fCurso ||
-        !!fTipoSala || !!fStatus || ordem.campo !== null;
-
-    function limparTudo() {
-        setBusca("");
-        setFTipo("");
-        setFPeriodo("");
-        setFModalidade("");
-        setFCor("");
-        setFCurso("");
-        setFTipoSala("");
-        setFStatus("");
-        setOrdem({ campo: null, direcao: "asc" });
-        setPaginaAtual(1);
-    }
-
     const filtradas = React.useMemo(() => {
         if (disciplinas === null) return [];
         const b = busca.trim().toLowerCase();
+        const n = filtroNome.trim().toLowerCase();
 
-        let resultado = disciplinas.filter((d) => {
+        return disciplinas.filter((d) => {
             const buscaOk =
                 !b ||
                 d.nome.toLowerCase().includes(b) ||
                 d.cursoVinculado.toLowerCase().includes(b) ||
                 String(d.codigo).includes(b);
 
+            const nomeOk = !n || d.nome.toLowerCase().includes(n);
+
             return (
                 buscaOk &&
-                (!fTipo || d.tipo === fTipo) &&
-                (!fPeriodo || d.periodo === fPeriodo) &&
-                (!fModalidade || d.modalidade === fModalidade) &&
-                (!fCor || d.cor === fCor) &&
-                (!fCurso || d.cursoVinculado === fCurso) &&
-                (!fTipoSala || d.tipoSala === fTipoSala) &&
-                (!fStatus || d.status === fStatus)
+                nomeOk &&
+                (!filtroTipo || d.tipo === filtroTipo) &&
+                (!filtroPeriodo || d.periodo === filtroPeriodo) &&
+                (!filtroModalidade || d.modalidade === filtroModalidade) &&
+                (!filtroCor || d.cor === filtroCor) &&
+                (!filtroCurso || d.cursoVinculado === filtroCurso) &&
+                (!filtroTipoSala || d.tipoSala === filtroTipoSala) &&
+                (!filtroStatus || d.status === filtroStatus)
             );
         });
-
-        if (ordem.campo) {
-            const campo = ordem.campo;
-            resultado = [...resultado].sort((a, b2) => {
-                const va = a[campo];
-                const vb = b2[campo];
-                const cmp =
-                    typeof va === "number" && typeof vb === "number"
-                        ? va - vb
-                        : String(va).localeCompare(String(vb));
-                return ordem.direcao === "asc" ? cmp : -cmp;
-            });
-        }
-
-        return resultado;
     }, [
         disciplinas,
         busca,
-        ordem,
-        fTipo,
-        fPeriodo,
-        fModalidade,
-        fCor,
-        fCurso,
-        fTipoSala,
-        fStatus,
+        filtroNome,
+        filtroTipo,
+        filtroPeriodo,
+        filtroModalidade,
+        filtroCor,
+        filtroCurso,
+        filtroTipoSala,
+        filtroStatus,
     ]);
 
     const totalPaginas = Math.max(1, Math.ceil(filtradas.length / itensPorPagina));
@@ -207,7 +154,7 @@ export function DisciplinasListagem() {
     }
 
     return (
-        <div className="mx-auto flex w-full max-w-[1300px] min-w-0 flex-1 flex-col gap-6 px-6 py-8">
+        <div className="mx-auto flex w-full max-w-[1280px] min-w-0 flex-1 flex-col gap-6 px-6 py-8">
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                     <Link
@@ -226,16 +173,6 @@ export function DisciplinasListagem() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    {temFiltro && (
-                        <button
-                            type="button"
-                            onClick={limparTudo}
-                            className="text-sm font-medium whitespace-nowrap text-[#0099AA] underline underline-offset-2 hover:text-[#17264D]"
-                        >
-                            Limpar filtros
-                        </button>
-                    )}
-
                     <div className="w-64">
                         <SearchInput
                             placeholder="Pesquisar..."
@@ -259,88 +196,154 @@ export function DisciplinasListagem() {
                 </div>
             </div>
 
-            {/* sem ternário: a tabela é sempre renderizada, então o cabeçalho
-                permanece visível e o aviso de vazio aparece como linha dentro dela.
-                min-w-0 é o que permite este filho de flex encolher e ativar o scroll */}
-            <div className="min-w-0 overflow-x-auto pb-2">
+            <TableFilters
+                fields={[
+                    {
+                        name: "nome",
+                        label: "Nome",
+                        type: "input",
+                        placeholder: "Filtrar por nome",
+                        width: "w-[155px]",
+                    },
+                    {
+                        name: "tipo",
+                        label: "Tipo",
+                        type: "select",
+                        placeholder: "Todos",
+                        width: "w-[105px]",
+                        options: [
+                            { label: "Teórica", value: "Teórica" },
+                            { label: "Prática", value: "Prática" },
+                            { label: "50/50", value: "50/50" },
+                        ],
+                    },
+                    {
+                        name: "periodo",
+                        label: "Período",
+                        type: "select",
+                        placeholder: "Todos",
+                        width: "w-[105px]",
+                        options: [
+                            { label: "Manhã", value: "Manhã" },
+                            { label: "Tarde", value: "Tarde" },
+                            { label: "Noite", value: "Noite" },
+                        ],
+                    },
+                    {
+                        name: "modalidade",
+                        label: "Modalidade",
+                        type: "select",
+                        placeholder: "Todas",
+                        width: "w-[115px]",
+                        options: [
+                            { label: "Presencial", value: "Presencial" },
+                            { label: "EAD", value: "EAD" },
+                        ],
+                    },
+                    {
+                        name: "cor",
+                        label: "Cor",
+                        type: "select",
+                        placeholder: "Todas",
+                        width: "w-[105px]",
+                        options: CORES_DISCIPLINA.map((c) => ({
+                            label: c.nome,
+                            value: c.hex,
+                        })),
+                    },
+                    {
+                        name: "cursoVinculado",
+                        label: "Curso vinculado",
+                        type: "select",
+                        placeholder: "Todos",
+                        width: "w-[140px]",
+                        options: CURSOS_DISPONIVEIS.map((c) => ({
+                            label: c,
+                            value: c,
+                        })),
+                    },
+                    {
+                        name: "tipoSala",
+                        label: "Tipo de sala",
+                        type: "select",
+                        placeholder: "Todos",
+                        width: "w-[115px]",
+                        options: [
+                            { label: "Laboratório", value: "Laboratório" },
+                            { label: "Sala", value: "Sala" },
+                        ],
+                    },
+                    {
+                        name: "status",
+                        label: "Status",
+                        type: "select",
+                        placeholder: "Todos",
+                        width: "w-[105px]",
+                        options: [
+                            { label: "Ativo", value: "Ativo" },
+                            { label: "Inativo", value: "Inativo" },
+                        ],
+                    },
+                ]}
+                onChange={(f) => {
+                    setFiltroNome(f.nome ?? "");
+                    setFiltroTipo(f.tipo ?? "");
+                    setFiltroPeriodo(f.periodo ?? "");
+                    setFiltroModalidade(f.modalidade ?? "");
+                    setFiltroCor(f.cor ?? "");
+                    setFiltroCurso(f.cursoVinculado ?? "");
+                    setFiltroTipoSala(f.tipoSala ?? "");
+                    setFiltroStatus(f.status ?? "");
+                    setPaginaAtual(1);
+                }}
+            />
+
+            {pagina.length === 0 ? (
+                <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">
+                    Nenhuma disciplina encontrada.
+                </div>
+            ) : (
                 <DataTable
+                    compact
+                    tableClassName="min-w-[1160px]"
                     data={pagina}
                     getRowKey={(d) => d.id}
-                    emptyMessage="Nenhuma disciplina encontrada."
                     columns={[
                         {
                             key: "nome",
-                            label: ("Nome"),
+                            label: "Nome",
+                            cellClassName: "min-w-[180px]",
                         },
                         {
                             key: "cargaHoraria",
-                            label: ("Carga Horária"),
+                            label: "Carga Horária",
+                            headerClassName: "whitespace-nowrap",
+                            cellClassName: "whitespace-nowrap",
                             render: (d) => `${d.cargaHoraria}h`,
                         },
                         {
                             key: "tipo",
-                            label: (
-                                <TableFilterHead
-                                    label="Tipo"
-                                    value={fTipo}
-                                    onChange={filtrar(setFTipo)}
-                                    options={[
-                                        { label: "Teórica", value: "Teórica" },
-                                        { label: "Prática", value: "Prática" },
-                                        { label: "50/50", value: "50/50" },
-                                    ]}
-                                />
-                            ),
+                            label: "Tipo",
+                            cellClassName: "whitespace-nowrap",
                         },
                         {
                             key: "periodo",
-                            label: (
-                                <TableFilterHead
-                                    label="Período"
-                                    value={fPeriodo}
-                                    onChange={filtrar(setFPeriodo)}
-                                    options={[
-                                        { label: "Manhã", value: "Manhã" },
-                                        { label: "Tarde", value: "Tarde" },
-                                        { label: "Noite", value: "Noite" },
-                                    ]}
-                                />
-                            ),
+                            label: "Período",
+                            cellClassName: "whitespace-nowrap",
                         },
                         {
                             key: "modalidade",
-                            label: (
-                                <TableFilterHead
-                                    label="Modalidade"
-                                    allLabel="Todas"
-                                    value={fModalidade}
-                                    onChange={filtrar(setFModalidade)}
-                                    options={[
-                                        { label: "Presencial", value: "Presencial" },
-                                        { label: "EAD", value: "EAD" },
-                                    ]}
-                                />
-                            ),
+                            label: "Modalidade",
+                            cellClassName: "whitespace-nowrap",
                         },
                         {
                             key: "codigo",
-                            label: ("Código")
+                            label: "Código",
+                            cellClassName: "whitespace-nowrap",
                         },
                         {
                             key: "cor",
-                            label: (
-                                <TableFilterHead
-                                    label="Cor"
-                                    allLabel="Todas"
-                                    value={fCor}
-                                    onChange={filtrar(setFCor)}
-                                    options={CORES_DISCIPLINA.map((c) => ({
-                                        label: c.nome,
-                                        value: c.hex,
-                                        cor: c.hex,
-                                    }))}
-                                />
-                            ),
+                            label: "Cor",
                             render: (d) => (
                                 <span
                                     className="inline-block size-4 rounded-full"
@@ -350,54 +353,29 @@ export function DisciplinasListagem() {
                         },
                         {
                             key: "cursoVinculado",
-                            label: (
-                                <TableFilterHead
-                                    label="Curso vinculado"
-                                    value={fCurso}
-                                    onChange={filtrar(setFCurso)}
-                                    options={CURSOS_DISPONIVEIS.map((c) => ({
-                                        label: c,
-                                        value: c,
-                                    }))}
-                                />
-                            ),
+                            label: "Curso vinculado",
+                            headerClassName: "whitespace-nowrap",
+                            cellClassName: "min-w-[190px]",
                         },
                         {
                             key: "tipoSala",
-                            label: (
-                                <TableFilterHead
-                                    label="Tipo de sala"
-                                    value={fTipoSala}
-                                    onChange={filtrar(setFTipoSala)}
-                                    options={[
-                                        { label: "Laboratório", value: "Laboratório" },
-                                        { label: "Sala", value: "Sala" },
-                                    ]}
-                                />
-                            ),
+                            label: "Tipo de sala",
+                            headerClassName: "whitespace-nowrap",
+                            cellClassName: "whitespace-nowrap",
                         },
                         {
                             key: "status",
-                            label: (
-                                <TableFilterHead
-                                    label="Status"
-                                    value={fStatus}
-                                    onChange={filtrar(setFStatus)}
-                                    options={[
-                                        { label: "Ativo", value: "Ativo" },
-                                        { label: "Inativo", value: "Inativo" },
-                                    ]}
-                                />
-                            ),
+                            label: "Status",
+                            cellClassName: "whitespace-nowrap",
                             render: (d) =>
                                 d.status === "Ativo" ? (
                                     <span className="flex items-center gap-1.5 font-medium text-emerald-600">
-                                        <CheckCircle2 className="size-4" />
+                                        <CheckCircle2 className="size-4 shrink-0" />
                                         Ativo
                                     </span>
                                 ) : (
                                     <span className="flex items-center gap-1.5 font-medium text-[#BA1A1A]">
-                                        <XCircle className="size-4" />
+                                        <XCircle className="size-4 shrink-0" />
                                         Inativo
                                     </span>
                                 ),
@@ -414,7 +392,7 @@ export function DisciplinasListagem() {
                         },
                     ]}
                 />
-            </div>
+            )}
 
             <Pagination
                 totalItems={filtradas.length}

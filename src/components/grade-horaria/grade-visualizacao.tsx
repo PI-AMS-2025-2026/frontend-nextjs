@@ -2,139 +2,71 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft, Loader2, Plus } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 
-import {
-    carregarGradesSalvas,
-    DIAS_SEMANA,
-    horariosDoTurno,
-    type GradeHoraria,
-} from "@/lib/grade-horaria";
+import { ApiError } from "@/lib/api";
+import { quadroHorariosService } from "@/services/quadro-horarios.service";
+import type { QuadroHorarioResponse } from "@/types/api";
 
-const BASE = "/adminstrador/grade-planejamento/grade-horaria";
+const BASE = "/coordenador/grade-planejamento/grade-horaria";
+
+function dataBR(value: string) {
+    const data = value.slice(0, 10);
+    const [ano, mes, dia] = data.split("-");
+    return ano && mes && dia ? `${dia}/${mes}/${ano}` : value;
+}
+
+function periodoLabel(grade: QuadroHorarioResponse) {
+    const periodo = grade.periodoAtividadeQuadro;
+    return periodo.tipoPeridoAtividadeQuadro === "ANUAL"
+        ? `${periodo.ano} (Anual)`
+        : `${periodo.periodo}º período de ${periodo.ano}`;
+}
 
 export function GradeVisualizacao({ gradeId }: { gradeId: string }) {
-    const [grade, setGrade] = React.useState<GradeHoraria | null | "nao-encontrada">(null);
+    const [grade, setGrade] = React.useState<QuadroHorarioResponse | null>(null);
+    const [carregando, setCarregando] = React.useState(true);
+    const [erro, setErro] = React.useState("");
 
     React.useEffect(() => {
-        let vivo = true;
-        // A leitura precisa ocorrer depois da hidratacao (localStorage nao existe
-        // no servidor) e o setState e adiado para um microtask, para nao encadear
-        // um render sincrono dentro do mesmo commit do efeito.
-        void Promise.resolve().then(() => {
-            if (!vivo) return;
-            const salvas = carregarGradesSalvas();
-            const encontrada = salvas?.find((g) => g.id === gradeId) ?? null;
-            setGrade(encontrada ?? "nao-encontrada");
-        });
-        return () => {
-            vivo = false;
-        };
+        let ativa = true;
+        quadroHorariosService.buscar(Number(gradeId))
+            .then((resultado) => { if (ativa) setGrade(resultado); })
+            .catch((error: unknown) => {
+                if (!ativa) return;
+                const apiError = error instanceof ApiError ? error : null;
+                setErro(apiError?.status === 403
+                    ? "Você não tem permissão para visualizar este quadro horário."
+                    : apiError?.status === 404
+                        ? "Quadro horário não encontrado."
+                        : error instanceof Error ? error.message : "Não foi possível carregar o quadro horário.");
+            })
+            .finally(() => { if (ativa) setCarregando(false); });
+        return () => { ativa = false; };
     }, [gradeId]);
 
-    if (grade === null) {
-        return (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
-                <Loader2 className="size-6 animate-spin text-[#0099AA]" />
-                <span className="text-sm text-[#17264D]/70">Carregando grade...</span>
-            </div>
-        );
+    if (carregando) {
+        return <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24"><Loader2 className="size-6 animate-spin text-[#0099AA]" /><span className="text-sm text-[#17264D]/70">Carregando grade...</span></div>;
     }
-
-    if (grade === "nao-encontrada") {
-        return (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
-                <span className="text-sm text-[#17264D]/70">Grade não encontrada.</span>
-                <Link href={BASE} className="text-sm font-medium text-[#0099AA] hover:underline">
-                    Voltar para a listagem
-                </Link>
-            </div>
-        );
-    }
-
-    const horarios = horariosDoTurno(grade.turno);
-
-    const infos = [
-        { titulo: "Versão", valor: String(grade.versao).padStart(2, "0") },
-        { titulo: "Curso", valor: grade.cursoVinculado },
-        { titulo: "Período Letivo", valor: grade.periodoLetivo },
-        { titulo: "Período", valor: grade.turno },
-    ];
 
     return (
         <div className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col gap-6 px-6 py-8">
             <div className="flex items-center gap-3">
-                <Link
-                    href={BASE}
-                    aria-label="Voltar"
-                    className="flex size-9 items-center justify-center rounded-lg text-[#17264D]/70 transition-colors hover:bg-[#F2F2F2]"
-                >
-                    <ArrowLeft className="size-6" />
-                </Link>
-                <h1 className="text-3xl font-bold text-[#17264D]">Visualização de Grade</h1>
+                <Link href={BASE} aria-label="Voltar para os quadros horários" className="flex size-9 items-center justify-center rounded-lg text-[#17264D]/70 transition-colors hover:bg-[#F2F2F2]"><ArrowLeft className="size-6" /></Link>
+                <h1 className="text-3xl font-bold text-[#17264D]">Visualização de Quadro Horário</h1>
             </div>
-
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-[220px_1fr]">
-                <div className="flex flex-col gap-4 rounded-[10px] border border-[#C8CDD2] p-5 md:h-fit">
-                    <span className="text-sm font-semibold text-[#17264D]">Informações:</span>
-
-                    {infos.map((info) => (
-                        <div key={info.titulo} className="flex flex-col gap-0.5">
-                            <span className="text-sm font-semibold text-[#17264D]">
-                                {info.titulo}:
-                            </span>
-                            <span className="text-sm text-[#17264D]/70">{info.valor}</span>
-                        </div>
-                    ))}
-                </div>
-
-                <div className="overflow-x-auto rounded-[10px] border border-[#C8CDD2]">
-                    <table className="w-full border-collapse">
-                        <thead>
-                            <tr className="h-[51px] bg-[#0099AA] text-white">
-                                <th className="px-6 text-left text-[16px] font-semibold whitespace-nowrap">
-                                    Horário
-                                </th>
-                                {DIAS_SEMANA.map((dia) => (
-                                    <th
-                                        key={dia}
-                                        className="px-6 text-center text-[16px] font-semibold whitespace-nowrap"
-                                    >
-                                        {dia}
-                                    </th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {horarios.map((horario, index) => (
-                                <tr
-                                    key={horario}
-                                    className={
-                                        index % 2 === 0
-                                            ? "h-[46px] border-b border-[#D0D4D8] bg-white"
-                                            : "h-[46px] border-b border-[#D0D4D8] bg-[#F0F0F0]"
-                                    }
-                                >
-                                    <td className="px-6 text-[16px] font-medium whitespace-nowrap text-[#0099AA]">
-                                        {horario}
-                                    </td>
-                                    {DIAS_SEMANA.map((dia) => (
-                                        <td key={dia} className="px-6 text-center">
-                                            <button
-                                                type="button"
-                                                aria-label={`Adicionar aula em ${dia}, ${horario}`}
-                                                className="mx-auto flex size-7 items-center justify-center rounded-md text-[#17264D]/50 transition-colors hover:bg-[#0099AA]/10 hover:text-[#0099AA]"
-                                            >
-                                                <Plus className="size-4" />
-                                            </button>
-                                        </td>
-                                    ))}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            {erro ? <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{erro}</div> : grade && (
+                <section className="max-w-xl rounded-[10px] border border-[#C8CDD2] p-6">
+                    <h2 className="mb-5 text-lg font-semibold text-[#17264D]">Informações da grade</h2>
+                    <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div><dt className="text-sm font-semibold text-[#17264D]">Versão</dt><dd className="text-sm text-[#17264D]/70">{String(grade.versao).padStart(2, "0")}</dd></div>
+                        <div><dt className="text-sm font-semibold text-[#17264D]">Data de criação</dt><dd className="text-sm text-[#17264D]/70">{dataBR(grade.dataCriacao)}</dd></div>
+                        <div><dt className="text-sm font-semibold text-[#17264D]">Curso</dt><dd className="text-sm text-[#17264D]/70">{grade.curso.nome}</dd></div>
+                        <div><dt className="text-sm font-semibold text-[#17264D]">Período letivo</dt><dd className="text-sm text-[#17264D]/70">{periodoLabel(grade)}</dd></div>
+                        <div><dt className="text-sm font-semibold text-[#17264D]">Status</dt><dd className="text-sm text-[#17264D]/70">{grade.status === "ATIVO" ? "Ativo" : "Inativo"}</dd></div>
+                    </dl>
+                </section>
+            )}
         </div>
     );
 }

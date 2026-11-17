@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -6,7 +5,6 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
 
 type FilterOption = {
   label: string;
@@ -23,8 +21,6 @@ type FilterField = {
   options?: FilterOption[];
   defaultValue?: string;
   width?: string;
-  /** Usa o dropdown customizado (com scroll) em vez do select nativo */
-  maxVisibleOptions?: number;
 };
 
 interface TableFiltersProps {
@@ -42,24 +38,21 @@ function TableFilters({
   clearButtonLabel = "Limpar filtros",
   className,
 }: TableFiltersProps) {
-  const createInitialValues = () => {
-    return fields.reduce<Record<string, string>>((acc, field) => {
-      acc[field.name] = field.defaultValue ?? "";
-      return acc;
-    }, {});
-  };
+  // Guarda só o que o usuário alterou; o resto vem do defaultValue.
+  const [overrides, setOverrides] = React.useState<Record<string, string>>({});
 
-  const [filters, setFilters] =
-    React.useState<Record<string, string>>(createInitialValues);
+  const filters = React.useMemo(
+    () =>
+      fields.reduce<Record<string, string>>((acc, field) => {
+        acc[field.name] = overrides[field.name] ?? field.defaultValue ?? "";
+        return acc;
+      }, {}),
+    [fields, overrides],
+  );
 
   const handleChange = (name: string, value: string) => {
-    const updatedFilters = {
-      ...filters,
-      [name]: value,
-    };
-
-    setFilters(updatedFilters);
-    onChange?.(updatedFilters);
+    setOverrides((prev) => ({ ...prev, [name]: value }));
+    onChange?.({ ...filters, [name]: value });
   };
 
   const handleClear = () => {
@@ -71,7 +64,7 @@ function TableFilters({
       {},
     );
 
-    setFilters(clearedFilters);
+    setOverrides(clearedFilters);
     onClear?.();
     onChange?.(clearedFilters);
   };
@@ -79,79 +72,74 @@ function TableFilters({
   return (
     <div
       className={cn(
-        "flex w-full items-end gap-4 rounded-[5px] border border-[#C8DDE2] bg-[#F1FBFD] px-4 py-2",
+        "flex w-full items-end gap-3 overflow-x-auto rounded-[5px] border border-[#C8DDE2] bg-[#F1FBFD] px-4 py-2.5",
         className,
       )}
     >
       {fields.map((field) => (
-        <div key={field.name} className={cn("w-[173px]", field.width)}>
+        <div
+          key={field.name}
+          className={cn("w-[173px] shrink-0", field.width)}
+        >
           {field.type === "select" ? (
             <div className="w-full">
               {field.showLabel !== false && field.label && (
-                <label className="mb-2 block text-base font-semibold text-[#17264D]">
+                <label className="mb-2 block whitespace-nowrap text-[15px] font-semibold text-[#17264D]">
                   {field.label}
                 </label>
               )}
 
-              {field.maxVisibleOptions ? (
-                <Select
-                  options={[
-                    { label: field.placeholder ?? "", value: "" },
-                    ...(field.options ?? []),
-                  ]}
+              <div className="relative w-full">
+                <select
+                  aria-label={
+                    field.label ?? field.placeholder ?? field.name
+                  }
                   value={filters[field.name] ?? ""}
-                  onChange={(value) => handleChange(field.name, value)}
-                  maxVisibleOptions={field.maxVisibleOptions}
-                  buttonClassName="h-[36px] py-0"
-                  slimScrollbar
-                />
-              ) : (
-                <div className="relative w-full">
-                  <select
-                    aria-label={field.label ?? field.placeholder ?? field.name}
-                    value={filters[field.name] ?? ""}
-                    onChange={(event) =>
-                      handleChange(field.name, event.target.value)
-                    }
-                    className="h-[36px] w-full appearance-none rounded-[10px] border border-[#17264D] bg-[#F2F2F2] px-3 pr-9 text-[15px] text-[#17264D] outline-none transition-colors focus:border-[#4471E6]"
-                  >
-                    {field.placeholder && (
-                      <option value="">{field.placeholder}</option>
-                    )}
+                  onChange={(event) =>
+                    handleChange(field.name, event.target.value)
+                  }
+                  className="h-[36px] w-full appearance-none rounded-[10px] border border-[#17264D] bg-[#F2F2F2] px-3 pr-8 text-[14px] text-[#17264D] outline-none transition-colors focus:border-[#4471E6]"
+                >
+                  {field.placeholder && (
+                    <option value="">{field.placeholder}</option>
+                  )}
 
-                    {field.options?.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                  {field.options?.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
 
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-5 -translate-y-1/2 text-[#17264D]" />
-                </div>
-              )}
+                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-[#17264D]" />
+              </div>
             </div>
           ) : (
             <Input
-              aria-label={field.label ?? field.placeholder ?? field.name}
+              aria-label={
+                field.label ?? field.placeholder ?? field.name
+              }
               label={field.label}
               showLabel={field.showLabel ?? true}
-              height="32px"
+              height="36px"
               type={field.inputType ?? "text"}
               placeholder={field.placeholder}
               value={filters[field.name] ?? ""}
-              onChange={(event) => handleChange(field.name, event.target.value)}
+              onChange={(event) =>
+                handleChange(field.name, event.target.value)
+              }
               className="w-full rounded-[10px] text-[14px]"
             />
           )}
         </div>
       ))}
 
-      <div className="ml-auto flex items-center justify-center">
+      <div className="ml-auto flex shrink-0 items-center justify-center">
         <Button
           variant="secondary"
           size="small"
           onClick={handleClear}
-          className="-translate-y-3"
+          className="whitespace-nowrap"
         >
           {clearButtonLabel}
         </Button>

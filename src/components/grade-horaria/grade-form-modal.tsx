@@ -3,30 +3,33 @@
 import * as React from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
-import { Input, DateInput } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import {
-    CURSOS_DISPONIVEIS,
-    PERIODOS_LETIVOS,
-    type GradeHoraria,
-    type StatusGrade,
-} from "@/lib/grade-horaria";
+import type { PeriodoAtividadeQuadroResponse, QuadroHorarioResponse, Status } from "@/types/api";
 
-interface GradeFormValues {
+export interface GradeFormValues {
     versao: number;
-    dataCriacao: string;
-    cursoVinculado: string;
-    periodoLetivo: string;
-    status: StatusGrade;
+    periodoAtividadeQuadroId: number;
+    status: Status;
 }
 
 interface GradeFormModalProps {
     open: boolean;
     onClose: () => void;
     mode: "cadastrar" | "editar";
-    grade?: GradeHoraria | null;
+    grade?: QuadroHorarioResponse | null;
+    periodos: PeriodoAtividadeQuadroResponse[];
+    cursoNome: string;
     onConfirm: (dados: GradeFormValues) => void;
+    submitting?: boolean;
+    errorMessage?: string;
+}
+
+function rotuloPeriodo(periodo: PeriodoAtividadeQuadroResponse) {
+    return periodo.tipoPeridoAtividadeQuadro === "ANUAL"
+        ? `${periodo.ano} (Anual)`
+        : `${periodo.periodo}º período de ${periodo.ano}`;
 }
 
 export function GradeFormModal({
@@ -34,16 +37,24 @@ export function GradeFormModal({
     onClose,
     mode,
     grade,
+    periodos,
+    cursoNome,
     onConfirm,
+    submitting = false,
+    errorMessage = "",
 }: GradeFormModalProps) {
     return (
-        <Modal open={open} onClose={onClose} className="max-w-xl overflow-visible">
+        <Modal open={open} onClose={() => { if (!submitting) onClose(); }} className="max-w-xl overflow-visible">
             <GradeFormConteudo
                 key={grade?.id ?? "novo"}
                 mode={mode}
                 grade={grade}
+                periodos={periodos}
+                cursoNome={cursoNome}
                 onCancel={onClose}
                 onConfirm={onConfirm}
+                submitting={submitting}
+                errorMessage={errorMessage}
             />
         </Modal>
     );
@@ -52,25 +63,34 @@ export function GradeFormModal({
 function GradeFormConteudo({
     mode,
     grade,
+    periodos,
+    cursoNome,
     onCancel,
     onConfirm,
+    submitting,
+    errorMessage,
 }: {
     mode: "cadastrar" | "editar";
-    grade?: GradeHoraria | null;
+    grade?: QuadroHorarioResponse | null;
+    periodos: PeriodoAtividadeQuadroResponse[];
+    cursoNome: string;
     onCancel: () => void;
     onConfirm: (dados: GradeFormValues) => void;
+    submitting: boolean;
+    errorMessage: string;
 }) {
     const [valores, setValores] = React.useState<GradeFormValues>({
-        versao: grade?.versao ?? 0,
-        dataCriacao: grade?.dataCriacao ?? "",
-        cursoVinculado: grade?.cursoVinculado ?? "",
-        periodoLetivo: grade?.periodoLetivo ?? "",
-        status: grade?.status ?? "Ativo",
+        versao: grade?.versao ?? 1,
+        periodoAtividadeQuadroId: grade?.periodoAtividadeQuadro.id ?? 0,
+        status: grade?.status ?? "ATIVO",
     });
     const [erro, setErro] = React.useState("");
 
-    const titulo =
-        mode === "cadastrar" ? "Cadastro de Grade Horária" : "Edição de Grade Horária";
+    const titulo = mode === "cadastrar" ? "Cadastro de Quadro Horário" : "Edição de Quadro Horário";
+    const opcoesPeriodo = periodos.map((periodo) => ({
+        label: rotuloPeriodo(periodo),
+        value: String(periodo.id),
+    }));
 
     function atualizar<K extends keyof GradeFormValues>(campo: K, valor: GradeFormValues[K]) {
         setValores((prev) => ({ ...prev, [campo]: valor }));
@@ -78,8 +98,8 @@ function GradeFormConteudo({
     }
 
     function handleConfirmar() {
-        if (!valores.dataCriacao || !valores.cursoVinculado || !valores.periodoLetivo) {
-            setErro("Preencha todos os campos obrigatórios.");
+        if (valores.versao < 1 || !valores.periodoAtividadeQuadroId) {
+            setErro("Informe a versão e selecione um período letivo ativo.");
             return;
         }
         onConfirm(valores);
@@ -94,68 +114,52 @@ function GradeFormConteudo({
                     label="Versão"
                     showLabel
                     type="number"
-                    min={0}
+                    min={1}
                     value={valores.versao}
                     onChange={(e) => atualizar("versao", Number(e.target.value))}
                 />
 
-                <DateInput
-                    label="Data de Criação"
-                    showLabel
-                    value={valores.dataCriacao}
-                    onChange={(e) => atualizar("dataCriacao", e.target.value)}
-                />
-
                 <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-[#17264D]">Curso Vinculado</label>
-                    <Select
-                        options={CURSOS_DISPONIVEIS.map((c) => ({ label: c, value: c }))}
-                        value={valores.cursoVinculado}
-                        onChange={(v) => atualizar("cursoVinculado", v)}
-                        placeholder="Selecione..."
-                    />
+                    <span className="text-sm font-medium text-[#17264D]">Curso vinculado</span>
+                    <p className="rounded-lg border border-[#D0D4D8] bg-[#F2F2F2] px-3 py-2 text-sm">{cursoNome}</p>
                 </div>
 
-                <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-[#17264D]">Período Letivo</label>
+                <div className="flex flex-col gap-2 sm:col-span-2">
+                    <label className="text-sm font-medium text-[#17264D]">Período Atividade Quadro</label>
                     <Select
-                        options={PERIODOS_LETIVOS.map((p) => ({ label: p, value: p }))}
-                        value={valores.periodoLetivo}
-                        onChange={(v) => atualizar("periodoLetivo", v)}
+                        options={opcoesPeriodo}
+                        value={valores.periodoAtividadeQuadroId ? String(valores.periodoAtividadeQuadroId) : ""}
+                        onChange={(value) => atualizar("periodoAtividadeQuadroId", Number(value))}
                         placeholder="Selecione..."
+                        disabled={!periodos.length || submitting}
                     />
+                    {!periodos.length && <p className="text-xs text-[#777777]">Não há períodos letivos ativos disponíveis.</p>}
                 </div>
             </div>
 
-            <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium text-[#17264D]">Status</label>
-                <RadioGroup
-                    value={valores.status}
-                    onValueChange={(v) => atualizar("status", v as StatusGrade)}
-                >
-                    <div className="flex items-center gap-2">
-                        <RadioGroupItem value="Ativo" id="status-ativo" />
-                        <label htmlFor="status-ativo" className="text-sm text-[#17264D]">
-                            Ativo
-                        </label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <RadioGroupItem value="Inativo" id="status-inativo" />
-                        <label htmlFor="status-inativo" className="text-sm text-[#17264D]">
-                            Inativo
-                        </label>
-                    </div>
-                </RadioGroup>
-            </div>
+            {mode === "editar" && (
+                <div className="flex flex-col gap-2">
+                    <span className="text-sm font-medium text-[#17264D]">Status</span>
+                    <RadioGroup value={valores.status} onValueChange={(v) => atualizar("status", v as Status)}>
+                        <div className="flex items-center gap-2">
+                            <RadioGroupItem value="ATIVO" id="grade-status-ativo" />
+                            <label htmlFor="grade-status-ativo" className="text-sm text-[#17264D]">Ativo</label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <RadioGroupItem value="INATIVO" id="grade-status-inativo" />
+                            <label htmlFor="grade-status-inativo" className="text-sm text-[#17264D]">Inativo</label>
+                        </div>
+                    </RadioGroup>
+                </div>
+            )}
 
-            {erro && <p className="text-sm text-[#BA1A1A]">{erro}</p>}
+            {erro && <p role="alert" className="text-sm text-[#BA1A1A]">{erro}</p>}
+            {errorMessage && <p role="alert" className="text-sm text-[#BA1A1A]">{errorMessage}</p>}
 
             <div className="flex justify-end gap-3">
-                <Button variant="ghost" size="small" onClick={onCancel}>
-                    Cancelar
-                </Button>
-                <Button variant="secondary" size="small" onClick={handleConfirmar}>
-                    Confirmar
+                <Button variant="ghost" size="small" onClick={onCancel} disabled={submitting}>Cancelar</Button>
+                <Button variant="secondary" size="small" onClick={handleConfirmar} disabled={submitting || !periodos.length}>
+                    {submitting ? "Salvando…" : "Confirmar"}
                 </Button>
             </div>
         </div>

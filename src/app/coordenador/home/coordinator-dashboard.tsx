@@ -116,6 +116,12 @@ const shortcuts: Shortcut[] = [
     metricId: "allocation",
   },
   {
+    title: "Grade Horária",
+    description: "Cadastre, edite e gerencie as grades horárias do seu curso",
+    color: "#7B47C3",
+    href: "/coordenador/grade-planejamento/grade-horaria",
+  },
+  {
     title: "Turmas",
     description: "Cadastre, edite e gerencie as turmas da instituição",
     color: "#F59B00",
