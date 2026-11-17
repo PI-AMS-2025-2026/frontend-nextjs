@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -79,16 +78,19 @@ function TableFilters({
   return (
     <div
       className={cn(
-        "flex w-full items-end gap-4 rounded-[5px] border border-[#C8DDE2] bg-[#F1FBFD] px-4 py-2",
+        "flex w-full items-end gap-3 overflow-x-auto rounded-[5px] border border-[#C8DDE2] bg-[#F1FBFD] px-4 py-2.5",
         className,
       )}
     >
       {fields.map((field) => (
-        <div key={field.name} className={cn("w-[173px]", field.width)}>
+        <div
+          key={field.name}
+          className={cn("w-[173px] shrink-0", field.width)}
+        >
           {field.type === "select" ? (
             <div className="w-full">
               {field.showLabel !== false && field.label && (
-                <label className="mb-2 block text-base font-semibold text-[#17264D]">
+                <label className="mb-2 block whitespace-nowrap text-[15px] font-semibold text-[#17264D]">
                   {field.label}
                 </label>
               )}
@@ -113,7 +115,7 @@ function TableFilters({
                     onChange={(event) =>
                       handleChange(field.name, event.target.value)
                     }
-                    className="h-[36px] w-full appearance-none rounded-[10px] border border-[#17264D] bg-[#F2F2F2] px-3 pr-9 text-[15px] text-[#17264D] outline-none transition-colors focus:border-[#4471E6]"
+                    className="h-[36px] w-full appearance-none rounded-[10px] border border-[#17264D] bg-[#F2F2F2] px-3 pr-8 text-[14px] text-[#17264D] outline-none transition-colors focus:border-[#4471E6]"
                   >
                     {field.placeholder && (
                       <option value="">{field.placeholder}</option>
@@ -126,7 +128,7 @@ function TableFilters({
                     ))}
                   </select>
 
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-5 -translate-y-1/2 text-[#17264D]" />
+                  <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-[#17264D]" />
                 </div>
               )}
             </div>
@@ -135,7 +137,7 @@ function TableFilters({
               aria-label={field.label ?? field.placeholder ?? field.name}
               label={field.label}
               showLabel={field.showLabel ?? true}
-              height="32px"
+              height="36px"
               type={field.inputType ?? "text"}
               placeholder={field.placeholder}
               value={filters[field.name] ?? ""}
@@ -146,12 +148,12 @@ function TableFilters({
         </div>
       ))}
 
-      <div className="ml-auto flex items-center justify-center">
+      <div className="ml-auto flex shrink-0 items-center justify-center">
         <Button
           variant="secondary"
           size="small"
           onClick={handleClear}
-          className="-translate-y-3"
+          className="whitespace-nowrap"
         >
           {clearButtonLabel}
         </Button>
