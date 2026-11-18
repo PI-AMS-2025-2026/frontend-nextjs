@@ -36,25 +36,28 @@ export function SelecaoQuadro({ aoSelecionar }: { aoSelecionar: (id: number) => 
 
   useEffect(() => {
     let ativo = true;
-    const usuario = authService.getUser() as UsuarioResponse | null;
-    if (!usuario || usuario.tipoUsuario !== "COORDENADOR" || !usuario.curso?.id) {
-      setErro("Não foi possível identificar o curso do coordenador. Entre novamente ou solicite a associação do curso.");
-      setCarregando(false);
-      return () => { ativo = false; };
-    }
-    const cursoUsuario = usuario.curso;
-    setCurso(cursoUsuario);
-    setCarregando(true);
-    setErro("");
-    Promise.all([
-      todasPaginas(page => turmasService.listar({ curso: cursoUsuario.id, status: "ATIVO", page, size: 100 })),
-      todasPaginas(page => periodoAtividadeQuadroService.listar({ status: "ATIVO", page, size: 100 })),
-    ]).then(([turmasApi, periodosApi]) => {
+    void Promise.resolve().then(() => {
       if (!ativo) return;
-      setTurmas(turmasApi.filter(t => t.status === "ATIVO" && t.curso.id === cursoUsuario.id));
-      setPeriodos(periodosApi.filter(p => p.status === "ATIVO"));
-    }).catch(error => { if (ativo) setErro(erroAlocacao(error)); })
-      .finally(() => { if (ativo) setCarregando(false); });
+      const usuario = authService.getUser() as UsuarioResponse | null;
+      if (!usuario || usuario.tipoUsuario !== "COORDENADOR" || !usuario.curso?.id) {
+        setErro("Não foi possível identificar o curso do coordenador. Entre novamente ou solicite a associação do curso.");
+        setCarregando(false);
+        return;
+      }
+      const cursoUsuario = usuario.curso;
+      setCurso(cursoUsuario);
+      setCarregando(true);
+      setErro("");
+      return Promise.all([
+        todasPaginas(page => turmasService.listar({ curso: cursoUsuario.id, status: "ATIVO", page, size: 100 })),
+        todasPaginas(page => periodoAtividadeQuadroService.listar({ status: "ATIVO", page, size: 100 })),
+      ]).then(([turmasApi, periodosApi]) => {
+        if (!ativo) return;
+        setTurmas(turmasApi.filter(t => t.status === "ATIVO" && t.curso.id === cursoUsuario.id));
+        setPeriodos(periodosApi.filter(p => p.status === "ATIVO"));
+      }).catch(error => { if (ativo) setErro(erroAlocacao(error)); })
+        .finally(() => { if (ativo) setCarregando(false); });
+    });
     return () => { ativo = false; };
   }, [tentativa]);
 
