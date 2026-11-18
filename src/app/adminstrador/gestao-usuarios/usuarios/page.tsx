@@ -78,6 +78,9 @@ export default function CadastroUsuario() {
     const [modalSucesso, setModalSucesso] = React.useState(false);
     const [mensagemSucesso, setMensagemSucesso] = React.useState("");
     const [submitting, setSubmitting] = React.useState(false);
+    const [usuarioParaInativar, setUsuarioParaInativar] = React.useState<UsuarioResponse | null>(null);
+    const [erroInativacao, setErroInativacao] = React.useState("");
+    const [inativando, setInativando] = React.useState(false);
 
     // Alterar a busca ou os filtros volta para a primeira pagina. O reset
     // acontece junto da acao do usuario, em vez de um efeito reagindo ao
@@ -255,17 +258,29 @@ export default function CadastroUsuario() {
         }
     }
 
-    async function inativarUsuario(usuario: UsuarioResponse) {
-        const confirmou = window.confirm(`Deseja inativar o usuário "${usuario.nome}"? Ele poderá ser reativado depois.`);
-        if (!confirmou) return;
+    function abrirInativacao(usuario: UsuarioResponse) {
+        setErroInativacao("");
+        setUsuarioParaInativar(usuario);
+    }
 
+    function fecharInativacao() {
+        if (!inativando) setUsuarioParaInativar(null);
+    }
+
+    async function confirmarInativacao() {
+        if (!usuarioParaInativar || inativando) return;
+        setInativando(true);
+        setErroInativacao("");
         try {
-            await usuariosService.deletar(usuario.id);
+            await usuariosService.deletar(usuarioParaInativar.id);
+            setUsuarioParaInativar(null);
             setMensagemSucesso("Usuário inativado com sucesso!");
             setModalSucesso(true);
             carregarUsuarios();
         } catch (err) {
-            alert(err instanceof ApiError ? err.message : "Erro ao inativar usuário.");
+            setErroInativacao(err instanceof ApiError && err.message ? err.message : "Erro ao inativar usuário.");
+        } finally {
+            setInativando(false);
         }
     }
 
@@ -402,7 +417,7 @@ export default function CadastroUsuario() {
                                     {
                                         label: "Inativar usuário",
                                         icon: <Trash2 className="size-5 text-red-500" />,
-                                        onClick: inativarUsuario,
+                                        onClick: abrirInativacao,
                                     },
                                 ]}
                             />
@@ -594,6 +609,33 @@ export default function CadastroUsuario() {
                             </Button>
                         </div>
                     </form>
+                </div>
+            </Modal>
+
+            <Modal
+                open={usuarioParaInativar !== null}
+                onClose={fecharInativacao}
+                closeDisabled={inativando}
+                labelledBy="inativar-usuario-titulo"
+                describedBy="inativar-usuario-descricao"
+                className="max-w-xl overflow-visible"
+            >
+                <div className="flex flex-col gap-4">
+                    <h2 id="inativar-usuario-titulo" className="pr-12 text-xl font-semibold">
+                        Inativar usuário
+                    </h2>
+                    <p id="inativar-usuario-descricao" className="wrap-anywhere text-sm">
+                        Deseja inativar <strong>{usuarioParaInativar?.nome}</strong>? O usuário poderá ser reativado depois.
+                    </p>
+                    {erroInativacao && <p role="alert" className="text-sm text-[#BA1A1A]">{erroInativacao}</p>}
+                    <div className="flex flex-wrap justify-end gap-3">
+                        <Button type="button" variant="ghost" size="small" autoFocus disabled={inativando} onClick={fecharInativacao}>
+                            Cancelar
+                        </Button>
+                        <Button type="button" variant="danger" size="small" disabled={inativando} onClick={confirmarInativacao}>
+                            {inativando ? "Inativando..." : "Inativar"}
+                        </Button>
+                    </div>
                 </div>
             </Modal>
 

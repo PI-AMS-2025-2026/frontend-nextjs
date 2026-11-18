@@ -10,6 +10,9 @@ interface ModalProps {
     onClose: () => void
     children?: React.ReactNode
     className?: string
+    labelledBy?: string
+    describedBy?: string
+    closeDisabled?: boolean
 
     // Modal de confirmação
     type?: "success" | "error"
@@ -21,6 +24,9 @@ function Modal({
     onClose,
     children,
     className,
+    labelledBy,
+    describedBy,
+    closeDisabled = false,
     type,
     message,
 }: ModalProps) {
@@ -31,10 +37,19 @@ function Modal({
     return (
         <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-            onMouseDown={onClose}
+            onMouseDown={closeDisabled ? undefined : onClose}
         >
             <div
+                role={labelledBy ? "dialog" : undefined}
+                aria-labelledby={labelledBy}
+                aria-describedby={describedBy}
                 onMouseDown={(event) => event.stopPropagation()}
+                onKeyDown={(event) => {
+                    if (!event.defaultPrevented && event.key === "Escape" && !closeDisabled) {
+                        event.stopPropagation()
+                        onClose()
+                    }
+                }}
                 className={cn(
                     "relative w-full max-w-md overflow-hidden rounded-[20px] bg-white shadow-xl",
                     "animate-in fade-in-0 zoom-in-95 duration-200",
@@ -53,8 +68,9 @@ function Modal({
                 <button
                     type="button"
                     onClick={onClose}
+                    disabled={closeDisabled}
                     aria-label="Fechar modal"
-                    className="absolute right-4 top-4 z-20 flex size-9 items-center justify-center rounded-full bg-white text-[#17264D] shadow-sm transition-colors hover:bg-[#F2F2F2]"
+                    className="absolute right-4 top-4 z-20 flex size-9 items-center justify-center rounded-full bg-white text-[#17264D] shadow-sm transition-colors hover:bg-[#F2F2F2] disabled:opacity-50"
                 >
                     <X className="size-5" />
                 </button>
