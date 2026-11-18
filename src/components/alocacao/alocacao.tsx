@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   FileDown,
@@ -20,6 +20,7 @@ import RoomSelect from "./alocacao-salas";
 import {
   DIAS,
   alocarAula,
+  buscarAula,
   verificarDrop,
   removerAula,
   type Aula,
@@ -57,6 +58,9 @@ type EstadoModal =
   | { tipo: "aviso"; titulo: string; texto?: string; sucesso?: boolean }
   | null;
 
+type SugestaoDeCelula = NonNullable<ReturnType<typeof interpretarSugestao>>;
+const AVISO_CELULA_OCUPADA = "Já tem uma disciplina alocada nesse local";
+
 export function TelaAlocacao({
   grades,
   disciplinas,
@@ -84,20 +88,27 @@ export function TelaAlocacao({
   const [erroValidacao, setErroValidacao] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [processando, setProcessando] = useState(false);
-  const [sugestoes, setSugestoes] = useState<
-    { dia: DiaSemana; horario: Horario; salaId: string }[]
-  >([]);
+  const [sugestoes, setSugestoes] = useState<SugestaoDeCelula[] | null>(null);
   const [mensagem, setMensagem] = useState("");
   const grade = grades.find((item) => item.id === gradeId);
   const aulasSalvas = grade ? (salvas[grade.id] ?? grade.aulas) : [];
   const aulas =
     grade && editando ? (rascunhos[grade.id] ?? aulasSalvas) : aulasSalvas;
+  const edicaoAtual = useRef<{ gradeId: string; aulas: Aula[] } | null>(null);
+  useLayoutEffect(() => {
+    edicaoAtual.current = grade && editando ? { gradeId: grade.id, aulas } : null;
+    return () => { edicaoAtual.current = null; };
+  }, [aulas, editando, grade]);
   const disciplinasDaGrade = grade
     ? disciplinas.filter((item) => grade.disciplinaIds.includes(item.id))
     : [];
   const salasDaGrade = grade
     ? salas.filter((item) => grade.salaIds.includes(item.id))
     : [];
+  const sugestoesDisponiveis = sugestoes?.filter(item =>
+    !buscarAula(aulas, item.dia, item.horario) &&
+    salasDaGrade.some(sala => sala.id === item.salaId),
+  );
   const bloqueado = salvando || processando;
   const horariosDoTurno = grade?.horarios
     .map((horario, indice) => ({ horario, indice }))
@@ -131,8 +142,32 @@ export function TelaAlocacao({
   function avisoOcupada() {
     setModal({
       tipo: "aviso",
-      titulo: "Já tem uma disciplina alocada nesse local",
+      titulo: AVISO_CELULA_OCUPADA,
     });
+  }
+
+  function mostrarRejeicao(validacao: Awaited<ReturnType<typeof validar>>) {
+    if (!grade) return;
+    setErroValidacao(validacao.mensagem);
+    setMensagem(validacao.mensagem);
+    setSugestoes(validacao.sugestoes.flatMap(sugestao => {
+      const item = interpretarSugestao(grade, sugestao);
+      return item ? [item] : [];
+    }));
+  }
+
+  function usarSugestao(item: SugestaoDeCelula) {
+    const atual = edicaoAtual.current;
+    if (modal?.tipo !== "sala" || bloqueado || !atual || atual.gradeId !== grade?.id) return;
+    if (buscarAula(atual.aulas, item.dia, item.horario)) {
+      setSugestoes(restantes => restantes?.filter(sugestao => sugestao !== item) ?? []);
+      return;
+    }
+    setModal({ ...modal, dia: item.dia, horario: item.horario });
+    setSalaId(item.salaId);
+    setErroSala(false);
+    setErroValidacao("");
+    setSugestoes(null);
   }
 
   async function handleDrop(
@@ -188,6 +223,7 @@ export function TelaAlocacao({
           horario,
           origem.id,
         );
+        if (edicaoAtual.current?.gradeId !== grade.id) return;
         if (!validacao.valido) {
           setModal({
             tipo: "sala",
@@ -199,14 +235,8 @@ export function TelaAlocacao({
           setSalaId(sala.id);
           setProfessorId(String(origem.professorId ?? ""));
           setErroProfessor("");
-          setErroValidacao(validacao.mensagem);
-          setSugestoes(
-            validacao.sugestoes.flatMap((s) => {
-              const item = interpretarSugestao(grade, s);
-              return item ? [item] : [];
-            }),
-          );
-          setMensagem(validacao.mensagem);
+          setErroSala(false);
+          mostrarRejeicao(validacao);
           return;
         }
       } catch (error) {
@@ -219,8 +249,10 @@ export function TelaAlocacao({
       } finally {
         setProcessando(false);
       }
+      const atual = edicaoAtual.current;
+      if (atual?.gradeId !== grade.id) return;
       const resultado = alocarAula({
-        aulas,
+        aulas: atual.aulas,
         disciplina: { ...disciplina, professorId: origem.professorId, professor: origem.professor },
         dia,
         horario,
@@ -228,6 +260,11 @@ export function TelaAlocacao({
         aulaId: origem.id,
         novoId: origem.id,
       });
+      if (resultado.status === "ocupada") {
+        avisoOcupada();
+        return;
+      }
+      if (resultado.status !== "mover") return;
       atualizarAulas(resultado.aulas);
       setMensagem(
         `${disciplina.disciplina} movida para ${DIAS.find((item) => item.key === dia)?.label}, ${horario.inicio}.`,
@@ -248,7 +285,7 @@ export function TelaAlocacao({
     setSalaId(aulaOriginalRemovida?.salaId ?? "");
     setProfessorId(aulaOriginalRemovida?.professorId ? String(aulaOriginalRemovida.professorId) : "");
     setErroProfessor("");
-    setSugestoes([]);
+    setSugestoes(null);
     setErroValidacao("");
     setErroSala(false);
     setModal({
@@ -262,6 +299,11 @@ export function TelaAlocacao({
 
   async function confirmarSala() {
     if (modal?.tipo !== "sala" || !grade || !editando || bloqueado) return;
+    const ocupante = buscarAula(aulas, modal.dia, modal.horario);
+    if (ocupante && ocupante.id !== modal.aulaId) {
+      setErroValidacao(AVISO_CELULA_OCUPADA);
+      return;
+    }
     const sala = salasDaGrade.find((item) => item.id === salaId);
     const disciplina = disciplinasDaGrade.find(
       (item) => item.id === modal.disciplinaId,
@@ -284,38 +326,36 @@ export function TelaAlocacao({
         modal.horario,
         modal.aulaId,
       );
+      if (edicaoAtual.current?.gradeId !== grade.id) return;
       if (!validacao.valido) {
-        setSugestoes(
-          validacao.sugestoes.flatMap((s) => {
-            const item = interpretarSugestao(grade, s);
-            return item ? [item] : [];
-          }),
-        );
-        setMensagem(validacao.mensagem);
-        setErroValidacao(validacao.mensagem);
+        mostrarRejeicao(validacao);
         return;
       }
       setErroValidacao("");
     } catch (error) {
       setErroValidacao(erroAlocacao(error));
+      setSugestoes(null);
       return;
     } finally {
       setProcessando(false);
     }
+    const atual = edicaoAtual.current;
+    if (atual?.gradeId !== grade.id) return;
     const resultado = alocarAula({
-      aulas,
+      aulas: atual.aulas,
       disciplina: disciplinaComProfessor,
       sala,
       dia: modal.dia,
       horario: modal.horario,
-      aulaId: modal.aulaId,
+      // Uma aula removida do rascunho pode voltar mantendo seu ID persistido.
+      aulaId: atual.aulas.some(aula => aula.id === modal.aulaId) ? modal.aulaId : undefined,
       novoId: modal.aulaId ?? crypto.randomUUID(),
     });
     if (resultado.status === "ocupada") {
-      avisoOcupada();
+      setErroValidacao(AVISO_CELULA_OCUPADA);
       return;
     }
-    if (resultado.status === "invalida") return;
+    if (resultado.status !== "nova" && resultado.status !== "mover") return;
     atualizarAulas(resultado.aulas);
     setMensagem(`${disciplina.disciplina} alocada em ${sala.nome}.`);
     setModal(null);
@@ -680,7 +720,7 @@ export function TelaAlocacao({
           </p>
           <div className="mt-6">
             <label className="mb-2 block text-sm font-medium">Professor</label>
-            <Select aria-label="Professor" options={(disciplinaPendente?.professores ?? []).map(p => ({ value: String(p.id), label: p.nome }))} value={professorId} placeholder="Selecione o professor" disabled={bloqueado || !disciplinaPendente?.professores?.length} onChange={valor => { setProfessorId(valor); setErroProfessor(""); setErroValidacao(""); setSugestoes([]); }} />
+            <Select aria-label="Professor" options={(disciplinaPendente?.professores ?? []).map(p => ({ value: String(p.id), label: p.nome }))} value={professorId} placeholder="Selecione o professor" disabled={bloqueado || !disciplinaPendente?.professores?.length} onChange={valor => { setProfessorId(valor); setErroProfessor(""); setErroValidacao(""); setSugestoes(null); }} />
             {!disciplinaPendente?.professores?.length && <p role="alert" className="mt-2 text-sm text-red-700">Esta disciplina não possui professor ativo vinculado.</p>}
             {erroProfessor && <p role="alert" className="mt-2 text-sm text-red-700">{erroProfessor}</p>}
           </div>
@@ -692,6 +732,8 @@ export function TelaAlocacao({
                 onChange={(id) => {
                   setSalaId(id);
                   setErroSala(false);
+                  setErroValidacao("");
+                  setSugestoes(null);
                 }}
               />
             </div>
@@ -700,28 +742,22 @@ export function TelaAlocacao({
               {erroValidacao}
             </p>
           )}
-          {sugestoes.length > 0 && (
+          {sugestoesDisponiveis?.length === 0 && (
+            <p role="status" className="mt-3 text-sm">
+              Nenhuma sugestão disponível para esta alocação.
+            </p>
+          )}
+          {!!sugestoesDisponiveis?.length && (
             <div className="mt-3 space-y-2">
               <p className="text-sm">Sugestões disponíveis:</p>
-              {sugestoes.map((item, i) => (
+              {sugestoesDisponiveis.map((item, i) => (
                 <Button
                   key={i}
                   type="button"
                   variant="ghost"
                   size="small"
                   disabled={bloqueado}
-                  onClick={() => {
-                    setModal({
-                      tipo: "sala",
-                      disciplinaId: modal.disciplinaId,
-                      aulaId: modal.aulaId,
-                      dia: item.dia,
-                      horario: item.horario,
-                    });
-                    setSalaId(item.salaId);
-                    setErroValidacao("");
-                    setSugestoes([]);
-                  }}
+                  onClick={() => usarSugestao(item)}
                 >
                   {DIAS.find((d) => d.key === item.dia)?.label}{" "}
                   {item.horario.inicio} -{" "}

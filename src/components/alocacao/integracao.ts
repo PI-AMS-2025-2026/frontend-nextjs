@@ -70,8 +70,11 @@ export async function validar(grade: Grade, disciplina: Discipline, salaId: stri
   }
 }
 export function interpretarSugestao(grade: Grade, sugestao: Sugestao) {
-  const dia = diaVisual(sugestao.diaSemana); const horario = grade.blocos?.find(b => b.id === sugestao.blocoHorario?.id);
-  return dia && horario ? { dia, horario, salaId: String(sugestao.sala.id) } : null;
+  const dia = diaVisual(sugestao.diaSemana);
+  const bloco = grade.blocos?.find(b => b.id === sugestao.blocoHorario?.id);
+  const salaId = sugestao.sala?.id;
+  if (!dia || !bloco || !salaId) return null;
+  return { dia, horario: { inicio: bloco.inicio, fim: bloco.fim }, salaId: String(salaId) };
 }
 export async function salvarGrade(grade: Grade, aulas: Aula[], disciplinas: Discipline[]) {
   const usuarioId = authService.getUser()?.id;
