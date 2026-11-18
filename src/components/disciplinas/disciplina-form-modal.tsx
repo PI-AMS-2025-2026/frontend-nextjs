@@ -6,17 +6,15 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
     CORES_DISCIPLINA,
-    CURSOS_DISPONIVEIS,
     type Disciplina,
     type Modalidade,
     type Periodo,
-    type StatusDisciplina,
     type TipoDisciplina,
     type TipoSala,
 } from "@/lib/disciplinas";
+import type { CursoResponse, TipoSalaResponse } from "@/types/api";
 
 interface DadosDisciplina {
     nome: string;
@@ -24,24 +22,22 @@ interface DadosDisciplina {
     tipo: TipoDisciplina;
     periodo: Periodo;
     modalidade: Modalidade;
-    codigo: number;
+    codigo: string;
     cor: string;
     cursoVinculado: string;
     tipoSala: TipoSala;
-    status: StatusDisciplina;
 }
 
 interface FormValues {
     nome: string;
     cargaHoraria: number;
     tipo: TipoDisciplina | "";
-    periodo: Periodo | "";
+    periodo: string;
     modalidade: Modalidade | "";
-    codigo: number;
+    codigo: string;
     cor: string;
     cursoVinculado: string;
     tipoSala: TipoSala | "";
-    status: StatusDisciplina;
 }
 
 interface DisciplinaFormModalProps {
@@ -49,7 +45,9 @@ interface DisciplinaFormModalProps {
     onClose: () => void;
     mode: "cadastrar" | "editar";
     disciplina?: Disciplina | null;
-    onConfirm: (dados: DadosDisciplina) => void;
+    cursos: CursoResponse[];
+    tiposSala: TipoSalaResponse[];
+    onConfirm: (dados: DadosDisciplina) => void | Promise<void>;
 }
 
 export function DisciplinaFormModal({
@@ -57,6 +55,8 @@ export function DisciplinaFormModal({
     onClose,
     mode,
     disciplina,
+    cursos,
+    tiposSala,
     onConfirm,
 }: DisciplinaFormModalProps) {
     return (
@@ -65,6 +65,8 @@ export function DisciplinaFormModal({
                 key={disciplina?.id ?? "novo"}
                 mode={mode}
                 disciplina={disciplina}
+                cursos={cursos}
+                tiposSala={tiposSala}
                 onCancel={onClose}
                 onConfirm={onConfirm}
             />
@@ -75,25 +77,28 @@ export function DisciplinaFormModal({
 function DisciplinaFormConteudo({
     mode,
     disciplina,
+    cursos,
+    tiposSala,
     onCancel,
     onConfirm,
 }: {
     mode: "cadastrar" | "editar";
     disciplina?: Disciplina | null;
+    cursos: CursoResponse[];
+    tiposSala: TipoSalaResponse[];
     onCancel: () => void;
-    onConfirm: (dados: DadosDisciplina) => void;
+    onConfirm: (dados: DadosDisciplina) => void | Promise<void>;
 }) {
     const [valores, setValores] = React.useState<FormValues>({
         nome: disciplina?.nome ?? "",
         cargaHoraria: disciplina?.cargaHoraria ?? 0,
         tipo: disciplina?.tipo ?? "",
-        periodo: disciplina?.periodo ?? "",
+        periodo: disciplina ? String(disciplina.periodo) : "",
         modalidade: disciplina?.modalidade ?? "",
-        codigo: disciplina?.codigo ?? 0,
+        codigo: disciplina?.codigo ?? "",
         cor: disciplina?.cor ?? CORES_DISCIPLINA[0].hex,
         cursoVinculado: disciplina?.cursoVinculado ?? "",
         tipoSala: disciplina?.tipoSala ?? "",
-        status: disciplina?.status ?? "Ativo",
     });
     const [erro, setErro] = React.useState("");
     const [corAberta, setCorAberta] = React.useState(false);
@@ -105,27 +110,41 @@ function DisciplinaFormConteudo({
         setErro("");
     }
 
-    function handleConfirmar() {
+    async function handleConfirmar() {
         if (
             !valores.nome.trim() ||
             !valores.tipo ||
-            !valores.periodo ||
+            !Number.isSafeInteger(Number(valores.periodo)) || Number(valores.periodo) < 1 ||
             !valores.modalidade ||
+            valores.cargaHoraria < 20 ||
+            valores.cargaHoraria > 160 ||
+            valores.codigo.trim().length < 3 ||
+            valores.codigo.trim().length > 20 ||
             !valores.cursoVinculado ||
             !valores.tipoSala
         ) {
-            setErro("Preencha todos os campos obrigatórios.");
+            setErro(
+                valores.cargaHoraria < 20 || valores.cargaHoraria > 160
+                    ? "A carga horária deve estar entre 20 e 160 horas."
+                    : valores.codigo.trim().length < 3
+                      ? "O código deve ter entre 3 e 20 caracteres."
+                      : "Preencha todos os campos obrigatórios.",
+            );
             return;
         }
 
-        onConfirm({
-            ...valores,
-            nome: valores.nome.trim(),
-            tipo: valores.tipo as TipoDisciplina,
-            periodo: valores.periodo as Periodo,
-            modalidade: valores.modalidade as Modalidade,
-            tipoSala: valores.tipoSala as TipoSala,
-        });
+        try {
+            await onConfirm({
+                ...valores,
+                nome: valores.nome.trim(),
+                tipo: valores.tipo as TipoDisciplina,
+                periodo: Number(valores.periodo),
+                modalidade: valores.modalidade as Modalidade,
+                tipoSala: valores.tipoSala as TipoSala,
+            });
+        } catch (error) {
+            setErro(error instanceof Error ? error.message : "Não foi possível salvar a disciplina.");
+        }
     }
 
     const corSelecionada =
@@ -146,6 +165,7 @@ function DisciplinaFormConteudo({
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Input
                     label="Carga horária"
+                    aria-label="Carga horária"
                     showLabel
                     type="number"
                     min={0}
@@ -155,11 +175,11 @@ function DisciplinaFormConteudo({
 
                 <Input
                     label="Código da disciplina"
+                    aria-label="Código da disciplina"
                     showLabel
-                    type="number"
-                    min={0}
+                    type="text"
                     value={valores.codigo}
-                    onChange={(e) => atualizar("codigo", Number(e.target.value))}
+                    onChange={(e) => atualizar("codigo", e.target.value)}
                 />
 
                 <div className="flex flex-col gap-2">
@@ -178,19 +198,8 @@ function DisciplinaFormConteudo({
                     />
                 </div>
 
-                <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-[#17264D]">Período</label>
-                    <Select
-                        options={[
-                            { label: "Manhã", value: "Manhã" },
-                            { label: "Tarde", value: "Tarde" },
-                            { label: "Noite", value: "Noite" },
-                        ]}
-                        value={valores.periodo}
-                        onChange={(v) => atualizar("periodo", v as Periodo)}
-                        placeholder="Selecione..."
-                    />
-                </div>
+                <Input label="Período curricular" aria-label="Período curricular" showLabel type="number" min={1}
+                    value={valores.periodo} onChange={(e) => atualizar("periodo", e.target.value)} />
 
                 <div className="flex flex-col gap-2">
                     <label className="text-sm font-medium text-[#17264D]">Modalidade</label>
@@ -198,6 +207,7 @@ function DisciplinaFormConteudo({
                         options={[
                             { label: "Presencial", value: "Presencial" },
                             { label: "EAD", value: "EAD" },
+                            { label: "Híbrida", value: "Híbrida" },
                         ]}
                         value={valores.modalidade}
                         onChange={(v) => atualizar("modalidade", v as Modalidade)}
@@ -254,9 +264,22 @@ function DisciplinaFormConteudo({
                 <div className="flex flex-col gap-2">
                     <label className="text-sm font-medium text-[#17264D]">Curso vinculado</label>
                     <Select
-                        options={CURSOS_DISPONIVEIS.map((c) => ({ label: c, value: c }))}
-                        value={valores.cursoVinculado}
-                        onChange={(v) => atualizar("cursoVinculado", v)}
+                        options={cursos.map((c) => ({ label: c.nome, value: String(c.id) }))}
+                        value={
+                            cursos.find((curso) => curso.nome === valores.cursoVinculado)
+                                ? String(
+                                      cursos.find(
+                                          (curso) => curso.nome === valores.cursoVinculado,
+                                      )?.id,
+                                  )
+                                : ""
+                        }
+                        onChange={(v) => {
+                            atualizar(
+                                "cursoVinculado",
+                                cursos.find((curso) => String(curso.id) === v)?.nome ?? "",
+                            );
+                        }}
                         placeholder="Selecione..."
                     />
                 </div>
@@ -264,36 +287,15 @@ function DisciplinaFormConteudo({
                 <div className="flex flex-col gap-2">
                     <label className="text-sm font-medium text-[#17264D]">Tipo de sala</label>
                     <Select
-                        options={[
-                            { label: "Laboratório", value: "Laboratório" },
-                            { label: "Sala", value: "Sala" },
-                        ]}
+                        options={tiposSala.map((tipo) => ({
+                            label: tipo.nome,
+                            value: tipo.nome,
+                        }))}
                         value={valores.tipoSala}
                         onChange={(v) => atualizar("tipoSala", v as TipoSala)}
                         placeholder="Selecione..."
                     />
                 </div>
-            </div>
-
-            <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium text-[#17264D]">Status</label>
-                <RadioGroup
-                    value={valores.status}
-                    onValueChange={(v) => atualizar("status", v as StatusDisciplina)}
-                >
-                    <div className="flex items-center gap-2">
-                        <RadioGroupItem value="Ativo" id="disc-status-ativo" />
-                        <label htmlFor="disc-status-ativo" className="text-sm text-[#17264D]">
-                            Ativo
-                        </label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <RadioGroupItem value="Inativo" id="disc-status-inativo" />
-                        <label htmlFor="disc-status-inativo" className="text-sm text-[#17264D]">
-                            Inativo
-                        </label>
-                    </div>
-                </RadioGroup>
             </div>
 
             {erro && <p className="text-sm text-[#BA1A1A]">{erro}</p>}
