@@ -326,7 +326,7 @@ function PeriodoModalForm({
             <div className="flex flex-wrap items-center gap-6 pt-1">
               {(
                 [
-                  "SEMENSTRAL",
+                  "SEMESTRAL",
                   "ANUAL",
                 ] as TipoPeriodoAtividadeQuadro[]
               ).map((tipo) => (
@@ -349,7 +349,7 @@ function PeriodoModalForm({
                     }
                     className="accent-[#0099AA]"
                   />
-                  {tipo === "SEMENSTRAL"
+                  {tipo === "SEMESTRAL"
                     ? "Semestral"
                     : "Anual"}
                 </label>

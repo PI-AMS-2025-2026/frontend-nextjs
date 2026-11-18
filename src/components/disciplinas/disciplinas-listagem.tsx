@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Plus, Pencil, CheckCircle2, XCircle, ArrowLeft, Loader2 } from "lucide-react";
+import { Plus, Pencil, ArrowLeft, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/input";
@@ -11,54 +11,73 @@ import { TableFilters } from "@/components/ui/tablefilters";
 import { Pagination } from "@/components/ui/pagination";
 import { Modal } from "@/components/ui/modal";
 
-import { DisciplinaFormModal } from "@/components/disciplinas/disciplina-form-modal";
+import { DisciplinaFormModal, type DadosDisciplina, type DisciplinaComVinculos } from "@/components/disciplinas/disciplina-form-modal";
 
 import {
-    carregarDisciplinasSalvas,
     CORES_DISCIPLINA,
-    CURSOS_DISPONIVEIS,
-    gerarDisciplinasMock,
-    salvarDisciplinas,
-    type Disciplina,
     type Modalidade,
-    type Periodo,
-    type StatusDisciplina,
     type TipoDisciplina,
-    type TipoSala,
 } from "@/lib/disciplinas";
+import { ApiError } from "@/lib/api";
+import { disciplinasService } from "@/services/disciplinas.service";
+import { cursosService } from "@/services/cursos.service";
+import { tiposSalaService } from "@/services/tipos-sala.service";
+import type { CursoResponse, DisciplinaRequest, DisciplinaResponse, TipoSalaResponse } from "@/types/api";
 
-type DadosDisciplina = {
-    nome: string;
-    cargaHoraria: number;
-    tipo: TipoDisciplina;
-    periodo: Periodo;
-    modalidade: Modalidade;
-    codigo: number;
-    cor: string;
-    cursoVinculado: string;
-    tipoSala: TipoSala;
-    status: StatusDisciplina;
-};
+function mensagemErro(error: unknown, padrao: string) {
+    if (error instanceof ApiError) {
+        if (error.status === 401) return "Sessão expirada. Faça login novamente.";
+        if (error.status === 403) return "Você não tem permissão para essa ação.";
+        return error.message || padrao;
+    }
+    return error instanceof Error && error.message ? error.message : padrao;
+}
+
+function paraTipo(tipo: string): TipoDisciplina {
+    const normalizado = tipo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    if (normalizado === "pratica") return "Prática";
+    if (normalizado === "teorica") return "Teórica";
+    return "50/50";
+}
+
+function paraDisciplina(disciplina: DisciplinaResponse): DisciplinaComVinculos {
+    const modalidade = disciplina.modalidade.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return {
+        id: String(disciplina.id),
+        nome: disciplina.nome,
+        cargaHoraria: disciplina.cargaHoraria,
+        tipo: paraTipo(disciplina.tipoDisciplina),
+        periodo: disciplina.periodo,
+        modalidade: modalidade === "Hibrida" ? "Híbrida" : modalidade as Modalidade,
+        codigo: disciplina.codDisciplina,
+        cor: disciplina.cor ?? CORES_DISCIPLINA[0].hex,
+        cursoVinculado: disciplina.curso.nome,
+        tipoSala: disciplina.tipoSala.nome,
+        cursoId: disciplina.curso.id,
+        tipoSalaId: disciplina.tipoSala.id,
+    };
+}
+
+function paraRequest(dados: DadosDisciplina): DisciplinaRequest {
+    return {
+        nome: dados.nome,
+        cargaHoraria: dados.cargaHoraria,
+        tipoDisciplina: dados.tipo,
+        periodo: dados.periodo,
+        modalidade: dados.modalidade === "Híbrida" ? "Hibrida" : dados.modalidade,
+        codDisciplina: dados.codigo.trim(),
+        cor: dados.cor,
+        curso: { id: dados.cursoId },
+        tipoSala: { id: dados.tipoSalaId },
+    };
+}
 
 export function DisciplinasListagem() {
-    const [disciplinas, setDisciplinas] = React.useState<Disciplina[] | null>(null);
-
-    React.useEffect(() => {
-        let vivo = true;
-        void Promise.resolve().then(() => {
-            if (!vivo) return;
-            const salvas = carregarDisciplinasSalvas();
-            setDisciplinas(salvas ?? gerarDisciplinasMock());
-        });
-        return () => {
-            vivo = false;
-        };
-    }, []);
-
-    React.useEffect(() => {
-        if (disciplinas === null) return;
-        salvarDisciplinas(disciplinas);
-    }, [disciplinas]);
+    const [disciplinas, setDisciplinas] = React.useState<DisciplinaComVinculos[] | null>(null);
+    const [cursos, setCursos] = React.useState<CursoResponse[]>([]);
+    const [tiposSala, setTiposSala] = React.useState<TipoSalaResponse[]>([]);
+    const [erroCarga, setErroCarga] = React.useState("");
+    const [tentativa, setTentativa] = React.useState(0);
 
     const [busca, setBusca] = React.useState("");
     const [filtroNome, setFiltroNome] = React.useState("");
@@ -68,15 +87,36 @@ export function DisciplinasListagem() {
     const [filtroCor, setFiltroCor] = React.useState("");
     const [filtroCurso, setFiltroCurso] = React.useState("");
     const [filtroTipoSala, setFiltroTipoSala] = React.useState("");
-    const [filtroStatus, setFiltroStatus] = React.useState("");
 
     const [itensPorPagina, setItensPorPagina] = React.useState(10);
     const [paginaAtual, setPaginaAtual] = React.useState(1);
 
     const [cadastrarAberto, setCadastrarAberto] = React.useState(false);
     const [editarAberto, setEditarAberto] = React.useState(false);
-    const [selecionada, setSelecionada] = React.useState<Disciplina | null>(null);
+    const [selecionada, setSelecionada] = React.useState<DisciplinaComVinculos | null>(null);
     const [sucesso, setSucesso] = React.useState<string | null>(null);
+
+    React.useEffect(() => {
+        let vivo = true;
+        void Promise.all([
+            disciplinasService.listarTodos(),
+            cursosService.listarTodos(),
+            tiposSalaService.listar(),
+        ]).then(([disciplinasCarregadas, cursosCarregados, tiposCarregados]) => {
+            if (!vivo) return;
+            setDisciplinas(disciplinasCarregadas.map(paraDisciplina));
+            setCursos(cursosCarregados);
+            setTiposSala(tiposCarregados);
+            setErroCarga("");
+        }).catch((error: unknown) => {
+            if (!vivo) return;
+            setErroCarga(mensagemErro(error, "Não foi possível carregar as disciplinas."));
+            setDisciplinas([]);
+        });
+        return () => {
+            vivo = false;
+        };
+    }, [tentativa]);
 
     React.useEffect(() => {
         if (!sucesso) return;
@@ -102,12 +142,11 @@ export function DisciplinasListagem() {
                 buscaOk &&
                 nomeOk &&
                 (!filtroTipo || d.tipo === filtroTipo) &&
-                (!filtroPeriodo || d.periodo === filtroPeriodo) &&
+                (!filtroPeriodo || String(d.periodo) === filtroPeriodo) &&
                 (!filtroModalidade || d.modalidade === filtroModalidade) &&
                 (!filtroCor || d.cor === filtroCor) &&
                 (!filtroCurso || d.cursoVinculado === filtroCurso) &&
-                (!filtroTipoSala || d.tipoSala === filtroTipoSala) &&
-                (!filtroStatus || d.status === filtroStatus)
+                (!filtroTipoSala || d.tipoSala === filtroTipoSala)
             );
         });
     }, [
@@ -120,7 +159,6 @@ export function DisciplinasListagem() {
         filtroCor,
         filtroCurso,
         filtroTipoSala,
-        filtroStatus,
     ]);
 
     const totalPaginas = Math.max(1, Math.ceil(filtradas.length / itensPorPagina));
@@ -128,17 +166,22 @@ export function DisciplinasListagem() {
     const inicioIndice = (paginaSegura - 1) * itensPorPagina;
     const pagina = filtradas.slice(inicioIndice, inicioIndice + itensPorPagina);
 
-    function confirmarCadastro(dados: DadosDisciplina) {
-        setDisciplinas((prev) => [...(prev ?? []), { id: crypto.randomUUID(), ...dados }]);
+    async function confirmarCadastro(dados: DadosDisciplina) {
+        const salvo = await disciplinasService.criar(paraRequest(dados));
+        setDisciplinas((prev) => [...(prev ?? []), paraDisciplina(salvo)]);
         setCadastrarAberto(false);
         setSucesso("Disciplina criada com sucesso!");
     }
 
-    function confirmarEdicao(dados: DadosDisciplina) {
+    async function confirmarEdicao(dados: DadosDisciplina) {
         if (!selecionada) return;
-        setDisciplinas((prev) =>
-            (prev ?? []).map((d) => (d.id === selecionada.id ? { ...d, ...dados } : d))
+        const salvo = await disciplinasService.atualizar(
+            Number(selecionada.id),
+            paraRequest(dados),
         );
+        setDisciplinas((prev) => (prev ?? []).map((d) =>
+            d.id === selecionada.id ? paraDisciplina(salvo) : d,
+        ));
         setEditarAberto(false);
         setSelecionada(null);
         setSucesso("Disciplina editada com sucesso!");
@@ -149,6 +192,20 @@ export function DisciplinasListagem() {
             <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
                 <Loader2 className="size-6 animate-spin text-[#0099AA]" />
                 <span className="text-sm text-[#17264D]/70">Carregando disciplinas...</span>
+            </div>
+        );
+    }
+
+    if (erroCarga) {
+        return (
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24" role="alert">
+                <span className="text-sm text-[#BA1A1A]">{erroCarga}</span>
+                <Button onClick={() => {
+                    setDisciplinas(null);
+                    setTentativa((atual) => atual + 1);
+                }}>
+                    Tentar novamente
+                </Button>
             </div>
         );
     }
@@ -223,11 +280,7 @@ export function DisciplinasListagem() {
                         type: "select",
                         placeholder: "Todos",
                         width: "w-[105px]",
-                        options: [
-                            { label: "Manhã", value: "Manhã" },
-                            { label: "Tarde", value: "Tarde" },
-                            { label: "Noite", value: "Noite" },
-                        ],
+                        options: Array.from({ length: 12 }, (_, index) => ({ label: String(index + 1), value: String(index + 1) })),
                     },
                     {
                         name: "modalidade",
@@ -238,6 +291,7 @@ export function DisciplinasListagem() {
                         options: [
                             { label: "Presencial", value: "Presencial" },
                             { label: "EAD", value: "EAD" },
+                            { label: "Híbrida", value: "Híbrida" },
                         ],
                     },
                     {
@@ -257,10 +311,7 @@ export function DisciplinasListagem() {
                         type: "select",
                         placeholder: "Todos",
                         width: "w-[140px]",
-                        options: CURSOS_DISPONIVEIS.map((c) => ({
-                            label: c,
-                            value: c,
-                        })),
+                        options: cursos.map((c) => ({ label: c.nome, value: c.nome })),
                     },
                     {
                         name: "tipoSala",
@@ -268,21 +319,7 @@ export function DisciplinasListagem() {
                         type: "select",
                         placeholder: "Todos",
                         width: "w-[115px]",
-                        options: [
-                            { label: "Laboratório", value: "Laboratório" },
-                            { label: "Sala", value: "Sala" },
-                        ],
-                    },
-                    {
-                        name: "status",
-                        label: "Status",
-                        type: "select",
-                        placeholder: "Todos",
-                        width: "w-[105px]",
-                        options: [
-                            { label: "Ativo", value: "Ativo" },
-                            { label: "Inativo", value: "Inativo" },
-                        ],
+                        options: tiposSala.map((tipo) => ({ label: tipo.nome, value: tipo.nome })),
                     },
                 ]}
                 onChange={(f) => {
@@ -293,7 +330,6 @@ export function DisciplinasListagem() {
                     setFiltroCor(f.cor ?? "");
                     setFiltroCurso(f.cursoVinculado ?? "");
                     setFiltroTipoSala(f.tipoSala ?? "");
-                    setFiltroStatus(f.status ?? "");
                     setPaginaAtual(1);
                 }}
             />
@@ -363,23 +399,6 @@ export function DisciplinasListagem() {
                             headerClassName: "whitespace-nowrap",
                             cellClassName: "whitespace-nowrap",
                         },
-                        {
-                            key: "status",
-                            label: "Status",
-                            cellClassName: "whitespace-nowrap",
-                            render: (d) =>
-                                d.status === "Ativo" ? (
-                                    <span className="flex items-center gap-1.5 font-medium text-emerald-600">
-                                        <CheckCircle2 className="size-4 shrink-0" />
-                                        Ativo
-                                    </span>
-                                ) : (
-                                    <span className="flex items-center gap-1.5 font-medium text-[#BA1A1A]">
-                                        <XCircle className="size-4 shrink-0" />
-                                        Inativo
-                                    </span>
-                                ),
-                        },
                     ]}
                     actions={[
                         {
@@ -409,6 +428,8 @@ export function DisciplinasListagem() {
                 open={cadastrarAberto}
                 onClose={() => setCadastrarAberto(false)}
                 mode="cadastrar"
+                cursos={cursos}
+                tiposSala={tiposSala}
                 onConfirm={confirmarCadastro}
             />
 
@@ -420,6 +441,8 @@ export function DisciplinasListagem() {
                 }}
                 mode="editar"
                 disciplina={selecionada}
+                cursos={cursos}
+                tiposSala={tiposSala}
                 onConfirm={confirmarEdicao}
             />
 

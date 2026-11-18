@@ -15,8 +15,8 @@ import { CopiarGradeModal } from "@/components/grade-horaria/copiar-grade-modal"
 import { SucessoGradeModal } from "@/components/grade-horaria/sucesso-grade-modal";
 import { useAuth } from "@/hooks/use-auth";
 import { ApiError } from "@/lib/api";
-import { periodoAtividadeQuadroService, quadroHorariosService } from "@/services";
-import type { PeriodoAtividadeQuadroResponse, QuadroHorarioRequest, QuadroHorarioResponse, Status } from "@/types/api";
+import { periodoAtividadeQuadroService, quadroHorariosService, turmasService } from "@/services";
+import type { PeriodoAtividadeQuadroResponse, QuadroHorarioRequest, QuadroHorarioResponse, TurmaResponse, Status } from "@/types/api";
 
 const BASE = "/coordenador/grade-planejamento/grade-horaria";
 
@@ -49,6 +49,7 @@ export function GradeListagem() {
     const cursoNome = perfilCurso?.nome ?? "Curso do coordenador";
 
     const [grades, setGrades] = React.useState<QuadroHorarioResponse[] | null>(null);
+    const [turmas, setTurmas] = React.useState<TurmaResponse[]>([]);
     const [periodos, setPeriodos] = React.useState<PeriodoAtividadeQuadroResponse[]>([]);
     const [erro, setErro] = React.useState("");
     const [erroModal, setErroModal] = React.useState("");
@@ -72,12 +73,14 @@ export function GradeListagem() {
         setCarregando(true);
         setErro("");
         try {
-            const [quadros, periodosAtivos] = await Promise.all([
+            const [quadros, periodosAtivos, turmasAtivas] = await Promise.all([
                 quadroHorariosService.listar({ curso: cursoId, page: 0, size: 1000 }),
                 periodoAtividadeQuadroService.listar({ status: "ATIVO", page: 0, size: 1000 }),
+                turmasService.listar({ curso: cursoId, status: "ATIVO", page: 0, size: 1000 }),
             ]);
             setGrades(quadros.content);
             setPeriodos(periodosAtivos.content);
+            setTurmas(turmasAtivas.content.filter(t => t.curso.id === cursoId && t.status === "ATIVO"));
         } catch (error) {
             setErro(mensagemErro(error));
             setGrades([]);
@@ -113,6 +116,7 @@ export function GradeListagem() {
             versao: dados.versao,
             status: statusOverride ?? dados.status,
             curso: { id: cursoId },
+            turma: { id: dados.turmaId },
             periodoAtividadeQuadro: { id: dados.periodoAtividadeQuadroId },
         };
     }
@@ -154,7 +158,7 @@ export function GradeListagem() {
     }
 
     async function confirmarCopia(periodoId: number) {
-        if (!selecionada) return;
+        if (!selecionada?.turma) return;
         setMutando(true);
         setErro("");
         setErroModal("");
@@ -163,6 +167,7 @@ export function GradeListagem() {
                 versao: selecionada.versao,
                 status: "ATIVO",
                 curso: { id: selecionada.curso.id },
+                turma: { id: selecionada.turma.id },
                 periodoAtividadeQuadro: { id: periodoId },
             });
             setCopiarAberto(false);
@@ -237,8 +242,8 @@ export function GradeListagem() {
                     ]}
                     actions={[
                         { label: "Ver Grade", icon: <Grid3x3 className="size-[21px]" strokeWidth={2} />, onClick: (grade) => router.push(`${BASE}/${grade.id}`) },
-                        { label: "Editar", icon: <Pencil className="size-[21px]" strokeWidth={2} />, onClick: (grade) => { setErroModal(""); setSelecionada(grade); setEditarAberto(true); }, disabled: (grade) => mutando || grade.status === "INATIVO" },
-                        { label: "Copiar", icon: <Copy className="size-[21px]" strokeWidth={2} />, onClick: (grade) => { setErroModal(""); setSelecionada(grade); setCopiarAberto(true); }, disabled: () => mutando },
+                        { label: "Editar", icon: <Pencil className="size-[21px]" strokeWidth={2} />, onClick: (grade) => { setErroModal(""); setSelecionada(grade); setEditarAberto(true); }, disabled: (grade) => mutando || grade.status === "INATIVO" || !grade.turma },
+                        { label: "Copiar", icon: <Copy className="size-[21px]" strokeWidth={2} />, onClick: (grade) => { setErroModal(""); setSelecionada(grade); setCopiarAberto(true); }, disabled: (grade) => mutando || !grade.turma },
                         { label: "Inativar", icon: <Trash2 className="size-[21px]" strokeWidth={2} />, onClick: (grade) => void inativar(grade), disabled: (grade) => mutando || grade.status === "INATIVO" },
                     ]}
                 />
@@ -246,8 +251,8 @@ export function GradeListagem() {
 
             <Pagination totalItems={filtradas.length} currentPage={paginaSegura} itemsPerPage={itensPorPagina} onPageChange={setPaginaAtual} onItemsPerPageChange={(n) => { setItensPorPagina(n); setPaginaAtual(1); }} />
 
-            <GradeFormModal open={cadastrarAberto} onClose={() => setCadastrarAberto(false)} mode="cadastrar" periodos={periodos} cursoNome={cursoNome} onConfirm={(dados) => void confirmarCadastro(dados)} submitting={mutando} errorMessage={erroModal} />
-            <GradeFormModal open={editarAberto} onClose={() => { setEditarAberto(false); setSelecionada(null); }} mode="editar" grade={selecionada} periodos={periodos} cursoNome={cursoNome} onConfirm={(dados) => void confirmarEdicao(dados)} submitting={mutando} errorMessage={erroModal} />
+            <GradeFormModal open={cadastrarAberto} onClose={() => setCadastrarAberto(false)} mode="cadastrar" periodos={periodos} turmas={turmas} cursoNome={cursoNome} onConfirm={(dados) => void confirmarCadastro(dados)} submitting={mutando} errorMessage={erroModal} />
+            <GradeFormModal open={editarAberto} onClose={() => { setEditarAberto(false); setSelecionada(null); }} mode="editar" grade={selecionada} periodos={periodos} turmas={turmas} cursoNome={cursoNome} onConfirm={(dados) => void confirmarEdicao(dados)} submitting={mutando} errorMessage={erroModal} />
             <CopiarGradeModal key={copiarAberto ? `copiar-${selecionada?.id ?? "grade"}` : "copiar-fechado"} open={copiarAberto} onClose={() => { setCopiarAberto(false); setSelecionada(null); }} periodos={periodos.filter((periodo) => selecionada?.status !== "ATIVO" || periodo.id !== selecionada.periodoAtividadeQuadro.id)} onConfirm={(periodoId) => void confirmarCopia(periodoId)} submitting={mutando} errorMessage={erroModal} />
             <SucessoGradeModal open={sucesso !== null} onClose={() => { setSucesso(null); setRecemCriadaId(null); }} mensagem={sucesso ?? ""} acao={recemCriadaId ? { label: "VISUALIZAR GRADE", onClick: () => router.push(`${BASE}/${recemCriadaId}`) } : undefined} />
         </div>

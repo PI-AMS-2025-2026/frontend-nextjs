@@ -132,7 +132,7 @@ export interface RecursoSalaResponse {
   quantidade: number;
 }
 
-export type TipoPeriodoAtividadeQuadro = "SEMENSTRAL" | "ANUAL";
+export type TipoPeriodoAtividadeQuadro = "SEMESTRAL" | "ANUAL";
 
 export interface PeriodoAtividadeQuadroRequest {
   ano: number;
@@ -152,6 +152,7 @@ export interface QuadroHorarioRequest {
   versao: number;
   status: Status;
   curso: LongDTO;
+  turma: LongDTO;
   periodoAtividadeQuadro: LongDTO;
 }
 export interface QuadroHorarioResponse {
@@ -160,6 +161,7 @@ export interface QuadroHorarioResponse {
   dataCriacao: DateTime;
   status: Status;
   curso: CursoResponse;
+  turma: LongDTO | null;
   periodoAtividadeQuadro: PeriodoAtividadeQuadroResponse;
   createdAt: DateTime;
   updatedAt: DateTime;
@@ -329,6 +331,7 @@ export interface ListRecursoSalaParams {
 }
 export interface ListQuadroHorarioParams {
   curso?: Id;
+  turma?: Id;
   periodo_atividade_quadro?: Id;
   status?: Status;
   page?: number;

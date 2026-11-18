@@ -29,6 +29,7 @@ import {
 
 import { cn } from "@/lib/utils";
 import { authService } from "@/services/auth.service";
+import type { UsuarioResponse } from "@/types/api";
 
 export type TipoNavbar = "administrador" | "coordenador";
 
@@ -65,11 +66,23 @@ const coordinatorIcons = [CalendarCheck2, BookOpen, School];
 
 function subscribeToStoredUser(onStoreChange: () => void) {
   window.addEventListener("storage", onStoreChange);
-  return () => window.removeEventListener("storage", onStoreChange);
+  window.addEventListener("auth:user-updated", onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener("auth:user-updated", onStoreChange);
+  };
 }
 
-function getStoredUserName() {
-  return authService.getUser()?.nome?.trim() || "Usuário";
+function getStoredUserSnapshot() {
+  return window.localStorage.getItem("usuario") ?? "";
+}
+
+function parseStoredUser(snapshot: string): UsuarioResponse | null {
+  try {
+    return snapshot ? (JSON.parse(snapshot) as UsuarioResponse) : null;
+  } catch {
+    return null;
+  }
 }
 
 export function Navbar({
@@ -109,10 +122,6 @@ function NavbarContent({
 
   const profileLabel = isAdministrador ? "ADM" : "CRD";
 
-  const profileRole = isAdministrador
-    ? "Administrador"
-    : "Coordenador";
-
   const [activeGroup, setActiveGroup] =
     React.useState<string | null>(null);
 
@@ -124,11 +133,18 @@ function NavbarContent({
 
   const [loggingOut, setLoggingOut] =
     React.useState(false);
-  const userName = React.useSyncExternalStore(
+  const userSnapshot = React.useSyncExternalStore(
     subscribeToStoredUser,
-    getStoredUserName,
-    () => "Usuário",
+    getStoredUserSnapshot,
+    () => "",
   );
+  const storedUser = React.useMemo(() => parseStoredUser(userSnapshot), [userSnapshot]);
+  const userName = storedUser?.nome?.trim() || "Usuário";
+  const profileRole = storedUser?.tipoUsuario === "COORDENADOR"
+    ? `Coordenador${storedUser.curso?.nome ? ` ${storedUser.curso.nome}` : ""}`
+    : storedUser?.tipoUsuario === "ADMINISTRADOR"
+      ? "Administrador"
+      : isAdministrador ? "Administrador" : "Coordenador";
 
   const profileRef = React.useRef<HTMLDivElement>(null);
   const navigationRef = React.useRef<HTMLElement>(null);
@@ -228,7 +244,7 @@ function NavbarContent({
 
         <nav
           ref={navigationRef}
-          aria-label={`Navegação do ${profileRole.toLowerCase()}`}
+            aria-label={`Navegação do ${isAdministrador ? "administrador" : "coordenador"}`}
           className="hidden items-center justify-center gap-4 lg:flex"
         >
           <Link
@@ -343,7 +359,7 @@ function NavbarContent({
           >
             <button
               type="button"
-              aria-label={`Abrir menu do ${profileRole.toLowerCase()}`}
+              aria-label={`Abrir menu do ${isAdministrador ? "administrador" : "coordenador"}`}
               aria-expanded={profileOpen}
               aria-haspopup="true"
               onClick={() => {
@@ -357,9 +373,12 @@ function NavbarContent({
 
             {profileOpen && (
               <div className="absolute right-0 top-[calc(100%+14px)] z-50 w-[320px] max-w-[calc(100vw-24px)] rounded-[12px] border border-[#D9D9D9] bg-white p-5 text-black shadow-[0_5px_20px_rgba(0,0,0,0.12)]">
-                <p className="mb-4 text-[16px] font-medium">
-                  {userName} - {profileRole}
-                </p>
+                <div className="mb-4 min-w-0 text-[16px] font-medium leading-5">
+                  <p className="break-words [overflow-wrap:anywhere]">{userName}</p>
+                  <p className="mt-1 break-words text-sm font-normal text-[#555] [overflow-wrap:anywhere]">
+                    {profileRole}
+                  </p>
+                </div>
 
                 {isAdministrador && historyHref && (
                   <Link

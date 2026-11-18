@@ -11,8 +11,9 @@ export function Footer() {
           <Image
             src="/images/login/fatec-cps-logo.png"
             alt="Fatec Itu e Centro Paula Souza"
-            width={260}
-            height={90}
+            width={866}
+            height={288}
+            sizes="(min-width: 1024px) 260px, (min-width: 640px) 230px, 200px"
             className="h-auto w-[200px] object-contain sm:w-[230px] lg:w-[260px]"
           />
         </div>

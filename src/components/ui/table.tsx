@@ -126,11 +126,13 @@ function DataTable<T>({
                           aria-label={action.label}
                           title={action.label}
                           onClick={() => action.onClick(item)}
+                          disabled={action.disabled?.(item) ?? false}
                           className={cn(
                             "flex size-[34px] items-center justify-center rounded-[7px]",
                             "border border-[#D0D4D8] bg-white",
                             "text-[#0099AA] transition-colors",
                             "hover:bg-[#0099AA]/10",
+                            "disabled:pointer-events-none disabled:opacity-50",
                             action.className,
                           )}
                         >

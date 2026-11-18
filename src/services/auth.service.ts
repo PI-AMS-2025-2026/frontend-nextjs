@@ -4,42 +4,29 @@ import type {
   LoginResponse,
   RefreshTokenRequest,
 } from "@/types/api";
+import {
+  clearSession as limparSessao,
+  getAccessToken,
+  getRefreshToken,
+  invalidatePendingRefresh,
+  refreshSession,
+  storeSession,
+} from "@/services/auth-session";
 
 export const authService = {
   async login(data: LoginRequest) {
     const response = await api.post<LoginResponse>("/auth/login", data, false);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("access_token", response.accessToken);
-      localStorage.setItem("refresh_token", response.refreshToken);
-      localStorage.setItem("usuario", JSON.stringify(response.usuario));
-    }
+    storeSession(response);
     return response;
   },
 
   async refreshToken() {
-    const refreshToken = this.getRefreshToken();
-    if (!refreshToken) {
-      throw new Error("Nenhum refresh token disponível");
-    }
-
-    const response = await api.post<LoginResponse>(
-      "/auth/refresh",
-      { refreshToken } satisfies RefreshTokenRequest,
-      false,
-    );
-
-    if (typeof window !== "undefined") {
-      localStorage.setItem("access_token", response.accessToken);
-      localStorage.setItem("refresh_token", response.refreshToken);
-      if (response.usuario) {
-        localStorage.setItem("usuario", JSON.stringify(response.usuario));
-      }
-    }
-    return response;
+    return refreshSession();
   },
 
   async logout() {
     const refreshToken = this.getRefreshToken();
+    invalidatePendingRefresh();
     if (refreshToken) {
       try {
         await api.post<void>(
@@ -56,21 +43,15 @@ export const authService = {
   },
 
   clearSession() {
-    if (typeof window === "undefined") return;
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-    localStorage.removeItem("usuario");
-    document.cookie = "role=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
+    limparSessao();
   },
 
   getToken() {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem("access_token");
+    return getAccessToken();
   },
 
   getRefreshToken() {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem("refresh_token");
+    return getRefreshToken();
   },
 
   getUser() {

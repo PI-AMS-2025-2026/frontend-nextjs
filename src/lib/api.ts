@@ -1,3 +1,9 @@
+import {
+  expireSession,
+  getAccessToken,
+  refreshSession,
+} from "@/services/auth-session";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
 export class ApiError extends Error {
@@ -10,16 +16,6 @@ export class ApiError extends Error {
     this.status = status;
     this.data = data;
   }
-}
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("access_token");
-}
-
-function getRefreshToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("refresh_token");
 }
 
 function buildUrl(endpoint: string, params?: object) {
@@ -44,7 +40,7 @@ const QUERY_ALIASES: Record<string, Record<string, string>> = {
   "/salas": { tipo_sala: "id_tipo_sala" },
   "/recursos": { tipo_recurso: "id_tipo_recurso" },
   "/recursos-salas": { salaId: "id_sala", recursoId: "id_recurso", sala_id: "id_sala", recurso_id: "id_recurso" },
-  "/quadros-horarios": { curso: "id_curso", periodo_atividade_quadro: "id_periodo_atividade_quadro" },
+  "/quadros-horarios": { curso: "id_curso", turma: "id_turma", periodo_atividade_quadro: "id_periodo_atividade_quadro" },
   "/professores-disciplinas": { usuario: "id_professor", disciplina: "id_disciplina" },
   "/periodos-atividade-quadro": { dataInicio: "data_inicio", dataFim: "data_fim" },
   "/disponibilidades-professores": { professor: "id_professor", bloco_horario: "id_bloco_horario" },
@@ -61,7 +57,7 @@ function queryParameter(endpoint: string, key: string) {
 
 function mapKeys(value: unknown, convert: (key: string) => string): unknown {
   if (Array.isArray(value)) return value.map((item) => mapKeys(item, convert));
-  if (value && typeof value === "object" && !(value instanceof Date)) {
+  if (value && typeof value === "object" && !(value instanceof Date) && !(typeof Blob !== "undefined" && value instanceof Blob)) {
     return Object.fromEntries(Object.entries(value).map(([key, item]) => [convert(key), mapKeys(item, convert)]));
   }
   return value;
@@ -91,7 +87,7 @@ async function request<T>(
   isRetry = false,
   responseBlob = false,
 ): Promise<T> {
-  const token = authenticated ? getToken() : null;
+  const token = authenticated ? getAccessToken() : null;
   const headers = new Headers(options.headers);
 
   if (
@@ -115,42 +111,26 @@ async function request<T>(
 
   if (!response.ok) {
     // Tenta renovar o token automaticamente se receber 401 em rota autenticada
-    if (
-      response.status === 401 &&
-      authenticated &&
-      !isRetry &&
-      !endpoint.includes("/auth/")
-    ) {
-      const refreshToken = getRefreshToken();
-      if (refreshToken) {
-        try {
-          const refreshRes = await fetch(buildUrl("/auth/refresh"), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ refresh_token: refreshToken }),
-          });
-
-          if (refreshRes.ok) {
-            const tokenData = (await refreshRes.json()) as {
-              access_token?: string;
-              refresh_token?: string;
-            };
-            if (tokenData?.access_token) {
-              localStorage.setItem("access_token", tokenData.access_token);
-              if (tokenData.refresh_token) {
-                localStorage.setItem("refresh_token", tokenData.refresh_token);
-              }
-              return request<T>(endpoint, options, params, authenticated, true, responseBlob);
-            }
-          }
-        } catch {
-          // Erro silencioso durante renovação
+    if (response.status === 401 && authenticated && !endpoint.includes("/auth/")) {
+      if (isRetry) {
+        await expireSession();
+      } else {
+        const currentToken = getAccessToken();
+        if (currentToken && currentToken !== token) {
+          return request<T>(endpoint, options, params, authenticated, true, responseBlob);
         }
-      }
 
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
+        try {
+          await refreshSession();
+        } catch (error) {
+          await expireSession();
+          const message = error instanceof Error
+            ? error.message
+            : "Não foi possível renovar a sessão. Entre novamente.";
+          throw new ApiError(message, 401, mapKeys(data, fromApiKey));
+        }
+
+        return request<T>(endpoint, options, params, authenticated, true, responseBlob);
       }
     }
 
@@ -159,9 +139,10 @@ async function request<T>(
         ? String((data as { message?: unknown }).message)
         : `Erro na API (${response.status})`;
 
-    throw new ApiError(message, response.status, data);
+    throw new ApiError(message, response.status, mapKeys(data, fromApiKey));
   }
 
+  if (responseBlob && response.ok) return data as T;
   return mapKeys(data, fromApiKey) as T;
 }
 

@@ -31,14 +31,9 @@ import {
   type Sala,
 } from "./tipos";
 
-import {
-  carregarDados,
-  erroAlocacao,
-  exportarGrade,
-  interpretarSugestao,
-  salvarGrade,
-  validar,
-} from "./integracao";
+import { carregarDados, erroAlocacao, exportarGrade, interpretarSugestao, salvarGrade, validar } from "./integracao";
+import { SelecaoQuadro } from "./selecao-quadro";
+import { pertenceAoTurno, type Turno } from "./turnos";
 
 export type AlocacaoScreenProps = {
   grades: Grade[];
@@ -46,6 +41,8 @@ export type AlocacaoScreenProps = {
   salas: Sala[];
   // O projeto fornece a implementação real da API. Não há endpoint inventado aqui.
   salvarAlocacao: (gradeId: string, aulas: Aula[]) => Promise<Aula[]>;
+  gradeInicialId?: string;
+  aoVoltar?: () => void;
 };
 
 type EstadoModal =
@@ -65,8 +62,10 @@ export function TelaAlocacao({
   disciplinas,
   salas,
   salvarAlocacao,
+  gradeInicialId,
+  aoVoltar,
 }: AlocacaoScreenProps) {
-  const [gradeId, setGradeId] = useState<string | null>(null);
+  const [gradeId, setGradeId] = useState<string | null>(gradeInicialId ?? null);
   const [editando, setEditando] = useState(false);
   const [rascunhos, setRascunhos] = useState<Record<string, Aula[]>>({});
   const [salvas, setSalvas] = useState<Record<string, Aula[]>>({});
@@ -75,10 +74,12 @@ export function TelaAlocacao({
   const [selecionada, setSelecionada] = useState<string | null>(null);
   const [mostrarSelecao, setMostrarSelecao] = useState(false);
   const [diaSelecionado, setDiaSelecionado] = useState<DiaSemana>("segunda");
-  const [turnoSelecionado, setTurnoSelecionado] = useState("todos");
-  const [horarioSelecionado, setHorarioSelecionado] = useState("0");
+  const [turnoSelecionado, setTurnoSelecionado] = useState<Turno>("todos");
+  const [horarioSelecionado, setHorarioSelecionado] = useState("");
   const [modal, setModal] = useState<EstadoModal>(null);
   const [salaId, setSalaId] = useState("");
+  const [professorId, setProfessorId] = useState("");
+  const [erroProfessor, setErroProfessor] = useState("");
   const [erroSala, setErroSala] = useState(false);
   const [erroValidacao, setErroValidacao] = useState("");
   const [salvando, setSalvando] = useState(false);
@@ -98,18 +99,9 @@ export function TelaAlocacao({
     ? salas.filter((item) => grade.salaIds.includes(item.id))
     : [];
   const bloqueado = salvando || processando;
-  const horariosDoTurno =
-    grade?.horarios
-      .map((horario, indice) => ({ horario, indice }))
-      .filter(({ horario }) => {
-        const [hora, minuto] = horario.inicio.split(":").map(Number);
-        const minutos = hora * 60 + minuto;
-        if (turnoSelecionado === "todos") return true;
-        if (turnoSelecionado === "manha") return minutos < 12 * 60;
-        if (turnoSelecionado === "tarde")
-          return minutos >= 12 * 60 && minutos < 18 * 60;
-        return minutos >= 18 * 60;
-      }) ?? [];
+  const horariosDoTurno = grade?.horarios
+    .map((horario, indice) => ({ horario, indice }))
+    .filter(({ horario }) => pertenceAoTurno(horario.inicio, turnoSelecionado)) ?? [];
 
   useEffect(() => {
     if (!modal) return;
@@ -190,7 +182,7 @@ export function TelaAlocacao({
       try {
         const validacao = await validar(
           grade,
-          disciplina,
+          { ...disciplina, professorId: origem.professorId, professor: origem.professor },
           sala.id,
           dia,
           horario,
@@ -205,6 +197,8 @@ export function TelaAlocacao({
             aulaId: origem.id,
           });
           setSalaId(sala.id);
+          setProfessorId(String(origem.professorId ?? ""));
+          setErroProfessor("");
           setErroValidacao(validacao.mensagem);
           setSugestoes(
             validacao.sugestoes.flatMap((s) => {
@@ -227,7 +221,7 @@ export function TelaAlocacao({
       }
       const resultado = alocarAula({
         aulas,
-        disciplina,
+        disciplina: { ...disciplina, professorId: origem.professorId, professor: origem.professor },
         dia,
         horario,
         sala,
@@ -252,6 +246,8 @@ export function TelaAlocacao({
         !aulas.some((rascunho) => rascunho.id === aula.id),
     );
     setSalaId(aulaOriginalRemovida?.salaId ?? "");
+    setProfessorId(aulaOriginalRemovida?.professorId ? String(aulaOriginalRemovida.professorId) : "");
+    setErroProfessor("");
     setSugestoes([]);
     setErroValidacao("");
     setErroSala(false);
@@ -275,11 +271,14 @@ export function TelaAlocacao({
       return;
     }
     if (!disciplina) return;
+    const professor = disciplina.professores?.find(p => String(p.id) === professorId);
+    if (!professor) { setErroProfessor("Selecione um professor vinculado à disciplina."); return; }
+    const disciplinaComProfessor = { ...disciplina, professorId: professor.id, professor: professor.nome };
     setProcessando(true);
     try {
       const validacao = await validar(
         grade,
-        disciplina,
+        disciplinaComProfessor,
         sala.id,
         modal.dia,
         modal.horario,
@@ -305,7 +304,7 @@ export function TelaAlocacao({
     }
     const resultado = alocarAula({
       aulas,
-      disciplina,
+      disciplina: disciplinaComProfessor,
       sala,
       dia: modal.dia,
       horario: modal.horario,
@@ -389,6 +388,7 @@ export function TelaAlocacao({
                 aria-label="Voltar para a listagem de grades"
                 disabled={bloqueado}
                 onClick={() => {
+                  if (aoVoltar) { aoVoltar(); return; }
                   setGradeId(null);
                   setEditando(false);
                   setSelecionada(null);
@@ -432,7 +432,7 @@ export function TelaAlocacao({
             </div>
           </div>
           {grade && (
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-end gap-2">
               {!editando && (
                 <Button
                   type="button"
@@ -451,22 +451,32 @@ export function TelaAlocacao({
                 </Button>
               )}
 
+              <div className="w-[220px] max-w-full">
+                <label className="mb-2 block text-sm font-medium text-[#17264D]">Turno</label>
+                <Select
+                  aria-label="Turno"
+                  className="[&>button]:h-10"
+                  options={[
+                    { label: "Todos os turnos", value: "todos" },
+                    { label: "Manhã", value: "manha" },
+                    { label: "Tarde", value: "tarde" },
+                    { label: "Noite", value: "noite" },
+                  ]}
+                  value={turnoSelecionado}
+                  onChange={(turno) => { setTurnoSelecionado(turno as Turno); setHorarioSelecionado(""); }}
+                  disabled={bloqueado}
+                />
+              </div>
               <Button
                 type="button"
                 disabled={bloqueado}
                 onClick={async () => {
-                  setProcessando(true);
-                  try {
-                    await exportarGrade(grade);
-                  } catch (error) {
-                    setModal({
-                      tipo: "aviso",
-                      titulo: "Não foi possível exportar",
-                      texto: erroAlocacao(error),
-                    });
-                  } finally {
-                    setProcessando(false);
+                  if (editando && JSON.stringify(aulas) !== JSON.stringify(aulasSalvas)) {
+                    setModal({ tipo: "aviso", titulo: "Salve as alterações antes de exportar", texto: "O arquivo contém as alocações salvas do quadro." });
+                    return;
                   }
+                  setProcessando(true);
+                  try { await exportarGrade(grade); } catch (error) { setModal({ tipo: "aviso", titulo: "Não foi possível exportar", texto: erroAlocacao(error) }); } finally { setProcessando(false); }
                 }}
                 variant="primary"
                 size="small"
@@ -528,7 +538,7 @@ export function TelaAlocacao({
               {editando && mostrarSelecao && (
                 <div
                   id="alocacao-por-selecao"
-                  className="grid gap-3 rounded-lg border border-[#D9D9D9] bg-[#F2F2F2] p-3 lg:grid-cols-[2fr_1fr_1fr_1fr_auto]"
+                  className="grid gap-3 rounded-lg border border-[#D9D9D9] bg-[#F2F2F2] p-3 lg:grid-cols-[2fr_1fr_1fr_auto]"
                 >
                   <Select
                     options={disciplinasDaGrade.map((disciplina) => ({
@@ -551,21 +561,6 @@ export function TelaAlocacao({
                       if (dia) setDiaSelecionado(dia.key);
                     }}
                     placeholder="Selecione o dia"
-                    className="[&>div]:bg-white"
-                  />
-                  <Select
-                    options={[
-                      { label: "Todos os turnos", value: "todos" },
-                      { label: "Manhã", value: "manha" },
-                      { label: "Tarde", value: "tarde" },
-                      { label: "Noite", value: "noite" },
-                    ]}
-                    value={turnoSelecionado}
-                    onChange={(turno) => {
-                      setTurnoSelecionado(turno);
-                      setHorarioSelecionado("0");
-                    }}
-                    placeholder="Selecione o turno"
                     className="[&>div]:bg-white"
                   />
                   <Select
@@ -614,7 +609,7 @@ export function TelaAlocacao({
               <div className="max-w-full overflow-x-auto">
                 <div className="min-w-[1050px]">
                   <Timetable
-                    horarios={grade.horarios}
+                    horarios={horariosDoTurno.map(({ horario }) => horario)}
                     intervalos={grade.intervalos}
                     aulas={aulas}
                     somenteLeitura={!editando || bloqueado}
@@ -634,6 +629,7 @@ export function TelaAlocacao({
                   />
                 </div>
               </div>
+              {horariosDoTurno.length === 0 && <p role="status" className="text-sm text-[#777777]">Nenhum bloco de horário disponível neste turno.</p>}
               <p
                 className="mt-3 text-right text-xs text-[#777777]"
                 aria-live="polite"
@@ -653,7 +649,7 @@ export function TelaAlocacao({
               setArrastando(false);
               setMostrarSelecao(false);
               setDiaSelecionado("segunda");
-              setHorarioSelecionado("0");
+              setHorarioSelecionado("");
               origemDoArraste.current = null;
               setMensagem("Grade aberta para visualização.");
             }}
@@ -682,8 +678,13 @@ export function TelaAlocacao({
               {modal.horario.inicio} - {modal.horario.fim}
             </span>
           </p>
-          {!erroValidacao && (
-            <div className="mb-8 mt-6">
+          <div className="mt-6">
+            <label className="mb-2 block text-sm font-medium">Professor</label>
+            <Select aria-label="Professor" options={(disciplinaPendente?.professores ?? []).map(p => ({ value: String(p.id), label: p.nome }))} value={professorId} placeholder="Selecione o professor" disabled={bloqueado || !disciplinaPendente?.professores?.length} onChange={valor => { setProfessorId(valor); setErroProfessor(""); setErroValidacao(""); setSugestoes([]); }} />
+            {!disciplinaPendente?.professores?.length && <p role="alert" className="mt-2 text-sm text-red-700">Esta disciplina não possui professor ativo vinculado.</p>}
+            {erroProfessor && <p role="alert" className="mt-2 text-sm text-red-700">{erroProfessor}</p>}
+          </div>
+          <div className="mb-8 mt-6">
               <RoomSelect
                 salas={salasDaGrade}
                 value={salaId}
@@ -694,7 +695,6 @@ export function TelaAlocacao({
                 }}
               />
             </div>
-          )}
           {erroValidacao && (
             <p role="alert" className="mt-6 text-sm text-red-700">
               {erroValidacao}
@@ -741,10 +741,9 @@ export function TelaAlocacao({
             >
               {erroValidacao ? "Voltar à grade" : "Cancelar"}
             </Button>
-            {!erroValidacao && (
               <Button
                 type="button"
-                disabled={bloqueado || !salasDaGrade.length}
+                disabled={bloqueado || !salasDaGrade.length || !disciplinaPendente?.professores?.length}
                 onClick={() => void confirmarSala()}
                 variant="secondary"
                 size="small"
@@ -752,7 +751,6 @@ export function TelaAlocacao({
               >
                 Confirmar
               </Button>
-            )}
           </div>
         </Modal>
       )}
@@ -813,70 +811,29 @@ export function TelaAlocacao({
 }
 
 export default function Alocacao() {
-  const [dados, setDados] = useState<Awaited<
-    ReturnType<typeof carregarDados>
-  > | null>(null);
+  const [dados, setDados] = useState<Awaited<ReturnType<typeof carregarDados>> | null>(null);
+  const [quadroId, setQuadroId] = useState<number | null>(null);
   const [erro, setErro] = useState("");
   const [tentativa, setTentativa] = useState(0);
   useEffect(() => {
     let ativo = true;
-    carregarDados()
-      .then((resultado) => {
-        if (ativo) {
-          setDados(resultado);
-          setErro("");
-        }
-      })
-      .catch((error) => {
-        if (ativo) setErro(erroAlocacao(error));
-      });
-    return () => {
-      ativo = false;
-    };
-  }, [tentativa]);
-  if (erro)
-    return (
-      <div role="alert" className="p-8">
-        {erro}{" "}
-        <Button
-          onClick={() => {
-            setErro("");
-            setTentativa((n) => n + 1);
-          }}
-        >
-          Tentar novamente
-        </Button>
-      </div>
-    );
-  if (!dados)
-    return (
-      <div role="status" className="p-8">
-        Carregando grades...
-      </div>
-    );
-  return (
-    <TelaAlocacao
-      grades={dados.grades}
-      disciplinas={dados.disciplinas}
-      salas={dados.salas}
-      salvarAlocacao={async (id, aulas) => {
-        const grade = dados.grades.find((g) => g.id === id);
-        if (!grade) throw new Error("ALOCACAO:Grade não encontrada.");
-        try {
-          await salvarGrade(grade, aulas, dados.disciplinas);
-        } catch (error) {
-          try {
-            setDados(await carregarDados());
-          } catch {
-            setDados(null);
-            setTentativa((n) => n + 1);
-          }
-          throw error;
-        }
-        const atualizados = await carregarDados();
-        setDados(atualizados);
-        return atualizados.grades.find((g) => g.id === id)?.aulas ?? [];
-      }}
-    />
-  );
+    if (quadroId === null) return () => { ativo = false; };
+    carregarDados(quadroId).then(resultado => { if (ativo) { setDados(resultado); setErro(""); } }).catch(error => { if (ativo) setErro(erroAlocacao(error)); });
+    return () => { ativo = false; };
+  }, [tentativa, quadroId]);
+  if (quadroId === null) return <SelecaoQuadro aoSelecionar={setQuadroId} />;
+  if (erro) return <div role="alert" className="p-8">{erro} <Button onClick={() => { setErro(""); setTentativa(n => n + 1); }}>Tentar novamente</Button></div>;
+  if (!dados) return <div role="status" className="p-8">Carregando grades...</div>;
+  if (!dados.grades.length) return <div role="alert" className="p-8">O quadro selecionado não está ativo ou não possui turma. <Button onClick={() => { setDados(null); setQuadroId(null); }}>Voltar</Button></div>;
+  return <TelaAlocacao key={quadroId} gradeInicialId={dados.grades[0].id} aoVoltar={() => { setDados(null); setQuadroId(null); }} grades={dados.grades} disciplinas={dados.disciplinas} salas={dados.salas} salvarAlocacao={async (id, aulas) => {
+    const grade = dados.grades.find(g => g.id === id);
+    if (!grade) throw new Error("ALOCACAO:Grade não encontrada.");
+    try { await salvarGrade(grade, aulas, dados.disciplinas); } catch (error) {
+      try { setDados(await carregarDados(quadroId)); } catch { setDados(null); setTentativa(n => n + 1); }
+      throw error;
+    }
+    const atualizados = await carregarDados(quadroId);
+    setDados(atualizados);
+    return atualizados.grades.find(g => g.id === id)?.aulas ?? [];
+  }} />;
 }

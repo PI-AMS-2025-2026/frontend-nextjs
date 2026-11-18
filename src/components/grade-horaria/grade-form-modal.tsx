@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import type { PeriodoAtividadeQuadroResponse, QuadroHorarioResponse, Status } from "@/types/api";
+import type { PeriodoAtividadeQuadroResponse, QuadroHorarioResponse, TurmaResponse, Status } from "@/types/api";
 
 export interface GradeFormValues {
     versao: number;
+    turmaId: number;
     periodoAtividadeQuadroId: number;
     status: Status;
 }
@@ -20,6 +21,7 @@ interface GradeFormModalProps {
     mode: "cadastrar" | "editar";
     grade?: QuadroHorarioResponse | null;
     periodos: PeriodoAtividadeQuadroResponse[];
+    turmas: TurmaResponse[];
     cursoNome: string;
     onConfirm: (dados: GradeFormValues) => void;
     submitting?: boolean;
@@ -38,6 +40,7 @@ export function GradeFormModal({
     mode,
     grade,
     periodos,
+    turmas,
     cursoNome,
     onConfirm,
     submitting = false,
@@ -50,6 +53,7 @@ export function GradeFormModal({
                 mode={mode}
                 grade={grade}
                 periodos={periodos}
+                turmas={turmas}
                 cursoNome={cursoNome}
                 onCancel={onClose}
                 onConfirm={onConfirm}
@@ -64,6 +68,7 @@ function GradeFormConteudo({
     mode,
     grade,
     periodos,
+    turmas,
     cursoNome,
     onCancel,
     onConfirm,
@@ -73,6 +78,7 @@ function GradeFormConteudo({
     mode: "cadastrar" | "editar";
     grade?: QuadroHorarioResponse | null;
     periodos: PeriodoAtividadeQuadroResponse[];
+    turmas: TurmaResponse[];
     cursoNome: string;
     onCancel: () => void;
     onConfirm: (dados: GradeFormValues) => void;
@@ -81,6 +87,7 @@ function GradeFormConteudo({
 }) {
     const [valores, setValores] = React.useState<GradeFormValues>({
         versao: grade?.versao ?? 1,
+        turmaId: grade?.turma?.id ?? 0,
         periodoAtividadeQuadroId: grade?.periodoAtividadeQuadro.id ?? 0,
         status: grade?.status ?? "ATIVO",
     });
@@ -98,8 +105,8 @@ function GradeFormConteudo({
     }
 
     function handleConfirmar() {
-        if (valores.versao < 1 || !valores.periodoAtividadeQuadroId) {
-            setErro("Informe a versão e selecione um período letivo ativo.");
+        if (valores.versao < 1 || !valores.periodoAtividadeQuadroId || !valores.turmaId) {
+            setErro("Informe a versão e selecione uma turma e um período letivo ativo.");
             return;
         }
         onConfirm(valores);
@@ -124,6 +131,10 @@ function GradeFormConteudo({
                     <p className="rounded-lg border border-[#D0D4D8] bg-[#F2F2F2] px-3 py-2 text-sm">{cursoNome}</p>
                 </div>
 
+                <div className="flex flex-col gap-2 sm:col-span-2">
+                    <label className="text-sm font-medium text-[#17264D]">Turma</label>
+                    <Select aria-label="Turma" options={turmas.map(t => ({ value: String(t.id), label: `${t.codigo} · ${t.ano} · ${t.periodo}º período` }))} value={valores.turmaId ? String(valores.turmaId) : ""} onChange={v => atualizar("turmaId", Number(v))} placeholder="Selecione a turma" disabled={mode === "editar" || submitting || !turmas.length} />
+                </div>
                 <div className="flex flex-col gap-2 sm:col-span-2">
                     <label className="text-sm font-medium text-[#17264D]">Período Atividade Quadro</label>
                     <Select

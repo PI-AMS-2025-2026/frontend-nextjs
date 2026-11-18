@@ -57,8 +57,8 @@ export default function CadastroUsuario() {
     });
     const [loading, setLoading] = React.useState(true);
     const [cursos, setCursos] = React.useState<CursoResponse[]>([]);
-    const [carregandoCursos, setCarregandoCursos] = React.useState(false);
     const [erroCursos, setErroCursos] = React.useState("");
+    const [tentativaCursos, setTentativaCursos] = React.useState(0);
 
     const [search, setSearch] = React.useState("");
     const [filters, setFilters] = React.useState<{ status: string; tipo: string }>({
@@ -74,9 +74,13 @@ export default function CadastroUsuario() {
     const [formulario, setFormulario] = React.useState<FormUsuario>(formularioInicial);
     const [senha, setSenha] = React.useState("");
     const [erro, setErro] = React.useState("");
+    const [errosCampos, setErrosCampos] = React.useState<Record<string, string>>({});
     const [modalSucesso, setModalSucesso] = React.useState(false);
     const [mensagemSucesso, setMensagemSucesso] = React.useState("");
     const [submitting, setSubmitting] = React.useState(false);
+    const [usuarioParaInativar, setUsuarioParaInativar] = React.useState<UsuarioResponse | null>(null);
+    const [erroInativacao, setErroInativacao] = React.useState("");
+    const [inativando, setInativando] = React.useState(false);
 
     // Alterar a busca ou os filtros volta para a primeira pagina. O reset
     // acontece junto da acao do usuario, em vez de um efeito reagindo ao
@@ -128,43 +132,30 @@ export default function CadastroUsuario() {
         };
     }, [carregarUsuarios]);
 
-    const carregarCursos = React.useCallback(async () => {
-        setCarregandoCursos(true);
-        setErroCursos("");
-        try {
-            const primeiraPagina = await cursosService.listar({ page: 0, size: 100 });
-            const paginasRestantes = await Promise.all(
-                Array.from({ length: Math.max(0, primeiraPagina.totalPages - 1) }, (_, index) =>
-                    cursosService.listar({ page: index + 1, size: 100 }),
-                ),
-            );
-            setCursos(
-                [...primeiraPagina.content, ...paginasRestantes.flatMap((pagina) => pagina.content)]
-                    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
-            );
-        } catch (err) {
-            console.error("Erro ao carregar cursos:", err);
-            setCursos([]);
-            setErroCursos("Não foi possível carregar os cursos do servidor.");
-        } finally {
-            setCarregandoCursos(false);
-        }
-    }, []);
-
     React.useEffect(() => {
-        void Promise.resolve().then(() => carregarCursos());
-    }, [carregarCursos]);
+        let ativo = true;
+        cursosService.listarTodos({ status: "ATIVO" })
+            .then((resposta) => {
+                if (ativo) { setCursos(resposta); setErroCursos(""); }
+            })
+            .catch(() => { if (ativo) { setCursos([]); setErroCursos("Não foi possível carregar os cursos."); } });
+        return () => {
+            ativo = false;
+        };
+    }, [tentativaCursos]);
 
     function abrirCadastro() {
+        setTentativaCursos((atual) => atual + 1);
         setUsuarioEditando(null);
         setFormulario(formularioInicial);
         setSenha("");
         setErro("");
+        setErrosCampos({});
         setModalAberto(true);
-        void carregarCursos();
     }
 
     function abrirEdicao(usuario: UsuarioResponse) {
+        setTentativaCursos((atual) => atual + 1);
         setUsuarioEditando(usuario);
         setFormulario({
             nome: usuario.nome,
@@ -175,8 +166,8 @@ export default function CadastroUsuario() {
         });
         setSenha("");
         setErro("");
+        setErrosCampos({});
         setModalAberto(true);
-        void carregarCursos();
     }
 
     function fecharModal() {
@@ -185,27 +176,33 @@ export default function CadastroUsuario() {
         setFormulario(formularioInicial);
         setSenha("");
         setErro("");
+        setErrosCampos({});
     }
 
     async function salvarUsuario(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
         if (!formulario.nome.trim() || !formulario.email.trim() || !formulario.tipoUsuario) {
-            setErro("Preencha todos os campos obrigatórios.");
+            setErrosCampos({
+                ...(!formulario.nome.trim() ? { nome: "Nome é obrigatório." } : {}),
+                ...(!formulario.email.trim() ? { email: "E-mail é obrigatório." } : {}),
+                ...(!formulario.tipoUsuario ? { tipoUsuario: "Tipo de usuário é obrigatório." } : {}),
+            });
             return;
         }
 
         if (!usuarioEditando && !senha.trim()) {
-            setErro("A senha é obrigatória para cadastrar um novo usuário.");
+            setErrosCampos({ senha: "A senha é obrigatória para cadastrar um novo usuário." });
             return;
         }
 
         if (formulario.tipoUsuario === "COORDENADOR" && !formulario.cursoId) {
-            setErro("Selecione o curso do coordenador.");
+            setErrosCampos({ curso: "Selecione o curso do coordenador." });
             return;
         }
 
         setErro("");
+        setErrosCampos({});
         setSubmitting(true);
 
         try {
@@ -233,7 +230,26 @@ export default function CadastroUsuario() {
             carregarUsuarios();
         } catch (err) {
             if (err instanceof ApiError) {
-                setErro(err.message || "Erro ao salvar usuário.");
+                const data = err.data as { fieldErrors?: Array<{ field?: string; message?: string }>; errors?: string[] } | undefined;
+                const fieldErrors: Record<string, string> = {};
+                for (const item of data?.fieldErrors ?? []) {
+                    if (item.field && item.message) fieldErrors[item.field] = item.message;
+                }
+                for (const message of data?.errors ?? []) {
+                    const normalized = message.toLocaleLowerCase("pt-BR");
+                    const field = normalized.includes("nome") ? "nome"
+                        : normalized.includes("e-mail") || normalized.includes("email") ? "email"
+                        : normalized.includes("senha") ? "senha"
+                        : normalized.includes("tipo de usuário") ? "tipoUsuario"
+                        : normalized.includes("curso") ? "curso"
+                        : undefined;
+                    if (field && !fieldErrors[field]) fieldErrors[field] = message;
+                }
+                if (err.message.toLocaleLowerCase("pt-BR").includes("curso")) {
+                    fieldErrors.curso ??= err.message;
+                }
+                setErrosCampos(fieldErrors);
+                setErro(Object.keys(fieldErrors).length ? "" : err.message || "Erro ao salvar usuário.");
             } else {
                 setErro("Erro inesperado ao salvar usuário.");
             }
@@ -242,17 +258,29 @@ export default function CadastroUsuario() {
         }
     }
 
-    async function excluirUsuario(usuario: UsuarioResponse) {
-        const confirmou = window.confirm(`Deseja excluir o usuário "${usuario.nome}"?`);
-        if (!confirmou) return;
+    function abrirInativacao(usuario: UsuarioResponse) {
+        setErroInativacao("");
+        setUsuarioParaInativar(usuario);
+    }
 
+    function fecharInativacao() {
+        if (!inativando) setUsuarioParaInativar(null);
+    }
+
+    async function confirmarInativacao() {
+        if (!usuarioParaInativar || inativando) return;
+        setInativando(true);
+        setErroInativacao("");
         try {
-            await usuariosService.deletar(usuario.id);
-            setMensagemSucesso("Usuário excluído com sucesso!");
+            await usuariosService.deletar(usuarioParaInativar.id);
+            setUsuarioParaInativar(null);
+            setMensagemSucesso("Usuário inativado com sucesso!");
             setModalSucesso(true);
             carregarUsuarios();
         } catch (err) {
-            alert(err instanceof ApiError ? err.message : "Erro ao excluir usuário.");
+            setErroInativacao(err instanceof ApiError && err.message ? err.message : "Erro ao inativar usuário.");
+        } finally {
+            setInativando(false);
         }
     }
 
@@ -261,13 +289,12 @@ export default function CadastroUsuario() {
             ...prev,
             [campo]: valor,
         }));
-    }
-
-    const cursosAtivos = cursos.filter((curso) => curso.status === "ATIVO");
-    const cursosParaSelecionar = [...cursosAtivos];
-    const cursoAtual = usuarioEditando?.curso;
-    if (cursoAtual && !cursosParaSelecionar.some((curso) => curso.id === cursoAtual.id)) {
-        cursosParaSelecionar.push(cursoAtual);
+        setErrosCampos((prev) => {
+            if (!(campo in prev)) return prev;
+            const proximo = { ...prev };
+            delete proximo[campo];
+            return proximo;
+        });
     }
 
     return (
@@ -388,9 +415,9 @@ export default function CadastroUsuario() {
                                         onClick: abrirEdicao,
                                     },
                                     {
-                                        label: "Excluir usuário",
+                                        label: "Inativar usuário",
                                         icon: <Trash2 className="size-5 text-red-500" />,
-                                        onClick: excluirUsuario,
+                                        onClick: abrirInativacao,
                                     },
                                 ]}
                             />
@@ -420,17 +447,23 @@ export default function CadastroUsuario() {
                         </h2>
                     </div>
 
-                    <form onSubmit={salvarUsuario} className="grid grid-cols-2 gap-x-5 gap-y-6">
+                    <form onSubmit={salvarUsuario} className="grid grid-cols-2 items-start gap-x-5 gap-y-5">
+                        <div className="min-w-0">
                         <Input
                             label="Nome"
                             showLabel
                             placeholder="Digite o nome..."
                             value={formulario.nome}
                             onChange={(event) => alterarCampo("nome", event.target.value)}
+                            aria-invalid={!!errosCampos.nome}
+                            aria-describedby={errosCampos.nome ? "usuario-nome-erro" : undefined}
                             height="34px"
-                            className="rounded-[7px] bg-white text-[12px]"
+                            className={`rounded-[7px] bg-white text-[12px] ${errosCampos.nome ? "border-[#BA1A1A] focus:border-[#BA1A1A]" : ""}`}
                         />
+                        {errosCampos.nome && <p id="usuario-nome-erro" className="mt-1.5 text-[11px] leading-4 text-[#BA1A1A]">{errosCampos.nome}</p>}
+                        </div>
 
+                        <div className="min-w-0">
                         <Input
                             label="Email"
                             showLabel
@@ -438,9 +471,13 @@ export default function CadastroUsuario() {
                             placeholder="Digite o email..."
                             value={formulario.email}
                             onChange={(event) => alterarCampo("email", event.target.value)}
+                            aria-invalid={!!errosCampos.email}
+                            aria-describedby={errosCampos.email ? "usuario-email-erro" : undefined}
                             height="34px"
-                            className="rounded-[7px] bg-white text-[12px]"
+                            className={`rounded-[7px] bg-white text-[12px] ${errosCampos.email ? "border-[#BA1A1A] focus:border-[#BA1A1A]" : ""}`}
                         />
+                        {errosCampos.email && <p id="usuario-email-erro" className="mt-1.5 text-[11px] leading-4 text-[#BA1A1A]">{errosCampos.email}</p>}
+                        </div>
 
                         <div className="col-span-2 grid grid-cols-[1fr_1fr_auto] items-end gap-5">
                             <div>
@@ -472,6 +509,7 @@ export default function CadastroUsuario() {
                                 />
                             </div>
 
+                            <div className="min-w-0">
                             <Input
                                 label="Senha"
                                 showLabel
@@ -479,9 +517,13 @@ export default function CadastroUsuario() {
                                 placeholder={usuarioEditando ? "Manter senha atual" : "Digite a senha..."}
                                 value={senha}
                                 onChange={(event) => setSenha(event.target.value)}
+                                aria-invalid={!!errosCampos.senha}
+                                aria-describedby={errosCampos.senha ? "usuario-senha-erro" : undefined}
                                 height="34px"
-                                className="rounded-[7px] bg-white text-[12px]"
+                                className={`rounded-[7px] bg-white text-[12px] ${errosCampos.senha ? "border-[#BA1A1A] focus:border-[#BA1A1A]" : ""}`}
                             />
+                            {errosCampos.senha && <p id="usuario-senha-erro" className="mt-1.5 text-[11px] leading-4 text-[#BA1A1A]">{errosCampos.senha}</p>}
+                            </div>
 
                             <div>
                                 <label className="mb-2 block text-[11px] font-medium text-black">
@@ -524,26 +566,22 @@ export default function CadastroUsuario() {
                                 </label>
                                 <Dropdown
                                     value={formulario.cursoId}
-                                    onChange={(cursoId) => alterarCampo("cursoId", cursoId)}
-                                    placeholder={carregandoCursos ? "Carregando cursos..." : "Selecione o curso..."}
-                                    options={cursosParaSelecionar.map((curso) => ({
-                                        label: `${curso.nome}${curso.status === "INATIVO" ? " (inativo)" : ""}`,
-                                        value: String(curso.id),
-                                    }))}
-                                    disabled={carregandoCursos || !!erroCursos || !cursosParaSelecionar.length}
+                                    onChange={(id) => alterarCampo("cursoId", id)}
+                                    placeholder="Selecione o curso..."
+                                    options={[
+                                        ...cursos,
+                                        ...(usuarioEditando?.curso?.status === "INATIVO"
+                                            && String(usuarioEditando.curso.id) === formulario.cursoId
+                                            ? [usuarioEditando.curso] : []),
+                                    ].map((curso) => ({ label: `${curso.nome} — ${curso.periodicidade}, ${curso.duracao} ${curso.periodicidade === "Anual" ? "anos" : "semestres"}${curso.status === "INATIVO" ? " (inativo)" : ""}`, value: String(curso.id) }))}
                                     className="[&>button]:h-[34px] [&>button]:rounded-[7px] [&>button]:border-[#17264D] [&>button]:bg-white [&>button]:text-[12px]"
                                 />
-                                {erroCursos && (
-                                    <div className="mt-1 flex items-center gap-2 text-[11px] text-[#BA1A1A]">
-                                        <span>{erroCursos}</span>
-                                        <button type="button" className="font-semibold underline" onClick={() => void carregarCursos()}>Tentar novamente</button>
-                                    </div>
-                                )}
-                                {!carregandoCursos && !erroCursos && cursosAtivos.length === 0 && (
-                                    <p className="mt-1 text-[11px] text-[#666]">Nenhum curso ativo disponível.</p>
-                                )}
+                                {erroCursos && <p role="alert" className="mt-1 text-[12px] text-[#BA1A1A]">{erroCursos} <button type="button" className="underline" onClick={() => setTentativaCursos((atual) => atual + 1)}>Tentar novamente</button></p>}
+                                {errosCampos.curso && <p className="mt-1 text-[12px] text-[#BA1A1A]">{errosCampos.curso}</p>}
                             </div>
                         )}
+
+                        {errosCampos.tipoUsuario && <p className="col-span-2 -mt-3 text-[11px] leading-4 text-[#BA1A1A]">{errosCampos.tipoUsuario}</p>}
 
                         {erro && (
                             <p className="col-span-2 text-[12px] font-medium text-[#BA1A1A]">
@@ -564,13 +602,40 @@ export default function CadastroUsuario() {
                                 type="submit"
                                 variant="secondary"
                                 size="small"
-                                disabled={submitting || carregandoCursos || (formulario.tipoUsuario === "COORDENADOR" && !formulario.cursoId)}
+                                disabled={submitting}
                                 className="h-[35px] rounded-[7px] px-6 text-[12px]"
                             >
                                 {submitting ? "SALVANDO..." : "CONFIRMAR"}
                             </Button>
                         </div>
                     </form>
+                </div>
+            </Modal>
+
+            <Modal
+                open={usuarioParaInativar !== null}
+                onClose={fecharInativacao}
+                closeDisabled={inativando}
+                labelledBy="inativar-usuario-titulo"
+                describedBy="inativar-usuario-descricao"
+                className="max-w-xl overflow-visible"
+            >
+                <div className="flex flex-col gap-4">
+                    <h2 id="inativar-usuario-titulo" className="pr-12 text-xl font-semibold">
+                        Inativar usuário
+                    </h2>
+                    <p id="inativar-usuario-descricao" className="wrap-anywhere text-sm">
+                        Deseja inativar <strong>{usuarioParaInativar?.nome}</strong>? O usuário poderá ser reativado depois.
+                    </p>
+                    {erroInativacao && <p role="alert" className="text-sm text-[#BA1A1A]">{erroInativacao}</p>}
+                    <div className="flex flex-wrap justify-end gap-3">
+                        <Button type="button" variant="ghost" size="small" autoFocus disabled={inativando} onClick={fecharInativacao}>
+                            Cancelar
+                        </Button>
+                        <Button type="button" variant="danger" size="small" disabled={inativando} onClick={confirmarInativacao}>
+                            {inativando ? "Inativando..." : "Inativar"}
+                        </Button>
+                    </div>
                 </div>
             </Modal>
 

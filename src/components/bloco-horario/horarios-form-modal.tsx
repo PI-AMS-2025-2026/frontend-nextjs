@@ -123,6 +123,7 @@ function HorarioFormConteudo({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Input
           label="Início"
+          aria-label="Início"
           showLabel
           type="time"
           value={horaInicio}
@@ -134,6 +135,7 @@ function HorarioFormConteudo({
 
         <Input
           label="Fim"
+          aria-label="Fim"
           showLabel
           type="time"
           value={horaFim}
