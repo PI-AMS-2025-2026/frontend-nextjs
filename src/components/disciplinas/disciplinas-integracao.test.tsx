@@ -35,8 +35,50 @@ describe("disciplinas integradas", () => {
     fireEvent.click(screen.getByRole("button", { name: "Editar" }));
     expect(screen.getByDisplayValue("BD02")).toBeInTheDocument();
     expect(screen.getByDisplayValue("4")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Curso vinculado" })).toHaveTextContent(registro.curso.nome);
+    expect(screen.getByRole("button", { name: "Tipo de sala" })).toHaveTextContent(registro.tipoSala.nome);
     fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
     await waitFor(() => expect(disciplinasService.atualizar).toHaveBeenCalledWith(9, expect.objectContaining({ codDisciplina: "BD02", periodo: 4, curso: { id: 2 }, tipoSala: { id: 3 } })));
+  });
+
+  it("seleciona opções com nomes longos e envia os IDs no cadastro e na edição", async () => {
+    const curso = { ...registro.curso, id: 12, nome: "Curso de Análise e Desenvolvimento de Sistemas de Informação" };
+    const tipoSala = { id: 17, nome: "Laboratório para atividades práticas de redes e infraestrutura" };
+    vi.mocked(cursosService.listarTodos).mockResolvedValue([registro.curso, curso]);
+    vi.mocked(tiposSalaService.listar).mockResolvedValue([registro.tipoSala, tipoSala]);
+    vi.mocked(disciplinasService.criar).mockResolvedValue({ ...registro, id: 10, curso, tipoSala });
+    vi.mocked(disciplinasService.atualizar).mockResolvedValue({ ...registro, curso, tipoSala });
+
+    function selecionar(campo: string, opcao: string) {
+      const seletor = screen.getByRole("button", { name: campo });
+      fireEvent.click(seletor);
+      expect(seletor).toHaveAttribute("aria-expanded", "true");
+      fireEvent.click(screen.getByRole("button", { name: opcao }));
+      expect(seletor).toHaveTextContent(opcao);
+      expect(seletor).toHaveAttribute("aria-expanded", "false");
+    }
+
+    render(<DisciplinasListagem />);
+    await screen.findByText("Banco de Dados");
+    fireEvent.click(screen.getByRole("button", { name: "Editar" }));
+    selecionar("Curso vinculado", curso.nome);
+    selecionar("Tipo de sala", tipoSala.nome);
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+    await waitFor(() => expect(disciplinasService.atualizar).toHaveBeenCalledWith(9, expect.objectContaining({ curso: { id: 12 }, tipoSala: { id: 17 } })));
+    await screen.findByText("Disciplina editada com sucesso!");
+    fireEvent.click(screen.getByRole("button", { name: "Fechar modal" }));
+
+    fireEvent.click(screen.getByRole("button", { name: /Cadastrar/ }));
+    fireEvent.change(screen.getByPlaceholderText("Digite aqui..."), { target: { value: "Nova disciplina" } });
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Carga horária" }), { target: { value: "40" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Código da disciplina" }), { target: { value: "BD03" } });
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Período curricular" }), { target: { value: "4" } });
+    selecionar("Tipo da disciplina", "Teórica");
+    selecionar("Modalidade", "Presencial");
+    selecionar("Curso vinculado", curso.nome);
+    selecionar("Tipo de sala", tipoSala.nome);
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+    await waitFor(() => expect(disciplinasService.criar).toHaveBeenCalledWith(expect.objectContaining({ curso: { id: 12 }, tipoSala: { id: 17 } })));
   });
 
   it("exibe falha de carregamento sem apresentar dados fictícios", async () => {

@@ -12,11 +12,10 @@ import {
     type Modalidade,
     type Periodo,
     type TipoDisciplina,
-    type TipoSala,
 } from "@/lib/disciplinas";
 import type { CursoResponse, TipoSalaResponse } from "@/types/api";
 
-interface DadosDisciplina {
+export interface DadosDisciplina {
     nome: string;
     cargaHoraria: number;
     tipo: TipoDisciplina;
@@ -24,9 +23,11 @@ interface DadosDisciplina {
     modalidade: Modalidade;
     codigo: string;
     cor: string;
-    cursoVinculado: string;
-    tipoSala: TipoSala;
+    cursoId: number;
+    tipoSalaId: number;
 }
+
+export type DisciplinaComVinculos = Disciplina & Pick<DadosDisciplina, "cursoId" | "tipoSalaId">;
 
 interface FormValues {
     nome: string;
@@ -36,15 +37,15 @@ interface FormValues {
     modalidade: Modalidade | "";
     codigo: string;
     cor: string;
-    cursoVinculado: string;
-    tipoSala: TipoSala | "";
+    cursoId: string;
+    tipoSalaId: string;
 }
 
 interface DisciplinaFormModalProps {
     open: boolean;
     onClose: () => void;
     mode: "cadastrar" | "editar";
-    disciplina?: Disciplina | null;
+    disciplina?: DisciplinaComVinculos | null;
     cursos: CursoResponse[];
     tiposSala: TipoSalaResponse[];
     onConfirm: (dados: DadosDisciplina) => void | Promise<void>;
@@ -83,7 +84,7 @@ function DisciplinaFormConteudo({
     onConfirm,
 }: {
     mode: "cadastrar" | "editar";
-    disciplina?: Disciplina | null;
+    disciplina?: DisciplinaComVinculos | null;
     cursos: CursoResponse[];
     tiposSala: TipoSalaResponse[];
     onCancel: () => void;
@@ -97,8 +98,8 @@ function DisciplinaFormConteudo({
         modalidade: disciplina?.modalidade ?? "",
         codigo: disciplina?.codigo ?? "",
         cor: disciplina?.cor ?? CORES_DISCIPLINA[0].hex,
-        cursoVinculado: disciplina?.cursoVinculado ?? "",
-        tipoSala: disciplina?.tipoSala ?? "",
+        cursoId: disciplina ? String(disciplina.cursoId) : "",
+        tipoSalaId: disciplina ? String(disciplina.tipoSalaId) : "",
     });
     const [erro, setErro] = React.useState("");
     const [corAberta, setCorAberta] = React.useState(false);
@@ -120,8 +121,8 @@ function DisciplinaFormConteudo({
             valores.cargaHoraria > 160 ||
             valores.codigo.trim().length < 3 ||
             valores.codigo.trim().length > 20 ||
-            !valores.cursoVinculado ||
-            !valores.tipoSala
+            !cursos.some((curso) => String(curso.id) === valores.cursoId) ||
+            !tiposSala.some((tipo) => String(tipo.id) === valores.tipoSalaId)
         ) {
             setErro(
                 valores.cargaHoraria < 20 || valores.cargaHoraria > 160
@@ -140,7 +141,8 @@ function DisciplinaFormConteudo({
                 tipo: valores.tipo as TipoDisciplina,
                 periodo: Number(valores.periodo),
                 modalidade: valores.modalidade as Modalidade,
-                tipoSala: valores.tipoSala as TipoSala,
+                cursoId: Number(valores.cursoId),
+                tipoSalaId: Number(valores.tipoSalaId),
             });
         } catch (error) {
             setErro(error instanceof Error ? error.message : "Não foi possível salvar a disciplina.");
@@ -162,7 +164,7 @@ function DisciplinaFormConteudo({
                 placeholder="Digite aqui..."
             />
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
                 <Input
                     label="Carga horária"
                     aria-label="Carga horária"
@@ -187,6 +189,7 @@ function DisciplinaFormConteudo({
                         Tipo da disciplina
                     </label>
                     <Select
+                        aria-label="Tipo da disciplina"
                         options={[
                             { label: "Teórica", value: "Teórica" },
                             { label: "Prática", value: "Prática" },
@@ -204,6 +207,7 @@ function DisciplinaFormConteudo({
                 <div className="flex flex-col gap-2">
                     <label className="text-sm font-medium text-[#17264D]">Modalidade</label>
                     <Select
+                        aria-label="Modalidade"
                         options={[
                             { label: "Presencial", value: "Presencial" },
                             { label: "EAD", value: "EAD" },
@@ -261,38 +265,31 @@ function DisciplinaFormConteudo({
                     )}
                 </div>
 
-                <div className="flex flex-col gap-2">
+                <div className="flex min-w-0 flex-col gap-2">
                     <label className="text-sm font-medium text-[#17264D]">Curso vinculado</label>
                     <Select
+                        aria-label="Curso vinculado"
                         options={cursos.map((c) => ({ label: c.nome, value: String(c.id) }))}
-                        value={
-                            cursos.find((curso) => curso.nome === valores.cursoVinculado)
-                                ? String(
-                                      cursos.find(
-                                          (curso) => curso.nome === valores.cursoVinculado,
-                                      )?.id,
-                                  )
-                                : ""
-                        }
-                        onChange={(v) => {
-                            atualizar(
-                                "cursoVinculado",
-                                cursos.find((curso) => String(curso.id) === v)?.nome ?? "",
-                            );
-                        }}
+                        value={valores.cursoId}
+                        onChange={(v) => atualizar("cursoId", v)}
+                        inlineMenu
+                        maxVisibleOptions={4}
                         placeholder="Selecione..."
                     />
                 </div>
 
-                <div className="flex flex-col gap-2">
+                <div className="flex min-w-0 flex-col gap-2">
                     <label className="text-sm font-medium text-[#17264D]">Tipo de sala</label>
                     <Select
+                        aria-label="Tipo de sala"
                         options={tiposSala.map((tipo) => ({
                             label: tipo.nome,
-                            value: tipo.nome,
+                            value: String(tipo.id),
                         }))}
-                        value={valores.tipoSala}
-                        onChange={(v) => atualizar("tipoSala", v as TipoSala)}
+                        value={valores.tipoSalaId}
+                        onChange={(v) => atualizar("tipoSalaId", v)}
+                        inlineMenu
+                        maxVisibleOptions={4}
                         placeholder="Selecione..."
                     />
                 </div>

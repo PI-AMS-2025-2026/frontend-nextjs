@@ -37,9 +37,5 @@ export const administratorHeaderConfig = {
       label: "Organização de tempo",
       links: [{ label: "Horários", href: "/adminstrador/organizacao-de-tempo/horarios" }],
     },
-    {
-      label: "Controle e auditoria",
-      links: [{ label: "Histórico de Alterações", href: "/adminstrador/historico-alteracao" }],
-    },
   ],
 } satisfies HeaderConfig;

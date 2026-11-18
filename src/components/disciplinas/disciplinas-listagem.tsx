@@ -11,33 +11,18 @@ import { TableFilters } from "@/components/ui/tablefilters";
 import { Pagination } from "@/components/ui/pagination";
 import { Modal } from "@/components/ui/modal";
 
-import { DisciplinaFormModal } from "@/components/disciplinas/disciplina-form-modal";
+import { DisciplinaFormModal, type DadosDisciplina, type DisciplinaComVinculos } from "@/components/disciplinas/disciplina-form-modal";
 
 import {
     CORES_DISCIPLINA,
-    type Disciplina,
     type Modalidade,
-    type Periodo,
     type TipoDisciplina,
-    type TipoSala,
 } from "@/lib/disciplinas";
 import { ApiError } from "@/lib/api";
 import { disciplinasService } from "@/services/disciplinas.service";
 import { cursosService } from "@/services/cursos.service";
 import { tiposSalaService } from "@/services/tipos-sala.service";
 import type { CursoResponse, DisciplinaRequest, DisciplinaResponse, TipoSalaResponse } from "@/types/api";
-
-type DadosDisciplina = {
-    nome: string;
-    cargaHoraria: number;
-    tipo: TipoDisciplina;
-    periodo: Periodo;
-    modalidade: Modalidade;
-    codigo: string;
-    cor: string;
-    cursoVinculado: string;
-    tipoSala: TipoSala;
-};
 
 function mensagemErro(error: unknown, padrao: string) {
     if (error instanceof ApiError) {
@@ -55,7 +40,7 @@ function paraTipo(tipo: string): TipoDisciplina {
     return "50/50";
 }
 
-function paraDisciplina(disciplina: DisciplinaResponse): Disciplina {
+function paraDisciplina(disciplina: DisciplinaResponse): DisciplinaComVinculos {
     const modalidade = disciplina.modalidade.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     return {
         id: String(disciplina.id),
@@ -68,20 +53,12 @@ function paraDisciplina(disciplina: DisciplinaResponse): Disciplina {
         cor: disciplina.cor ?? CORES_DISCIPLINA[0].hex,
         cursoVinculado: disciplina.curso.nome,
         tipoSala: disciplina.tipoSala.nome,
+        cursoId: disciplina.curso.id,
+        tipoSalaId: disciplina.tipoSala.id,
     };
 }
 
-function paraRequest(
-    dados: DadosDisciplina,
-    cursos: CursoResponse[],
-    tiposSala: TipoSalaResponse[],
-): DisciplinaRequest {
-    const curso = cursos.find((item) => item.nome === dados.cursoVinculado);
-    const tipoSala = tiposSala.find((item) => item.nome === dados.tipoSala);
-    if (!curso || !tipoSala) {
-        throw new Error("Selecione um curso e um tipo de sala válidos.");
-    }
-
+function paraRequest(dados: DadosDisciplina): DisciplinaRequest {
     return {
         nome: dados.nome,
         cargaHoraria: dados.cargaHoraria,
@@ -90,13 +67,13 @@ function paraRequest(
         modalidade: dados.modalidade === "Híbrida" ? "Hibrida" : dados.modalidade,
         codDisciplina: dados.codigo.trim(),
         cor: dados.cor,
-        curso: { id: curso.id },
-        tipoSala: { id: tipoSala.id },
+        curso: { id: dados.cursoId },
+        tipoSala: { id: dados.tipoSalaId },
     };
 }
 
 export function DisciplinasListagem() {
-    const [disciplinas, setDisciplinas] = React.useState<Disciplina[] | null>(null);
+    const [disciplinas, setDisciplinas] = React.useState<DisciplinaComVinculos[] | null>(null);
     const [cursos, setCursos] = React.useState<CursoResponse[]>([]);
     const [tiposSala, setTiposSala] = React.useState<TipoSalaResponse[]>([]);
     const [erroCarga, setErroCarga] = React.useState("");
@@ -116,7 +93,7 @@ export function DisciplinasListagem() {
 
     const [cadastrarAberto, setCadastrarAberto] = React.useState(false);
     const [editarAberto, setEditarAberto] = React.useState(false);
-    const [selecionada, setSelecionada] = React.useState<Disciplina | null>(null);
+    const [selecionada, setSelecionada] = React.useState<DisciplinaComVinculos | null>(null);
     const [sucesso, setSucesso] = React.useState<string | null>(null);
 
     React.useEffect(() => {
@@ -190,7 +167,7 @@ export function DisciplinasListagem() {
     const pagina = filtradas.slice(inicioIndice, inicioIndice + itensPorPagina);
 
     async function confirmarCadastro(dados: DadosDisciplina) {
-        const salvo = await disciplinasService.criar(paraRequest(dados, cursos, tiposSala));
+        const salvo = await disciplinasService.criar(paraRequest(dados));
         setDisciplinas((prev) => [...(prev ?? []), paraDisciplina(salvo)]);
         setCadastrarAberto(false);
         setSucesso("Disciplina criada com sucesso!");
@@ -200,7 +177,7 @@ export function DisciplinasListagem() {
         if (!selecionada) return;
         const salvo = await disciplinasService.atualizar(
             Number(selecionada.id),
-            paraRequest(dados, cursos, tiposSala),
+            paraRequest(dados),
         );
         setDisciplinas((prev) => (prev ?? []).map((d) =>
             d.id === selecionada.id ? paraDisciplina(salvo) : d,
