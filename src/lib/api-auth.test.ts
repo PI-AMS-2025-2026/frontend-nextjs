@@ -115,18 +115,70 @@ describe("renovação de sessão nas requisições autenticadas", () => {
     window.removeEventListener("auth:session-expired", expirou);
   });
 
-  it("não renova em 403 nem encerra sessão por falha transitória do refresh", async () => {
+  it("encerra a sessão se a chamada repetida continuar retornando 401", async () => {
+    const expirou = vi.fn();
+    window.addEventListener("auth:session-expired", expirou);
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ message: "Token expirado" }, 401))
+      .mockResolvedValueOnce(jsonResponse(loginResponse("access-novo", "refresh-novo")))
+      .mockResolvedValueOnce(jsonResponse({ message: "Token ainda inválido" }, 401))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(api.get("/turmas")).rejects.toMatchObject({ status: 401 });
+
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock.mock.calls[3][0]).toContain("/auth/logout");
+    expect(localStorage.getItem("access_token")).toBeNull();
+    expect(localStorage.getItem("refresh_token")).toBeNull();
+    expect(expirou).toHaveBeenCalledTimes(1);
+    window.removeEventListener("auth:session-expired", expirou);
+  });
+
+  it("não tenta renovar quando a resposta é 403", async () => {
     const semPermissao = vi.fn().mockResolvedValue(jsonResponse({ message: "Sem acesso" }, 403));
     vi.stubGlobal("fetch", semPermissao);
     await expect(api.get("/usuarios")).rejects.toMatchObject({ status: 403 });
     expect(semPermissao).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem("refresh_token")).toBe("refresh-antigo");
+  });
 
+  it("encerra a sessão quando o refresh falha com erro HTTP", async () => {
+    const expirou = vi.fn();
+    window.addEventListener("auth:session-expired", expirou);
     const indisponivel = vi.fn()
       .mockResolvedValueOnce(jsonResponse({ message: "Token expirado" }, 401))
-      .mockResolvedValueOnce(jsonResponse({ message: "Manutenção" }, 503));
+      .mockResolvedValueOnce(jsonResponse({ message: "Manutenção" }, 503))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
     vi.stubGlobal("fetch", indisponivel);
-    await expect(api.get("/turmas")).rejects.toMatchObject({ status: 503 });
-    expect(localStorage.getItem("access_token")).toBe("access-antigo");
-    expect(localStorage.getItem("refresh_token")).toBe("refresh-antigo");
+
+    await expect(api.get("/turmas")).rejects.toMatchObject({ status: 401 });
+
+    expect(indisponivel).toHaveBeenCalledTimes(3);
+    expect(indisponivel.mock.calls[2][0]).toContain("/auth/logout");
+    expect(localStorage.getItem("access_token")).toBeNull();
+    expect(localStorage.getItem("refresh_token")).toBeNull();
+    expect(localStorage.getItem("usuario")).toBeNull();
+    expect(expirou).toHaveBeenCalledTimes(1);
+    window.removeEventListener("auth:session-expired", expirou);
+  });
+
+  it("encerra a sessão se não conseguir conectar ao endpoint de refresh", async () => {
+    const expirou = vi.fn();
+    window.addEventListener("auth:session-expired", expirou);
+    const indisponivel = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ message: "Token expirado" }, 401))
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", indisponivel);
+
+    await expect(api.get("/turmas")).rejects.toMatchObject({ status: 401 });
+
+    expect(indisponivel).toHaveBeenCalledTimes(3);
+    expect(indisponivel.mock.calls[2][0]).toContain("/auth/logout");
+    expect(localStorage.getItem("access_token")).toBeNull();
+    expect(localStorage.getItem("refresh_token")).toBeNull();
+    expect(expirou).toHaveBeenCalledTimes(1);
+    window.removeEventListener("auth:session-expired", expirou);
   });
 });

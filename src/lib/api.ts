@@ -2,8 +2,6 @@ import {
   expireSession,
   getAccessToken,
   refreshSession,
-  SessionExpiredError,
-  SessionRefreshUnavailableError,
 } from "@/services/auth-session";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
@@ -125,14 +123,11 @@ async function request<T>(
         try {
           await refreshSession();
         } catch (error) {
-          if (error instanceof SessionExpiredError) {
-            await expireSession();
-            throw new ApiError(error.message, 401, mapKeys(data, fromApiKey));
-          }
-          if (error instanceof SessionRefreshUnavailableError) {
-            throw new ApiError(error.message, error.status ?? 503, mapKeys(data, fromApiKey));
-          }
-          throw new ApiError("Não foi possível renovar a sessão.", 503, mapKeys(data, fromApiKey));
+          await expireSession();
+          const message = error instanceof Error
+            ? error.message
+            : "Não foi possível renovar a sessão. Entre novamente.";
+          throw new ApiError(message, 401, mapKeys(data, fromApiKey));
         }
 
         return request<T>(endpoint, options, params, authenticated, true, responseBlob);

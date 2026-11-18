@@ -86,16 +86,8 @@ export function useAuth() {
           setUser(refreshedUser);
         }
       } catch (error) {
-        if (error instanceof SessionRefreshUnavailableError) {
-          if (ativo) {
-            setToken(storedToken);
-            setUser(authService.getUser() ?? (storedToken ? parseJwt(storedToken) : null));
-          }
-          return;
-        }
-
-        if (error instanceof SessionExpiredError) {
-          expireSession();
+        if (error instanceof SessionExpiredError || error instanceof SessionRefreshUnavailableError) {
+          await expireSession();
         } else {
           authService.clearSession();
           router.replace("/login");
