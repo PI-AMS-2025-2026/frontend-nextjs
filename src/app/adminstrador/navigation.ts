@@ -35,7 +35,7 @@ export const administratorHeaderConfig = {
     },
     {
       label: "Organização de tempo",
-      links: [{ label: "Horários", href: "/adminstrador/grade-planejamento" }],
+      links: [{ label: "Horários", href: "/adminstrador/organizacao-de-tempo/horarios" }],
     },
     {
       label: "Controle e auditoria",
