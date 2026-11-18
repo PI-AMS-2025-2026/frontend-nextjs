@@ -1,3 +1,11 @@
+import {
+  expireSession,
+  getAccessToken,
+  refreshSession,
+  SessionExpiredError,
+  SessionRefreshUnavailableError,
+} from "@/services/auth-session";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
 export class ApiError extends Error {
@@ -10,16 +18,6 @@ export class ApiError extends Error {
     this.status = status;
     this.data = data;
   }
-}
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("access_token");
-}
-
-function getRefreshToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("refresh_token");
 }
 
 function buildUrl(endpoint: string, params?: object) {
@@ -91,7 +89,7 @@ async function request<T>(
   isRetry = false,
   responseBlob = false,
 ): Promise<T> {
-  const token = authenticated ? getToken() : null;
+  const token = authenticated ? getAccessToken() : null;
   const headers = new Headers(options.headers);
 
   if (
@@ -115,42 +113,29 @@ async function request<T>(
 
   if (!response.ok) {
     // Tenta renovar o token automaticamente se receber 401 em rota autenticada
-    if (
-      response.status === 401 &&
-      authenticated &&
-      !isRetry &&
-      !endpoint.includes("/auth/")
-    ) {
-      const refreshToken = getRefreshToken();
-      if (refreshToken) {
-        try {
-          const refreshRes = await fetch(buildUrl("/auth/refresh"), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ refresh_token: refreshToken }),
-          });
-
-          if (refreshRes.ok) {
-            const tokenData = (await refreshRes.json()) as {
-              access_token?: string;
-              refresh_token?: string;
-            };
-            if (tokenData?.access_token) {
-              localStorage.setItem("access_token", tokenData.access_token);
-              if (tokenData.refresh_token) {
-                localStorage.setItem("refresh_token", tokenData.refresh_token);
-              }
-              return request<T>(endpoint, options, params, authenticated, true, responseBlob);
-            }
-          }
-        } catch {
-          // Erro silencioso durante renovação
+    if (response.status === 401 && authenticated && !endpoint.includes("/auth/")) {
+      if (isRetry) {
+        await expireSession();
+      } else {
+        const currentToken = getAccessToken();
+        if (currentToken && currentToken !== token) {
+          return request<T>(endpoint, options, params, authenticated, true, responseBlob);
         }
-      }
 
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
+        try {
+          await refreshSession();
+        } catch (error) {
+          if (error instanceof SessionExpiredError) {
+            await expireSession();
+            throw new ApiError(error.message, 401, mapKeys(data, fromApiKey));
+          }
+          if (error instanceof SessionRefreshUnavailableError) {
+            throw new ApiError(error.message, error.status ?? 503, mapKeys(data, fromApiKey));
+          }
+          throw new ApiError("Não foi possível renovar a sessão.", 503, mapKeys(data, fromApiKey));
+        }
+
+        return request<T>(endpoint, options, params, authenticated, true, responseBlob);
       }
     }
 

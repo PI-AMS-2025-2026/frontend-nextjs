@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth.service";
+import { expireSession, SessionExpiredError, SessionRefreshUnavailableError } from "@/services/auth-session";
 import type { LoginRequest, TipoUsuario, UsuarioResponse } from "@/types/api";
 
 export interface JwtPayload {
@@ -55,8 +56,12 @@ export function useAuth() {
       const storedToken = authService.getToken();
       const refreshToken = authService.getRefreshToken();
 
-      if (!storedToken || !refreshToken) {
-        authService.clearSession();
+      if (!refreshToken) {
+        if (storedToken) expireSession();
+        else {
+          authService.clearSession();
+          router.replace("/login");
+        }
         if (ativo) setIsLoading(false);
         return;
       }
@@ -80,9 +85,21 @@ export function useAuth() {
           setToken(response.accessToken);
           setUser(refreshedUser);
         }
-      } catch {
-        // Refresh inválido/expirado: a sessão inteira deixa de ser confiável.
-        authService.clearSession();
+      } catch (error) {
+        if (error instanceof SessionRefreshUnavailableError) {
+          if (ativo) {
+            setToken(storedToken);
+            setUser(authService.getUser() ?? (storedToken ? parseJwt(storedToken) : null));
+          }
+          return;
+        }
+
+        if (error instanceof SessionExpiredError) {
+          expireSession();
+        } else {
+          authService.clearSession();
+          router.replace("/login");
+        }
         if (ativo) {
           setToken(null);
           setUser(null);
@@ -96,7 +113,7 @@ export function useAuth() {
     return () => {
       ativo = false;
     };
-  }, []);
+  }, [router]);
 
   const login = useCallback(
     async (credentials: LoginRequest) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Mail, Loader2 } from "lucide-react";
@@ -13,8 +13,18 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { ApiError } from "@/lib/api";
 
+function subscribeToNavigation(onChange: () => void) {
+  window.addEventListener("popstate", onChange);
+  return () => window.removeEventListener("popstate", onChange);
+}
+
+function hasExpiredSessionNotice() {
+  return new URLSearchParams(window.location.search).get("motivo") === "sessao-expirada";
+}
+
 export default function LoginPage() {
   const { login } = useAuth();
+  const sessaoExpirada = useSyncExternalStore(subscribeToNavigation, hasExpiredSessionNotice, () => false);
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -117,6 +127,12 @@ export default function LoginPage() {
           className="mt-9 w-full max-w-[380px]"
           aria-label="Acesso ao sistema"
         >
+          {sessaoExpirada && (
+            <div role="status" className="mb-4 rounded-md border border-[#B1C9D1] bg-white/15 p-3 text-center text-sm text-white">
+              Sua sessão expirou. Entre novamente.
+            </div>
+          )}
+
           {error && (
             <div className="mb-4 rounded-md bg-red-500/20 border border-red-400 p-3 text-sm text-red-100 text-center">
               {error}
