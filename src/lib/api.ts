@@ -162,6 +162,7 @@ async function request<T>(
     throw new ApiError(message, response.status, mapKeys(data, fromApiKey));
   }
 
+  if (responseBlob && response.ok) return data as T;
   return mapKeys(data, fromApiKey) as T;
 }
 
