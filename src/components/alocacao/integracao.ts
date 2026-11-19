@@ -22,17 +22,33 @@ const dias: Record<DiaSemana, string> = { segunda: "SEGUNDA", terca: "TERÇA", q
 const diaVisual = (value: string): DiaSemana | undefined => (Object.keys(dias) as DiaSemana[]).find(key => dias[key].normalize("NFD").replace(/[\u0300-\u036f]/g, "") === value.normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
 export function erroAlocacao(error: unknown) {
   if (error instanceof ApiError) {
-    if (error.status === 409 && error.message && error.message !== "Erro na API (409)") return error.message;
-    return ({
-      400: "Dados inválidos para esta operação.",
-      401: "Sua sessão expirou. Entre novamente.",
-      403: "Você não tem permissão para esta operação.",
-      404: "Os dados solicitados não foram encontrados.",
-      409: "Há um conflito nos dados enviados. Revise os dados e tente novamente.",
-      422: "Revise os campos preenchidos e tente novamente.",
-    } as Record<number, string>)[error.status] ?? "Não foi possível concluir a operação. Tente novamente.";
+    switch (error.status) {
+      case 400:
+        return "Dados inválidos para esta operação.";
+      case 401:
+        return "Sua sessão expirou. Entre novamente.";
+      case 403:
+        return "Você não tem permissão para realizar esta operação.";
+      case 404:
+        return "Os dados solicitados não foram encontrados.";
+      case 409:
+        if (
+          error.message &&
+          error.message !== "Erro na API (409)" &&
+          !error.message.startsWith("Erro inesperado na comunicação")
+        ) {
+          return error.message;
+        }
+        return "Há um conflito nos dados enviados. Revise os dados e tente novamente.";
+      case 422:
+        return "Revise os campos preenchidos e tente novamente.";
+      default:
+        return "Não foi possível concluir a operação. Tente novamente.";
+    }
   }
-  return error instanceof Error && error.message.startsWith("ALOCACAO:") ? error.message.slice(9) : "Não foi possível conectar ao serviço. Tente novamente.";
+  return error instanceof Error && error.message.startsWith("ALOCACAO:")
+    ? error.message.slice(9)
+    : "Não foi possível conectar ao serviço. Tente novamente.";
 }
 
 const nomesDosCampos: Record<string, string> = {

@@ -148,6 +148,9 @@ function SalaFormConteudo({
     function handleConfirmar() {
         if (!codigo.trim()) return setErro("Informe o código da sala.");
         if (capacidade <= 0) return setErro("A capacidade deve ser maior que zero.");
+        if (!Number.isInteger(capacidade) || capacidade < 1 || capacidade > 200) {
+        return setErro("A capacidade da sala deve estar entre 1 e 200.");
+        }
         const tipoFinal = modoNovoTipo ? novoTipo.trim() : tipoSalaId;
         if (!tipoFinal) return setErro(modoNovoTipo ? "Informe o novo tipo de sala." : "Selecione o tipo de sala.");
 

@@ -170,7 +170,7 @@ export function DisciplinasListagem() {
         const salvo = await disciplinasService.criar(paraRequest(dados));
         setDisciplinas((prev) => [...(prev ?? []), paraDisciplina(salvo)]);
         setCadastrarAberto(false);
-        setSucesso("Disciplina criada com sucesso!");
+        setSucesso("Disciplina cadastrada com sucesso!");
     }
 
     async function confirmarEdicao(dados: DadosDisciplina) {

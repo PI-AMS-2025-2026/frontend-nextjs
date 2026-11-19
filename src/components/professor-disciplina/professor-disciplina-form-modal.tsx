@@ -103,13 +103,19 @@ function ProfessorDisciplinaFormConteudo({
         if (!nome) return setErro("Informe o professor.");
         if (!encontrado) return setErro("Professor não encontrado.");
         if (!disciplinaId) return setErro("Selecione a disciplina.");
-
         setSalvando(true);
+        setErro("");
         try {
             await onConfirm({
                 professorId: encontrado.id,
                 disciplinaId: Number(disciplinaId),
             });
+        } catch (error) {
+            setErro(
+                error instanceof Error
+                    ? error.message
+                    : "Não foi possível vincular o professor à disciplina.",
+            );
         } finally {
             setSalvando(false);
         }
@@ -120,7 +126,6 @@ function ProfessorDisciplinaFormConteudo({
             <h2 className="pr-12 text-xl font-semibold text-[#17264D]">
                 Vincular Professor à Disciplina
             </h2>
-
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-2">
                     <Input
@@ -172,18 +177,20 @@ function ProfessorDisciplinaFormConteudo({
                         }}
                         placeholder={
                             cursoId
-                                ? "Selecione a Disciplina"
-                                : "Selecione a Disciplina (opcionalmente filtre por curso)"
+                                ? "Selecione a disciplina"
+                                : "Selecione a disciplina ou filtre por curso"
                         }
                         menuClassName="max-h-60 overflow-y-auto overscroll-contain"
                     />
                 </div>
             </div>
-
-            {erro && <p className="text-sm text-[#BA1A1A]">{erro}</p>}
-
+            {erro && (
+                <p role="alert" className="text-sm text-[#BA1A1A]">
+                    {erro}
+                </p>
+            )}
             <div className="flex justify-end gap-3">
-                <Button variant="ghost" size="small" onClick={onCancel}>
+                <Button variant="ghost" size="small" onClick={onCancel} disabled={salvando}>
                     Cancelar
                 </Button>
                 <Button
@@ -192,7 +199,7 @@ function ProfessorDisciplinaFormConteudo({
                     disabled={salvando}
                     onClick={handleConfirmar}
                 >
-                    Confirmar
+                    {salvando ? "Salvando..." : "Confirmar"}
                 </Button>
             </div>
         </div>

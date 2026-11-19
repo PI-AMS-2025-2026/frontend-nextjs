@@ -4,12 +4,12 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Copy, Grid3x3, Loader2, Plus, Pencil, Trash2, XCircle } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/input";
 import { DataTable } from "@/components/ui/table";
 import { TableFilters } from "@/components/ui/tablefilters";
 import { Pagination } from "@/components/ui/pagination";
+import { Modal } from "@/components/ui/modal";
 import { GradeFormModal, type GradeFormValues } from "@/components/grade-horaria/grade-form-modal";
 import { CopiarGradeModal } from "@/components/grade-horaria/copiar-grade-modal";
 import { SucessoGradeModal } from "@/components/grade-horaria/sucesso-grade-modal";
@@ -55,15 +55,18 @@ export function GradeListagem() {
     const [erroModal, setErroModal] = React.useState("");
     const [carregando, setCarregando] = React.useState(true);
     const [mutando, setMutando] = React.useState(false);
+
     const [busca, setBusca] = React.useState("");
     const [filtroVersao, setFiltroVersao] = React.useState("");
     const [filtroData, setFiltroData] = React.useState("");
     const [filtroPeriodo, setFiltroPeriodo] = React.useState("");
     const [itensPorPagina, setItensPorPagina] = React.useState(6);
     const [paginaAtual, setPaginaAtual] = React.useState(1);
+
     const [cadastrarAberto, setCadastrarAberto] = React.useState(false);
     const [editarAberto, setEditarAberto] = React.useState(false);
     const [copiarAberto, setCopiarAberto] = React.useState(false);
+    const [gradeParaInativar, setGradeParaInativar] = React.useState<QuadroHorarioResponse | null>(null);
     const [selecionada, setSelecionada] = React.useState<QuadroHorarioResponse | null>(null);
     const [sucesso, setSucesso] = React.useState<string | null>(null);
     const [recemCriadaId, setRecemCriadaId] = React.useState<number | null>(null);
@@ -129,7 +132,7 @@ export function GradeListagem() {
             const criada = await quadroHorariosService.criar(request(dados, "ATIVO"));
             setCadastrarAberto(false);
             setRecemCriadaId(criada.id);
-            setSucesso("Quadro horário cadastrado com sucesso!");
+            setSucesso("Quadro de horários cadastrado com sucesso!");
             await carregar();
         } catch (error) {
             setErroModal(mensagemErro(error));
@@ -148,7 +151,7 @@ export function GradeListagem() {
             setEditarAberto(false);
             setSelecionada(null);
             setRecemCriadaId(null);
-            setSucesso("Quadro horário atualizado com sucesso!");
+            setSucesso("Quadro de horários editado com sucesso!");
             await carregar();
         } catch (error) {
             setErroModal(mensagemErro(error));
@@ -173,7 +176,7 @@ export function GradeListagem() {
             setCopiarAberto(false);
             setSelecionada(null);
             setRecemCriadaId(copia.id);
-            setSucesso("Grade horária copiada com sucesso!");
+            setSucesso("Quadro de horários copiado com sucesso!");
             await carregar();
         } catch (error) {
             setErroModal(mensagemErro(error));
@@ -182,15 +185,17 @@ export function GradeListagem() {
         }
     }
 
-    async function inativar(grade: QuadroHorarioResponse) {
-        if (!window.confirm(`Deseja inativar a grade versão ${String(grade.versao).padStart(2, "0")}?`)) return;
+    async function confirmarInativacao() {
+        if (!gradeParaInativar || mutando) return;
         setMutando(true);
         setErro("");
         try {
-            await quadroHorariosService.deletar(grade.id);
-            setSucesso("Grade horária inativada com sucesso!");
+            await quadroHorariosService.deletar(gradeParaInativar.id);
+            setGradeParaInativar(null);
+            setSucesso("Quadro de horários inativado com sucesso!");
             await carregar();
         } catch (error) {
+            setGradeParaInativar(null);
             setErro(mensagemErro(error));
         } finally {
             setMutando(false);
@@ -198,7 +203,7 @@ export function GradeListagem() {
     }
 
     if (autenticando || (carregando && cursoId)) {
-        return <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24"><Loader2 className="size-6 animate-spin text-[#0099AA]" /><span className="text-sm text-[#17264D]/70">Carregando quadros horários...</span></div>;
+        return <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24"><Loader2 className="size-6 animate-spin text-[#0099AA]" /><span className="text-sm text-[#17264D]/70">Carregando quadros de horários...</span></div>;
     }
 
     const erroVisivel = !cursoId
@@ -210,16 +215,14 @@ export function GradeListagem() {
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                     <Link href="/coordenador/home" aria-label="Voltar" className="flex size-9 items-center justify-center rounded-lg text-[#17264D]/70 transition-colors hover:bg-[#F2F2F2]"><ArrowLeft className="size-6" /></Link>
-                    <div><h1 className="text-3xl font-bold text-[#17264D]">Quadro Horário</h1><p className="text-sm text-[#17264D]/70">Gerencie os quadros horários do curso {cursoNome}</p></div>
+                    <div><h1 className="text-3xl font-bold text-[#17264D]">Quadros de Horários</h1><p className="text-sm text-[#17264D]/70">Gerencie os quadros de horários do curso {cursoNome}</p></div>
                 </div>
                 <div className="flex items-center gap-3">
                     <div className="w-64"><SearchInput placeholder="Pesquisar..." value={busca} onChange={(e) => { setBusca(e.target.value); setPaginaAtual(1); }} /></div>
                     <Button variant="secondary" size="small" className="gap-2" onClick={() => { setErroModal(""); setCadastrarAberto(true); }} disabled={mutando || !periodos.length}><Plus className="size-5" />Cadastrar</Button>
                 </div>
             </div>
-
-            {erroVisivel && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{erroVisivel}{cursoId && <Button variant="ghost" size="small" onClick={() => void carregar()}>Tentar novamente</Button>}</div>}
-
+            {erroVisivel && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-[#BA1A1A]">{erroVisivel}{cursoId && <Button variant="ghost" size="small" onClick={() => void carregar()}>Tentar novamente</Button>}</div>}
             <TableFilters
                 fields={[
                     { name: "versao", label: "Versão", type: "input", inputType: "number", min: 0, disableExponent: true },
@@ -228,8 +231,7 @@ export function GradeListagem() {
                 ]}
                 onChange={(f) => { setFiltroVersao(f.versao ?? ""); setFiltroData(f.data ?? ""); setFiltroPeriodo(f.periodo ?? ""); setPaginaAtual(1); }}
             />
-
-            {pagina.length === 0 ? <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">{erroVisivel ? "Não foi possível carregar os quadros horários." : "Nenhum quadro horário encontrado para o curso."}</div> : (
+            {pagina.length === 0 ? <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">{erroVisivel ? "Não foi possível carregar os quadros de horários." : "Nenhum quadro de horários encontrado para o curso."}</div> : (
                 <DataTable
                     data={pagina}
                     getRowKey={(grade) => grade.id}
@@ -241,20 +243,54 @@ export function GradeListagem() {
                         { key: "status", label: "Status", render: (grade) => grade.status === "ATIVO" ? <span className="flex items-center gap-1.5 font-medium text-emerald-600"><CheckCircle2 className="size-4" />Ativo</span> : <span className="flex items-center gap-1.5 font-medium text-[#BA1A1A]"><XCircle className="size-4" />Inativo</span> },
                     ]}
                     actions={[
-                        { label: "Ver Grade", icon: <Grid3x3 className="size-[21px]" strokeWidth={2} />, onClick: (grade) => router.push(`${BASE}/${grade.id}`) },
+                        { label: "Visualizar Quadro", icon: <Grid3x3 className="size-[21px]" strokeWidth={2} />, onClick: (grade) => router.push(`${BASE}/${grade.id}`) },
                         { label: "Editar", icon: <Pencil className="size-[21px]" strokeWidth={2} />, onClick: (grade) => { setErroModal(""); setSelecionada(grade); setEditarAberto(true); }, disabled: (grade) => mutando || grade.status === "INATIVO" || !grade.turma },
                         { label: "Copiar", icon: <Copy className="size-[21px]" strokeWidth={2} />, onClick: (grade) => { setErroModal(""); setSelecionada(grade); setCopiarAberto(true); }, disabled: (grade) => mutando || !grade.turma },
-                        { label: "Inativar", icon: <Trash2 className="size-[21px]" strokeWidth={2} />, onClick: (grade) => void inativar(grade), disabled: (grade) => mutando || grade.status === "INATIVO" },
+                        { label: "Inativar", icon: <Trash2 className="size-[21px]" strokeWidth={2} />, onClick: (grade) => setGradeParaInativar(grade), disabled: (grade) => mutando || grade.status === "INATIVO" },
                     ]}
                 />
             )}
-
             <Pagination totalItems={filtradas.length} currentPage={paginaSegura} itemsPerPage={itensPorPagina} onPageChange={setPaginaAtual} onItemsPerPageChange={(n) => { setItensPorPagina(n); setPaginaAtual(1); }} />
-
             <GradeFormModal open={cadastrarAberto} onClose={() => setCadastrarAberto(false)} mode="cadastrar" periodos={periodos} turmas={turmas} cursoNome={cursoNome} onConfirm={(dados) => void confirmarCadastro(dados)} submitting={mutando} errorMessage={erroModal} />
             <GradeFormModal open={editarAberto} onClose={() => { setEditarAberto(false); setSelecionada(null); }} mode="editar" grade={selecionada} periodos={periodos} turmas={turmas} cursoNome={cursoNome} onConfirm={(dados) => void confirmarEdicao(dados)} submitting={mutando} errorMessage={erroModal} />
             <CopiarGradeModal key={copiarAberto ? `copiar-${selecionada?.id ?? "grade"}` : "copiar-fechado"} open={copiarAberto} onClose={() => { setCopiarAberto(false); setSelecionada(null); }} periodos={periodos.filter((periodo) => selecionada?.status !== "ATIVO" || periodo.id !== selecionada.periodoAtividadeQuadro.id)} onConfirm={(periodoId) => void confirmarCopia(periodoId)} submitting={mutando} errorMessage={erroModal} />
-            <SucessoGradeModal open={sucesso !== null} onClose={() => { setSucesso(null); setRecemCriadaId(null); }} mensagem={sucesso ?? ""} acao={recemCriadaId ? { label: "VISUALIZAR GRADE", onClick: () => router.push(`${BASE}/${recemCriadaId}`) } : undefined} />
+            <Modal
+                open={gradeParaInativar !== null}
+                onClose={() => { if (!mutando) setGradeParaInativar(null); }}
+                closeDisabled={mutando}
+                className="max-w-xl"
+            >
+                <div className="flex flex-col gap-4">
+                    <h2 className="pr-12 text-xl font-semibold text-[#17264D]">
+                        Inativar quadro de horários
+                    </h2>
+                    <p className="text-sm text-[#17264D]">
+                        Deseja inativar o quadro de horários versão{" "}
+                        <strong>{String(gradeParaInativar?.versao ?? 0).padStart(2, "0")}</strong>?
+                    </p>
+                    <div className="flex justify-end gap-3">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="small"
+                            disabled={mutando}
+                            onClick={() => setGradeParaInativar(null)}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="danger"
+                            size="small"
+                            disabled={mutando}
+                            onClick={() => void confirmarInativacao()}
+                        >
+                            {mutando ? "Inativando..." : "Inativar"}
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
+            <SucessoGradeModal open={sucesso !== null} onClose={() => { setSucesso(null); setRecemCriadaId(null); }} mensagem={sucesso ?? ""} acao={recemCriadaId ? { label: "VISUALIZAR QUADRO", onClick: () => router.push(`${BASE}/${recemCriadaId}`) } : undefined} />
         </div>
     );
 }

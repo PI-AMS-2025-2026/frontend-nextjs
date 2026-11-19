@@ -167,7 +167,7 @@ export function PeriodoList() {
         await periodoAtividadeQuadroService.criar(dados);
 
         setCadastrarAberto(false);
-        setSucesso("Período cadastrado com sucesso!");
+        setSucesso("Período atividade quadro cadastrado com sucesso!");
       } else if (selecionada) {
         await periodoAtividadeQuadroService.atualizar(
           selecionada.id,
@@ -176,7 +176,7 @@ export function PeriodoList() {
 
         setEditarAberto(false);
         setSelecionada(null);
-        setSucesso("Período editado com sucesso!");
+        setSucesso("Período atividade quadro editado com sucesso!");
       } else {
         return;
       }
@@ -189,8 +189,8 @@ export function PeriodoList() {
     } catch (error) {
       const fallback =
         modo === "criar"
-          ? "Erro ao cadastrar período."
-          : "Erro ao editar período.";
+          ? "Não foi possível cadastrar o período atividade quadro."
+          : "Não foi possível editar o período atividade quadro.";
 
       throw new Error(
         error instanceof ApiError
