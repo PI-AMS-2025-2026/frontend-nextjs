@@ -1,12 +1,9 @@
-
 "use client";
 
 import * as React from "react";
-
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
 import type { BlocoHorarioResponse } from "@/types/api";
 
 interface HorarioFormModalProps {
@@ -28,11 +25,7 @@ export function HorarioFormModal({
   onConfirm,
 }: HorarioFormModalProps) {
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      className="max-w-lg"
-    >
+    <Modal open={open} onClose={onClose} className="max-w-lg">
       <HorarioFormConteudo
         key={`${mode}-${horario?.id ?? "novo"}`}
         mode={mode}
@@ -61,53 +54,44 @@ function HorarioFormConteudo({
   const [horaInicio, setHoraInicio] = React.useState(
     horario?.horaInicio?.slice(0, 5) ?? "",
   );
-
   const [horaFim, setHoraFim] = React.useState(
     horario?.horaFim?.slice(0, 5) ?? "",
   );
-
   const [submitting, setSubmitting] = React.useState(false);
   const [erro, setErro] = React.useState("");
 
   const titulo =
     mode === "cadastrar"
-      ? "Cadastrar Horário"
-      : "Editar Horário";
+      ? "Cadastrar Bloco de Horário"
+      : "Editar Bloco de Horário";
 
   async function handleConfirmar() {
     setErro("");
-
-    if (!horaInicio || !horaFim) {
-      setErro("Preencha os horários de início e fim.");
+    if (!horaInicio) {
+      setErro("Informe o horário de início.");
       return;
     }
-
+    if (!horaFim) {
+      setErro("Informe o horário de término.");
+      return;
+    }
     if (horaInicio === horaFim) {
-      setErro(
-        "O horário de início e fim não podem ser iguais.",
-      );
+      setErro("O horário de início e término não podem ser iguais.");
       return;
     }
-
     if (horaFim < horaInicio) {
-      setErro(
-        "O horário de fim deve ser posterior ao início.",
-      );
+      setErro("O horário de término deve ser posterior ao início.");
       return;
     }
 
     setSubmitting(true);
-
     try {
-      await onConfirm({
-        horaInicio,
-        horaFim,
-      });
+      await onConfirm({ horaInicio, horaFim });
     } catch (err: unknown) {
       setErro(
         err instanceof Error
           ? err.message
-          : "Erro ao salvar horário.",
+          : "Não foi possível salvar o bloco de horário.",
       );
     } finally {
       setSubmitting(false);
@@ -116,10 +100,7 @@ function HorarioFormConteudo({
 
   return (
     <div className="flex flex-col gap-5">
-      <h2 className="pr-12 text-xl font-semibold text-[#17264D]">
-        {titulo}
-      </h2>
-
+      <h2 className="pr-12 text-xl font-semibold text-[#17264D]">{titulo}</h2>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Input
           label="Início"
@@ -132,7 +113,6 @@ function HorarioFormConteudo({
             setErro("");
           }}
         />
-
         <Input
           label="Fim"
           aria-label="Fim"
@@ -145,13 +125,11 @@ function HorarioFormConteudo({
           }}
         />
       </div>
-
       {erro && (
-        <p className="text-sm text-[#BA1A1A]">
+        <p role="alert" className="text-sm text-[#BA1A1A]">
           {erro}
         </p>
       )}
-
       <div className="flex justify-end gap-3">
         <Button
           variant="ghost"
@@ -161,7 +139,6 @@ function HorarioFormConteudo({
         >
           Cancelar
         </Button>
-
         <Button
           variant="secondary"
           size="small"

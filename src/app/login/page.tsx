@@ -32,21 +32,24 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !senha) {
-      setError("Por favor, preencha todos os campos.");
+    if (!email.trim()) {
+      setError("Informe o e-mail.");
+      return;
+    }
+    if (!senha.trim()) {
+      setError("Informe a senha.");
       return;
     }
 
     setError(null);
     setSubmitting(true);
-
     try {
-      await login({ email, senha });
+      await login({ email: email.trim(), senha });
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message || "Credenciais inválidas. Tente novamente.");
+        setError(err.message || "E-mail ou senha inválidos.");
       } else {
-        setError("Erro ao se conectar com o servidor.");
+        setError("Não foi possível conectar ao servidor. Tente novamente.");
       }
     } finally {
       setSubmitting(false);
@@ -134,7 +137,7 @@ export default function LoginPage() {
           )}
 
           {error && (
-            <div className="mb-4 rounded-md bg-red-500/20 border border-red-400 p-3 text-sm text-red-100 text-center">
+            <div role="alert" className="mb-4 rounded-md bg-red-500/20 border border-red-400 p-3 text-sm text-red-100 text-center">
               {error}
             </div>
           )}
@@ -160,7 +163,7 @@ export default function LoginPage() {
                 placeholder="Digite o seu e-mail"
                 height="50px"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); setError(null); }}
                 className={cn(
                   "border-[1.5px] border-[#B1C9D1] bg-[#C9C9C9]/26 pl-[43px] text-base text-white",
                   "placeholder:text-white/56 focus:border-white focus-visible:ring-2 focus-visible:ring-white/50",
@@ -183,7 +186,7 @@ export default function LoginPage() {
               placeholder="Digite sua senha"
               height="50px"
               value={senha}
-              onChange={(e) => setSenha(e.target.value)}
+              onChange={(e) => { setSenha(e.target.value); setError(null); }}
               className={cn(
                 "border-[1.5px] border-[#B1C9D1] bg-[#C9C9C9]/26 text-base text-white",
                 "placeholder:text-white/56 focus:border-white focus-visible:ring-2 focus-visible:ring-white/50",
@@ -205,7 +208,6 @@ export default function LoginPage() {
                 Lembrar de mim
               </Label>
             </div>
-
             <Link
               href="#"
               className="text-[12px] leading-4 font-extrabold text-[#B1C9D1] underline underline-offset-2 transition-colors hover:text-white focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:text-sm"

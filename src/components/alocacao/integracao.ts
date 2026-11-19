@@ -22,10 +22,21 @@ const dias: Record<DiaSemana, string> = { segunda: "SEGUNDA", terca: "TERÇA", q
 const diaVisual = (value: string): DiaSemana | undefined => (Object.keys(dias) as DiaSemana[]).find(key => dias[key].normalize("NFD").replace(/[\u0300-\u036f]/g, "") === value.normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
 export function erroAlocacao(error: unknown) {
   if (error instanceof ApiError) {
-    if (error.status === 409 && error.message) return error.message;
-    return ({ 400: "Dados inválidos para esta operação.", 401: "Sua sessão expirou. Entre novamente.", 403: "Você não tem permissão para esta operação.", 404: "Os dados solicitados não foram encontrados." } as Record<number, string>)[error.status] ?? "Não foi possível concluir a operação. Tente novamente.";
+    if (error.status === 401) return "Sua sessão expirou. Entre novamente.";
+    if (error.status === 403) return "Você não tem permissão para realizar esta operação.";
+    if (error.message && !error.message.startsWith("Erro inesperado na comunicação")) {
+      return error.message;
+    }
+    return (
+      {
+        400: "Dados inválidos para esta operação.",
+        404: "Os dados solicitados não foram encontrados.",
+      } as Record<number, string>
+    )[error.status] ?? "Não foi possível concluir a operação. Tente novamente.";
   }
-  return error instanceof Error && error.message.startsWith("ALOCACAO:") ? error.message.slice(9) : "Não foi possível conectar ao serviço. Tente novamente.";
+  return error instanceof Error && error.message.startsWith("ALOCACAO:")
+    ? error.message.slice(9)
+    : "Não foi possível conectar ao serviço. Tente novamente.";
 }
 export async function carregarDados(quadroId?: number) {
   const [quadros, disciplinas, salas, professores, vinculos] = await Promise.all([

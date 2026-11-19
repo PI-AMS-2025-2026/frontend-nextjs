@@ -3,20 +3,18 @@
 import * as React from "react";
 import Link from "next/link";
 import { Plus, Trash2, ArrowLeft, Loader2 } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/input";
 import { DataTable } from "@/components/ui/table";
 import { TableFilters } from "@/components/ui/tablefilters";
 import { Pagination } from "@/components/ui/pagination";
 import { Modal } from "@/components/ui/modal";
-
+import { ApiError } from "@/lib/api";
 import { ProfessorDisciplinaFormModal } from "@/components/professor-disciplina/professor-disciplina-form-modal";
 import {
     ProfessorDisciplinaExclusaoModal,
     type VinculoComNomes,
 } from "@/components/professor-disciplina/professor-disciplina-exclusao-modal";
-
 import {
     disciplinasService,
     professoresDisciplinasService,
@@ -29,21 +27,17 @@ import type {
 } from "@/types/api";
 
 const TAMANHO_MAXIMO = 1000;
-
 type Feedback = { tipo: "success" | "error"; mensagem: string };
 
 export function ProfessorDisciplinaListagem() {
     const [vinculos, setVinculos] = React.useState<ProfessorDisciplinaResponse[] | null>(null);
     const [professores, setProfessores] = React.useState<ProfessorResponse[]>([]);
     const [disciplinas, setDisciplinas] = React.useState<DisciplinaResponse[]>([]);
-
     const [busca, setBusca] = React.useState("");
     const [filtroProfessor, setFiltroProfessor] = React.useState("");
     const [filtroDisciplina, setFiltroDisciplina] = React.useState("");
-
     const [itensPorPagina, setItensPorPagina] = React.useState(6);
     const [paginaAtual, setPaginaAtual] = React.useState(1);
-
     const [vincularAberto, setVincularAberto] = React.useState(false);
     const [selecionado, setSelecionado] = React.useState<VinculoComNomes | null>(null);
     const [feedback, setFeedback] = React.useState<Feedback | null>(null);
@@ -65,10 +59,16 @@ export function ProfessorDisciplinaListagem() {
                 setVinculos(vins);
                 setProfessores(profs.content);
                 setDisciplinas(discs.content);
-            } catch {
+            } catch (error) {
                 setVinculos([]);
                 setErroCarga(true);
-                setFeedback({ tipo: "error", mensagem: "Não foi possível carregar os vínculos!" });
+                setFeedback({
+                    tipo: "error",
+                    mensagem:
+                        error instanceof ApiError
+                            ? error.message
+                            : "Não foi possível carregar os vínculos.",
+                });
             }
         }
         carregar();
@@ -76,16 +76,14 @@ export function ProfessorDisciplinaListagem() {
 
     React.useEffect(() => {
         if (!feedback) return;
-        const timer = setTimeout(() => setFeedback(null), 1800);
+        const timer = setTimeout(() => setFeedback(null), 2400);
         return () => clearTimeout(timer);
     }, [feedback]);
 
-    // A API devolve apenas os ids; os nomes vêm das listas de professores e disciplinas.
     const vinculosComNomes = React.useMemo<VinculoComNomes[]>(() => {
         if (vinculos === null) return [];
         const professoresPorId = new Map(professores.map((p) => [p.id, p.nome]));
         const disciplinasPorId = new Map(disciplinas.map((d) => [d.id, d.nome]));
-
         return vinculos.map((v) => ({
             ...v,
             professorNome:
@@ -99,7 +97,6 @@ export function ProfessorDisciplinaListagem() {
         const b = busca.trim().toLowerCase();
         const p = filtroProfessor.trim().toLowerCase();
         const d = filtroDisciplina.trim().toLowerCase();
-
         return vinculosComNomes.filter((v) => {
             const professor = v.professorNome.toLowerCase();
             const disciplina = v.disciplinaNome.toLowerCase();
@@ -122,11 +119,15 @@ export function ProfessorDisciplinaListagem() {
                 disciplina: { id: dados.disciplinaId },
             });
             setVinculos(await carregarVinculos());
-            setFeedback({ tipo: "success", mensagem: "Professor Vinculado à Disciplina com sucesso!" });
-        } catch {
-            setFeedback({ tipo: "error", mensagem: "Não foi possível vincular o professor!" });
+            setVincularAberto(false);
+            setFeedback({ tipo: "success", mensagem: "Professor vinculado à disciplina com sucesso!" });
+        } catch (error) {
+            throw new Error(
+                error instanceof ApiError
+                    ? error.message
+                    : "Não foi possível vincular o professor à disciplina.",
+            );
         }
-        setVincularAberto(false);
     }
 
     async function confirmarExclusao() {
@@ -135,8 +136,14 @@ export function ProfessorDisciplinaListagem() {
             await professoresDisciplinasService.deletar(selecionado.id);
             setVinculos(await carregarVinculos());
             setFeedback({ tipo: "success", mensagem: "Vínculo excluído com sucesso!" });
-        } catch {
-            setFeedback({ tipo: "error", mensagem: "Não foi possível excluir o vínculo!" });
+        } catch (error) {
+            setFeedback({
+                tipo: "error",
+                mensagem:
+                    error instanceof ApiError
+                        ? error.message
+                        : "Não foi possível excluir o vínculo.",
+            });
         }
         setSelecionado(null);
     }
@@ -166,15 +173,14 @@ export function ProfessorDisciplinaListagem() {
                             Vínculo de Professores às Disciplinas
                         </h1>
                         <p className="text-sm text-[#17264D]/70">
-                            Gerencie os Professores vinculados às Disciplinas que podem lecionar
+                            Gerencie os professores vinculados às disciplinas que podem lecionar
                         </p>
                     </div>
                 </div>
-
                 <div className="flex items-center gap-3">
                     <div className="w-64">
                         <SearchInput
-                            placeholder="Search..."
+                            placeholder="Pesquisar..."
                             value={busca}
                             onChange={(e) => {
                                 setBusca(e.target.value);
@@ -193,21 +199,20 @@ export function ProfessorDisciplinaListagem() {
                     </Button>
                 </div>
             </div>
-
             <TableFilters
                 fields={[
                     {
                         name: "professor",
                         label: "Professor",
                         type: "input",
-                        placeholder: "Filtrar por Professor",
+                        placeholder: "Filtrar por professor",
                         width: "w-[240px]",
                     },
                     {
                         name: "disciplina",
                         label: "Disciplina",
                         type: "input",
-                        placeholder: "Filtrar por Disciplina",
+                        placeholder: "Filtrar por disciplina",
                         width: "w-[240px]",
                     },
                 ]}
@@ -217,7 +222,6 @@ export function ProfessorDisciplinaListagem() {
                     setPaginaAtual(1);
                 }}
             />
-
             {pagina.length === 0 ? (
                 <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">
                     {erroCarga
@@ -244,13 +248,12 @@ export function ProfessorDisciplinaListagem() {
                         {
                             label: "Excluir",
                             icon: <Trash2 className="size-[21px]" strokeWidth={2} />,
-                            className: "text-[#FF0000] hover:bg-red-50",
+                            className: "text-[#BA1A1A] hover:bg-red-50",
                             onClick: (v) => setSelecionado(v),
                         },
                     ]}
                 />
             )}
-
             <Pagination
                 totalItems={filtrados.length}
                 currentPage={paginaSegura}
@@ -261,7 +264,6 @@ export function ProfessorDisciplinaListagem() {
                     setPaginaAtual(1);
                 }}
             />
-
             <ProfessorDisciplinaFormModal
                 open={vincularAberto}
                 onClose={() => setVincularAberto(false)}
@@ -269,14 +271,12 @@ export function ProfessorDisciplinaListagem() {
                 disciplinas={disciplinas}
                 onConfirm={confirmarVinculo}
             />
-
             <ProfessorDisciplinaExclusaoModal
                 open={selecionado !== null}
                 onClose={() => setSelecionado(null)}
                 vinculo={selecionado}
                 onConfirm={confirmarExclusao}
             />
-
             <Modal
                 open={feedback !== null}
                 onClose={() => setFeedback(null)}

@@ -192,7 +192,7 @@ export default function CadastroUsuario() {
         }
 
         if (!usuarioEditando && !senha.trim()) {
-            setErrosCampos({ senha: "A senha é obrigatória para cadastrar um novo usuário." });
+            setErrosCampos({ senha: "Informe a senha." });
             return;
         }
 

@@ -57,13 +57,19 @@ function ProfessorDisciplinaFormConteudo({
     async function handleConfirmar() {
         if (!professorId) return setErro("Selecione o professor.");
         if (!disciplinaId) return setErro("Selecione a disciplina.");
-
         setSalvando(true);
+        setErro("");
         try {
             await onConfirm({
                 professorId: Number(professorId),
                 disciplinaId: Number(disciplinaId),
             });
+        } catch (error) {
+            setErro(
+                error instanceof Error
+                    ? error.message
+                    : "Não foi possível vincular o professor à disciplina.",
+            );
         } finally {
             setSalvando(false);
         }
@@ -74,7 +80,6 @@ function ProfessorDisciplinaFormConteudo({
             <h2 className="pr-12 text-xl font-semibold text-[#17264D]">
                 Vincular Professor à Disciplina
             </h2>
-
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-2">
                     <label className="text-sm font-medium text-[#17264D]">Professor</label>
@@ -88,11 +93,10 @@ function ProfessorDisciplinaFormConteudo({
                             setProfessorId(v);
                             setErro("");
                         }}
-                        placeholder="Selecione o Professor"
+                        placeholder="Selecione o professor"
                         menuClassName="max-h-60 overflow-y-auto overscroll-contain"
                     />
                 </div>
-
                 <div className="flex flex-col gap-2">
                     <label className="text-sm font-medium text-[#17264D]">Disciplina</label>
                     <Select
@@ -105,16 +109,18 @@ function ProfessorDisciplinaFormConteudo({
                             setDisciplinaId(v);
                             setErro("");
                         }}
-                        placeholder="Selecione a Disciplina"
+                        placeholder="Selecione a disciplina"
                         menuClassName="max-h-60 overflow-y-auto overscroll-contain"
                     />
                 </div>
             </div>
-
-            {erro && <p className="text-sm text-[#BA1A1A]">{erro}</p>}
-
+            {erro && (
+                <p role="alert" className="text-sm text-[#BA1A1A]">
+                    {erro}
+                </p>
+            )}
             <div className="flex justify-end gap-3">
-                <Button variant="ghost" size="small" onClick={onCancel}>
+                <Button variant="ghost" size="small" onClick={onCancel} disabled={salvando}>
                     Cancelar
                 </Button>
                 <Button
@@ -123,7 +129,7 @@ function ProfessorDisciplinaFormConteudo({
                     disabled={salvando}
                     onClick={handleConfirmar}
                 >
-                    Confirmar
+                    {salvando ? "Salvando..." : "Confirmar"}
                 </Button>
             </div>
         </div>

@@ -108,15 +108,24 @@ function PeriodoModalForm({
 
     if (
       !Number.isSafeInteger(dados.ano) ||
-      dados.ano < 1
+      dados.ano < 2008
     ) {
-      setErro("Informe um ano válido.");
+      setErro("O ano deve ser maior ou igual a 2008.");
       return;
     }
 
-    if (dados.dataFim < dados.dataInicio) {
+    if (!dados.dataInicio) {
+      setErro("Informe a data de início.");
+      return;
+    }
+    if (!dados.dataFim) {
+      setErro("Informe a data de término.");
+      return;
+    }
+
+    if (dados.dataFim <= dados.dataInicio) {
       setErro(
-        "A data de término não pode ser anterior à data de início."
+        "A data de término deve ser posterior à data de início."
       );
       return;
     }

@@ -14,7 +14,7 @@ const items = [
   { title: "Professores", description: "Cadastre, edite e gerencie os professores da instituição", color: "#0BAFA8", icon: "/images/administrator/professors.svg", href: "/adminstrador/gestao-usuarios/professores" },
   { title: "Usuários", description: "Cadastre, edite e gerencie os usuários da instituição", color: "#7B47C3", icon: "/images/administrator/users.svg", href: "/adminstrador/gestao-usuarios/usuarios" },
   { title: "Cursos", description: "Cadastre, edite e gerencie os cursos da instituição", color: "#1F59D6", icon: "/images/administrator/courses.svg", href: "/adminstrador/estrutura-academica/cursos" },
-  { title: "Quadro horário", description: "Cadastre, edite e gerencie as quadros horários da instituição", color: "#E8588B", icon: null, href: "/adminstrador/grade-planejamento" },
+  { title: "Quadro de Horários", description: "Cadastre, edite e gerencie os quadros de horários da instituição", color: "#E8588B", icon: null, href: "/adminstrador/grade-planejamento" },
 ];
 
 export function AdministratorDashboard() {

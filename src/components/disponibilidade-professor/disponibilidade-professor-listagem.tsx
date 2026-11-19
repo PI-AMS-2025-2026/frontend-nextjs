@@ -3,21 +3,19 @@
 import * as React from "react";
 import Link from "next/link";
 import { Plus, Pencil, Trash2, ArrowLeft, Loader2 } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/input";
 import { DataTable } from "@/components/ui/table";
 import { TableFilters } from "@/components/ui/tablefilters";
 import { Pagination } from "@/components/ui/pagination";
 import { Modal } from "@/components/ui/modal";
-
+import { ApiError } from "@/lib/api";
 import {
     DisponibilidadeProfessorFormModal,
     type DadosDisponibilidade,
 } from "./disponibilidade-professor-form-modal";
 import { DisponibilidadeProfessorExclusaoModal } from "./disponibilidade-professor-exclusao-modal";
 import { DIAS_SEMANA, formatarHora, mesmoDia, rotuloDia } from "./dias-semana";
-
 import {
     blocoHorariosService,
     disponibilidadesProfessoresService,
@@ -36,7 +34,6 @@ import {
 } from "./disponibilidade-professor-api";
 
 const TAMANHO_MAXIMO = 1000;
-
 type Feedback = { tipo: "success" | "error"; mensagem: string };
 
 function formatarIntervalo(bloco: BlocoHorarioResponse) {
@@ -46,8 +43,6 @@ function formatarIntervalo(bloco: BlocoHorarioResponse) {
 function montarRequest(dados: DadosDisponibilidade): DisponibilidadeProfessorRequest {
     return {
         professor: { id: dados.professorId },
-        // O backend espera o enum do dia (string); o tipo do request em types/api.ts
-        // declara LongDTO. O contrato não foi alterado.
         diaSemana: dados.diaSemana as DiaSemana,
         blocoHorario: { id: dados.blocoHorarioId },
     };
@@ -59,15 +54,12 @@ export function DisponibilidadeProfessorListagem() {
     >(null);
     const [professores, setProfessores] = React.useState<ProfessorResponse[]>([]);
     const [blocos, setBlocos] = React.useState<BlocoHorarioResponse[]>([]);
-
     const [busca, setBusca] = React.useState("");
     const [filtroProfessor, setFiltroProfessor] = React.useState("");
     const [filtroDia, setFiltroDia] = React.useState("");
     const [filtroHorario, setFiltroHorario] = React.useState("");
-
     const [itensPorPagina, setItensPorPagina] = React.useState(6);
     const [paginaAtual, setPaginaAtual] = React.useState(1);
-
     const [cadastroAberto, setCadastroAberto] = React.useState(false);
     const [editando, setEditando] = React.useState<DisponibilidadeProfessor | null>(null);
     const [excluindo, setExcluindo] = React.useState<DisponibilidadeProfessor | null>(null);
@@ -75,7 +67,6 @@ export function DisponibilidadeProfessorListagem() {
 
     const carregarDisponibilidades = React.useCallback(async () => {
         const resposta = await disponibilidadesProfessoresService.listar({ size: TAMANHO_MAXIMO });
-        // a resposta real não segue DisponibilidadeProfessorResponse (ver ...-api.ts)
         setDisponibilidades(
             normalizarDisponibilidades(resposta.content as unknown as DisponibilidadeProfessorApi[]),
         );
@@ -91,9 +82,15 @@ export function DisponibilidadeProfessorListagem() {
                 ]);
                 setProfessores(profs.content);
                 setBlocos(blocosResposta.content);
-            } catch {
+            } catch (error) {
                 setDisponibilidades([]);
-                setFeedback({ tipo: "error", mensagem: "Não foi possível carregar as disponibilidades!" });
+                setFeedback({
+                    tipo: "error",
+                    mensagem:
+                        error instanceof ApiError
+                            ? error.message
+                            : "Não foi possível carregar as disponibilidades.",
+                });
             }
         }
         carregar();
@@ -101,7 +98,7 @@ export function DisponibilidadeProfessorListagem() {
 
     React.useEffect(() => {
         if (!feedback) return;
-        const timer = setTimeout(() => setFeedback(null), 1800);
+        const timer = setTimeout(() => setFeedback(null), 2400);
         return () => clearTimeout(timer);
     }, [feedback]);
 
@@ -110,12 +107,10 @@ export function DisponibilidadeProfessorListagem() {
         const b = busca.trim().toLowerCase();
         const p = filtroProfessor.trim().toLowerCase();
         const h = filtroHorario.trim();
-
         return disponibilidades.filter((d) => {
             const professor = d.professor.nome.toLowerCase();
             const dia = rotuloDia(d.diaSemana).toLowerCase();
             const horario = formatarIntervalo(d.blocoHorario).toLowerCase();
-
             const buscaOk = !b || professor.includes(b) || dia.includes(b) || horario.includes(b);
             const professorOk = !p || professor.includes(p);
             const diaOk = !filtroDia || mesmoDia(d.diaSemana, filtroDia);
@@ -133,11 +128,15 @@ export function DisponibilidadeProfessorListagem() {
         try {
             await disponibilidadesProfessoresService.criar(montarRequest(dados));
             await carregarDisponibilidades();
+            setCadastroAberto(false);
             setFeedback({ tipo: "success", mensagem: "Disponibilidade cadastrada com sucesso!" });
-        } catch {
-            setFeedback({ tipo: "error", mensagem: "Não foi possível cadastrar a disponibilidade!" });
+        } catch (error) {
+            throw new Error(
+                error instanceof ApiError
+                    ? error.message
+                    : "Não foi possível cadastrar a disponibilidade.",
+            );
         }
-        setCadastroAberto(false);
     }
 
     async function confirmarEdicao(dados: DadosDisponibilidade) {
@@ -145,11 +144,15 @@ export function DisponibilidadeProfessorListagem() {
         try {
             await disponibilidadesProfessoresService.atualizar(editando.id, montarRequest(dados));
             await carregarDisponibilidades();
+            setEditando(null);
             setFeedback({ tipo: "success", mensagem: "Disponibilidade editada com sucesso!" });
-        } catch {
-            setFeedback({ tipo: "error", mensagem: "Não foi possível editar a disponibilidade!" });
+        } catch (error) {
+            throw new Error(
+                error instanceof ApiError
+                    ? error.message
+                    : "Não foi possível editar a disponibilidade.",
+            );
         }
-        setEditando(null);
     }
 
     async function confirmarExclusao() {
@@ -158,8 +161,14 @@ export function DisponibilidadeProfessorListagem() {
             await disponibilidadesProfessoresService.deletar(excluindo.id);
             await carregarDisponibilidades();
             setFeedback({ tipo: "success", mensagem: "Disponibilidade excluída com sucesso!" });
-        } catch {
-            setFeedback({ tipo: "error", mensagem: "Não foi possível excluir a disponibilidade!" });
+        } catch (error) {
+            setFeedback({
+                tipo: "error",
+                mensagem:
+                    error instanceof ApiError
+                        ? error.message
+                        : "Não foi possível excluir a disponibilidade.",
+            });
         }
         setExcluindo(null);
     }
@@ -189,15 +198,14 @@ export function DisponibilidadeProfessorListagem() {
                             Disponibilidade de Professor
                         </h1>
                         <p className="text-sm text-[#17264D]/70">
-                            Gerencie as disponibilidades de professores da instituição
+                            Gerencie as disponibilidades dos professores da instituição
                         </p>
                     </div>
                 </div>
-
                 <div className="flex items-center gap-3">
                     <div className="w-64">
                         <SearchInput
-                            placeholder="Search..."
+                            placeholder="Pesquisar..."
                             value={busca}
                             onChange={(e) => {
                                 setBusca(e.target.value);
@@ -216,7 +224,6 @@ export function DisponibilidadeProfessorListagem() {
                     </Button>
                 </div>
             </div>
-
             <TableFilters
                 className="flex-wrap"
                 fields={[
@@ -238,7 +245,7 @@ export function DisponibilidadeProfessorListagem() {
                     },
                     {
                         name: "horario",
-                        label: "Horário",
+                        label: "Bloco de Horário",
                         type: "input",
                         placeholder: "Filtrar por horário",
                         width: "w-[200px]",
@@ -251,7 +258,6 @@ export function DisponibilidadeProfessorListagem() {
                     setPaginaAtual(1);
                 }}
             />
-
             {pagina.length === 0 ? (
                 <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">
                     Nenhuma disponibilidade encontrada.
@@ -270,7 +276,7 @@ export function DisponibilidadeProfessorListagem() {
                             },
                             {
                                 key: "horario",
-                                label: "Horário",
+                                label: "Bloco de Horário",
                                 render: (d) => formatarIntervalo(d.blocoHorario),
                             },
                         ]}
@@ -283,14 +289,13 @@ export function DisponibilidadeProfessorListagem() {
                             {
                                 label: "Excluir",
                                 icon: <Trash2 className="size-[21px]" strokeWidth={2} />,
-                                className: "text-[#FF0000] hover:bg-red-50",
+                                className: "text-[#BA1A1A] hover:bg-red-50",
                                 onClick: (d) => setExcluindo(d),
                             },
                         ]}
                     />
                 </div>
             )}
-
             <Pagination
                 totalItems={filtrados.length}
                 currentPage={paginaSegura}
@@ -301,7 +306,6 @@ export function DisponibilidadeProfessorListagem() {
                     setPaginaAtual(1);
                 }}
             />
-
             <DisponibilidadeProfessorFormModal
                 open={cadastroAberto}
                 onClose={() => setCadastroAberto(false)}
@@ -309,7 +313,6 @@ export function DisponibilidadeProfessorListagem() {
                 blocos={blocos}
                 onConfirm={confirmarCadastro}
             />
-
             <DisponibilidadeProfessorFormModal
                 open={editando !== null}
                 onClose={() => setEditando(null)}
@@ -318,14 +321,12 @@ export function DisponibilidadeProfessorListagem() {
                 blocos={blocos}
                 onConfirm={confirmarEdicao}
             />
-
             <DisponibilidadeProfessorExclusaoModal
                 open={excluindo !== null}
                 onClose={() => setExcluindo(null)}
                 disponibilidade={excluindo}
                 onConfirm={confirmarExclusao}
             />
-
             <Modal
                 open={feedback !== null}
                 onClose={() => setFeedback(null)}
