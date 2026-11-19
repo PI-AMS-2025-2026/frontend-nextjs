@@ -79,14 +79,20 @@ function ProfessorDisciplinaFormConteudo({
         );
     }, [disciplinas, cursoId]);
 
-    // Se o curso mudar e a disciplina selecionada não pertencer mais ao filtro, limpa
-    React.useEffect(() => {
+    function handleCursoChange(novoCursoId: string) {
+        setCursoId(novoCursoId);
+        setErro("");
+
+        // Limpa a disciplina se ela não pertencer mais ao novo filtro
         if (!disciplinaId) return;
-        const aindaValida = disciplinasFiltradas.some(
-            (d) => String(d.id) === disciplinaId,
+        const aindaValida = disciplinas.some(
+            (d) =>
+                String(d.id) === disciplinaId &&
+                (!novoCursoId ||
+                    (d.curso && String(d.curso.id) === novoCursoId)),
         );
         if (!aindaValida) setDisciplinaId("");
-    }, [disciplinasFiltradas, disciplinaId]);
+    }
 
     async function handleConfirmar() {
         const nome = professor.trim().toLowerCase();
@@ -144,10 +150,7 @@ function ProfessorDisciplinaFormConteudo({
                     <Select
                         options={cursos}
                         value={cursoId}
-                        onChange={(v) => {
-                            setCursoId(v);
-                            setErro("");
-                        }}
+                        onChange={handleCursoChange}
                         placeholder="Todos os cursos"
                         menuClassName="max-h-60 overflow-y-auto overscroll-contain"
                     />
