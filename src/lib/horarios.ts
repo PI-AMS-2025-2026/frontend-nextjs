@@ -1,3 +1,5 @@
+import { gerarId } from "@/lib/id";
+
 export interface Horario {
     id: string;
     inicio: string;
@@ -51,5 +53,5 @@ export function gerarHorariosMock(): Horario[] {
         { inicio: "09:50", fim: "10:40" },
         { inicio: "10:40", fim: "11:30" },
         { inicio: "11:30", fim: "12:20" },
-    ].map((h) => ({ ...h, id: crypto.randomUUID() }));
+    ].map((h) => ({ ...h, id: gerarId() }));
 }
