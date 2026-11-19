@@ -18,7 +18,7 @@ import { ApiError } from "@/lib/api";
 import { periodoAtividadeQuadroService, quadroHorariosService, turmasService } from "@/services";
 import type { PeriodoAtividadeQuadroResponse, QuadroHorarioRequest, QuadroHorarioResponse, TurmaResponse, Status } from "@/types/api";
 
-const BASE = "/coordenador/grade-planejamento/grade-horaria";
+const BASE = "/coordenador/quadro-planejamento/quadro-horaria";
 
 function nomePeriodo(periodo: PeriodoAtividadeQuadroResponse) {
     return periodo.tipoPeridoAtividadeQuadro === "ANUAL"
@@ -225,7 +225,7 @@ export function GradeListagem() {
             {erroVisivel && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-[#BA1A1A]">{erroVisivel}{cursoId && <Button variant="ghost" size="small" onClick={() => void carregar()}>Tentar novamente</Button>}</div>}
             <TableFilters
                 fields={[
-                    { name: "versao", label: "Versão", type: "input", inputType: "number" },
+                    { name: "versao", label: "Versão", type: "input", inputType: "number", min: 0, disableExponent: true },
                     { name: "data", label: "Data de Criação", type: "input", inputType: "date" },
                     { name: "periodo", label: "Período Atividade Quadro", type: "select", placeholder: "Selecione...", width: "w-[220px]", options: [...new Map((grades ?? []).map((g) => [g.periodoAtividadeQuadro.id, { label: nomePeriodo(g.periodoAtividadeQuadro), value: String(g.periodoAtividadeQuadro.id) }])).values()] },
                 ]}

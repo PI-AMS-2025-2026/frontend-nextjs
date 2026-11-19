@@ -87,7 +87,7 @@ export function useAuth() {
         if (role === "COORDENADOR") {
           router.push("/coordenador/listagens/sala");
         } else {
-          router.push("/adminstrador/home");
+          router.push("/administrador/home");
         }
 
         return res;

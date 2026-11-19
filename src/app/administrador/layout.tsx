@@ -20,7 +20,7 @@ export default function AdministratorLayout({
         tipo="administrador"
         homeHref={administratorHeaderConfig.homeHref}
         navigationGroups={administratorHeaderConfig.navigationGroups}
-        historyHref="/adminstrador/historico-alteracao"
+        historyHref="/administrador/historico-alteracao"
       />
       <div className="flex-1">{children}</div>
       <CreatedFooter />

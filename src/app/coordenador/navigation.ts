@@ -9,11 +9,11 @@ export const coordinatorHeaderConfig = {
       links: [
         {
           label: "Alocação",
-          href: "/coordenador/grade-planejamento/alocacao",
+          href: "/coordenador/quadro-planejamento/alocacao",
         },
         {
           label: "Quadros de Horários",
-          href: "/coordenador/grade-planejamento/grade-horaria",
+          href: "/coordenador/quadro-planejamento/quadro-horaria",
         },
       ],
     },

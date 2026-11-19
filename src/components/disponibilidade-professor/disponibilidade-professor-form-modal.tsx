@@ -3,11 +3,11 @@
 import * as React from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import type { BlocoHorarioResponse, ProfessorResponse } from "@/types/api";
 import type { DisponibilidadeProfessor } from "./disponibilidade-professor-api";
 import { DIAS_SEMANA, formatarHora, mesmoDia } from "./dias-semana";
+import { ProfessorCombobox } from "./professor-combobox";
 
 export interface DadosDisponibilidade {
     professorId: number;
@@ -35,6 +35,7 @@ export function DisponibilidadeProfessorFormModal({
     return (
         <Modal open={open} onClose={onClose} className="max-w-2xl overflow-visible">
             <DisponibilidadeProfessorFormConteudo
+                key={disponibilidade?.id ?? "cadastro"}
                 disponibilidade={disponibilidade ?? null}
                 professores={professores}
                 blocos={blocos}
@@ -59,7 +60,9 @@ function DisponibilidadeProfessorFormConteudo({
     onConfirm: (dados: DadosDisponibilidade) => void | Promise<void>;
 }) {
     const edicao = disponibilidade !== null;
-    const [professor, setProfessor] = React.useState(disponibilidade?.professor.nome ?? "");
+    const [professor, setProfessor] = React.useState<ProfessorResponse | null>(() =>
+        professores.find((item) => item.id === disponibilidade?.professor.id) ?? null,
+    );
     const [diaSemana, setDiaSemana] = React.useState<string>(
         DIAS_SEMANA.find((d) => mesmoDia(d.value, disponibilidade?.diaSemana ?? ""))?.value ?? "",
     );
@@ -67,6 +70,7 @@ function DisponibilidadeProfessorFormConteudo({
         disponibilidade ? String(disponibilidade.blocoHorario.id) : "",
     );
     const [erro, setErro] = React.useState("");
+    const [erroProfessor, setErroProfessor] = React.useState("");
     const [salvando, setSalvando] = React.useState(false);
 
     const opcoesHorarios = blocos.map((bloco) => ({
@@ -75,11 +79,7 @@ function DisponibilidadeProfessorFormConteudo({
     }));
 
     async function handleConfirmar() {
-        const nome = professor.trim().toLowerCase();
-        const encontrado = professores.find((p) => p.nome.trim().toLowerCase() === nome);
-
-        if (!nome) return setErro("Selecione o professor.");
-        if (!encontrado) return setErro("Professor não encontrado.");
+        if (!professor) return setErroProfessor("Selecione um professor na lista.");
         if (!diaSemana) return setErro("Selecione o dia da semana.");
         if (!blocoHorarioId) return setErro("Selecione o bloco de horário.");
 
@@ -90,7 +90,7 @@ function DisponibilidadeProfessorFormConteudo({
         setErro("");
         try {
             await onConfirm({
-                professorId: encontrado.id,
+                professorId: professor.id,
                 diaSemana,
                 blocoHorarioId: bloco.id,
             });
@@ -111,26 +111,17 @@ function DisponibilidadeProfessorFormConteudo({
                 {edicao ? "Edição de Disponibilidade" : "Cadastro de Disponibilidade"}
             </h2>
             <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
-                <div className="flex flex-col gap-2">
-                    <Input
-                        label="Professor"
-                        showLabel
-                        height="36px"
-                        className="rounded-[10px] text-sm"
-                        placeholder="Digite o nome do professor..."
-                        list="professores-disponibilidade"
-                        value={professor}
-                        onChange={(e) => {
-                            setProfessor(e.target.value);
-                            setErro("");
-                        }}
-                    />
-                    <datalist id="professores-disponibilidade">
-                        {professores.map((p) => (
-                            <option key={p.id} value={p.nome} />
-                        ))}
-                    </datalist>
-                </div>
+                <ProfessorCombobox
+                    professores={professores}
+                    selecionado={professor}
+                    erro={erroProfessor}
+                    disabled={salvando}
+                    onSelect={(selecao) => {
+                        setProfessor(selecao);
+                        setErroProfessor("");
+                        setErro("");
+                    }}
+                />
                 <div className="flex flex-col gap-2">
                     <label className="text-sm font-medium text-[#17264D]">Dia da Semana</label>
                     <Select

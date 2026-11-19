@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { carregarDados, exportarGrade, erroAlocacao, salvarGrade, validar } from "./integracao";
-import type { Grade } from "./tipos";
+import type { Aula, Grade } from "./tipos";
 
-vi.mock("@/lib/api", () => ({ api: { get: vi.fn(), getBlob: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }, ApiError: class extends Error {} }));
+vi.mock("@/lib/api", async importOriginal => ({
+  ...await importOriginal<typeof import("@/lib/api")>(),
+  api: { get: vi.fn(), getBlob: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
+}));
 vi.mock("@/services/auth.service", () => ({ authService: { getUser: () => ({ id: 99 }) } }));
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 
 describe("carregamento dos quadros por turma", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -88,7 +91,54 @@ describe("etapa curricular e professor escolhido", () => {
   });
   it("envia o professor escolhido no rascunho ao salvar", async () => {
     const grade: Grade = { id: "40:10", quadroId: 40, turmaId: 10, versao: 1, dataCriacao: "2026-01-01", curso: "ADS", periodoLetivo: "2026", horarios: [{ inicio: "07:00", fim: "08:00" }], blocos: [{ id: 3, inicio: "07:00", fim: "08:00" }], intervalos: [], disciplinaIds: ["1"], salaIds: ["8"], aulas: [] };
+    vi.mocked(api.post).mockResolvedValueOnce([]);
     await salvarGrade(grade, [{ id: "nova", disciplinaId: "1", salaId: "8", dia: "segunda", inicio: "07:00", fim: "08:00", disciplina: "Banco", professor: "Bia", professorId: 12, sala: "A" }], [{ id: "1", disciplina: "Banco", professor: "Selecione", sala: "" }]);
     expect(api.post).toHaveBeenCalledWith("/alocacoes/lote", [expect.objectContaining({ professor: { id: 12 }, usuarioAlteracao: { id: 99 } })]);
+  });
+});
+
+describe("feedback ao salvar alocações", () => {
+  const horario = { inicio: "07:00", fim: "08:00" };
+  const grade: Grade = { id: "40:10", quadroId: 40, turmaId: 10, versao: 1, dataCriacao: "2026-01-01",
+    curso: "ADS", periodoLetivo: "2026", horarios: [horario], blocos: [{ id: 3, ...horario }],
+    intervalos: [], disciplinaIds: ["1", "2"], salaIds: ["8", "9"], aulas: [] };
+  const primeira: Aula = { ...horario, id: "nova-1", disciplinaId: "1", salaId: "8", dia: "segunda",
+    disciplina: "Banco", professor: "Bia", professorId: 12, sala: "A-101" };
+  const segunda: Aula = { ...primeira, id: "nova-2", disciplinaId: "2", salaId: "9", dia: "quarta",
+    disciplina: "Redes", sala: "B-204" };
+  const disciplinas = [primeira, segunda].map(aula => ({
+    id: aula.disciplinaId, disciplina: aula.disciplina, professor: "Selecione", sala: "",
+  }));
+
+  beforeEach(() => vi.clearAllMocks());
+
+  it("identifica a sala e a aula apontadas pelo índice do lote", async () => {
+    const message = "A sala informada é incompatível com o tipo de sala exigido pela disciplina.";
+    vi.mocked(api.post).mockRejectedValueOnce(new ApiError(message, 409, { message, alocacaoIndice: 1 }));
+    const resultado = salvarGrade(grade, [primeira, segunda], disciplinas);
+    await expect(resultado).rejects.toThrow(/Redes · Quarta 07:00–08:00 · Sala: B-204.*incompatível/);
+    await expect(resultado).rejects.not.toThrow(/A-101/);
+  });
+
+  it("reaproveita os detalhes de campo da API na atualização", async () => {
+    const aula = { ...primeira, id: "10" };
+    vi.mocked(api.put).mockRejectedValueOnce(new ApiError("Erro de validação", 422, {
+      fieldErrors: [{ field: "professor.id", message: "ID deve ser positivo" }],
+    }));
+    await expect(salvarGrade({ ...grade, aulas: [aula] }, [{ ...aula, professorId: 99 }], disciplinas))
+      .rejects.toThrow(/Ao atualizar \(Banco.*Professor: ID deve ser positivo/);
+  });
+
+  it("mostra mensagem útil sem atribuir uma falha sem detalhes à aula errada", async () => {
+    vi.mocked(api.post).mockRejectedValueOnce(new ApiError("Erro na API (503)", 503));
+    await expect(salvarGrade(grade, [primeira, segunda], disciplinas))
+      .rejects.toThrow(/Ao criar \(2 aulas\): Não foi possível concluir a operação. Tente novamente/);
+  });
+
+  it("reconhece em uma nova tentativa a aula já persistida quando a confirmação falhou", async () => {
+    await salvarGrade({ ...grade, aulas: [{ ...primeira, id: "10" }] }, [primeira], disciplinas, true);
+    expect(api.delete).not.toHaveBeenCalled();
+    expect(api.put).not.toHaveBeenCalled();
+    expect(api.post).not.toHaveBeenCalled();
   });
 });
