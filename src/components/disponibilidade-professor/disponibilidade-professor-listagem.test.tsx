@@ -30,9 +30,9 @@ async function abrirCadastro() {
 }
 
 function escolherDiaEHorario() {
-    fireEvent.click(screen.getByRole("button", { name: "Escolha" }));
+    fireEvent.click(screen.getByRole("button", { name: "Selecione..." }));
     fireEvent.click(screen.getByRole("button", { name: "Terça" }));
-    fireEvent.click(screen.getByRole("button", { name: "Selecione um horário" }));
+    fireEvent.click(screen.getByRole("button", { name: "Selecione o bloco de horário..." }));
     fireEvent.click(screen.getByRole("button", { name: "08:00 - 08:50" }));
 }
 
