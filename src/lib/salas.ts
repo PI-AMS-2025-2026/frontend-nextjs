@@ -1,3 +1,5 @@
+import { gerarId } from "@/lib/id";
+
 export interface Recurso {
     id: string;
     nome: string;
@@ -24,7 +26,7 @@ const RECURSOS_BASE: { nome: string; categoria: string }[] = [
 
 function gerarRecursos(quantidade: number): Recurso[] {
     return RECURSOS_BASE.slice(0, quantidade).map((r, i) => ({
-        id: crypto.randomUUID(),
+        id: gerarId(),
         nome: r.nome,
         categoria: r.categoria,
         cor: CORES_RECURSO[i % CORES_RECURSO.length],
