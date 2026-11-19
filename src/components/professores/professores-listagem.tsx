@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 import {
   ArrowLeft,
@@ -68,6 +69,10 @@ async function buscarTodosProfessores(): Promise<Professor[]> {
 }
 
 export function ProfessoresListagem() {
+  const pathname = usePathname();
+  const hrefVoltar = pathname.startsWith("/coordenador/")
+    ? "/coordenador/home"
+    : "/administrador/home";
   const [professores, setProfessores] =
     React.useState<Professor[]>([]);
 
@@ -247,7 +252,7 @@ export function ProfessoresListagem() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link
-            href="/adminstrador/home"
+            href={hrefVoltar}
             aria-label="Voltar"
             className="flex size-9 items-center justify-center rounded-lg text-[#17264D]/70 hover:bg-[#F2F2F2]"
           >

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import CadastroUsuario from "@/app/adminstrador/gestao-usuarios/usuarios/page";
+import CadastroUsuario from "@/app/administrador/gestao-usuarios/usuarios/page";
 import { cursosService } from "@/services/cursos.service";
 import { usuariosService } from "@/services/usuarios.service";
 import { ApiError } from "@/lib/api";

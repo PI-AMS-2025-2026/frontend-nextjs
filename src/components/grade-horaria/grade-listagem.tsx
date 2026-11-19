@@ -18,7 +18,7 @@ import { ApiError } from "@/lib/api";
 import { periodoAtividadeQuadroService, quadroHorariosService, turmasService } from "@/services";
 import type { PeriodoAtividadeQuadroResponse, QuadroHorarioRequest, QuadroHorarioResponse, TurmaResponse, Status } from "@/types/api";
 
-const BASE = "/coordenador/grade-planejamento/grade-horaria";
+const BASE = "/coordenador/quadro-planejamento/quadro-horaria";
 
 function nomePeriodo(periodo: PeriodoAtividadeQuadroResponse) {
     return periodo.tipoPeridoAtividadeQuadro === "ANUAL"

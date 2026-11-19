@@ -14,7 +14,7 @@ describe("dashboard integrado", () => {
     expect(await screen.findByText("42")).toBeInTheDocument();
     expect(await screen.findByText("17")).toBeInTheDocument();
     expect(await screen.findByText("Não foi possível carregar o total.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Quadro horário/ })).toHaveAttribute("href", "/adminstrador/grade-planejamento");
+    expect(screen.queryByRole("link", { name: /Quadro horário/ })).not.toBeInTheDocument();
     expect(vi.mocked(professoresService.listar)).toHaveBeenCalledWith({ size: 1 });
     expect(vi.mocked(usuariosService.listar)).toHaveBeenCalledWith({ size: 1 });
     expect(vi.mocked(cursosService.listar)).toHaveBeenCalledWith({ size: 1 });

@@ -374,6 +374,7 @@ export function TelaAlocacao({
     if (!grade || !editando || bloqueado) return;
     setSalvando(true);
     const snapshot = aulas.map((aula) => ({ ...aula }));
+    setRascunhos(atual => ({ ...atual, [grade.id]: snapshot }));
     try {
       const confirmadas = await salvarAlocacao(grade.id, snapshot);
       setSalvas((atual) => ({ ...atual, [grade.id]: confirmadas }));
@@ -396,7 +397,7 @@ export function TelaAlocacao({
       setModal({
         tipo: "aviso",
         titulo: "Não foi possível salvar a alocação",
-        texto: `${erroAlocacao(error)} Sua edição continua aberta para você corrigir o horário ou escolher uma sugestão.`,
+        texto: `${erroAlocacao(error).replace(/\.?$/, ".")} O rascunho continua aberto. Você pode ajustar a alocação e tentar novamente.`,
       });
     } finally {
       setSalvando(false);
@@ -512,7 +513,7 @@ export function TelaAlocacao({
                 disabled={bloqueado}
                 onClick={async () => {
                   if (editando && JSON.stringify(aulas) !== JSON.stringify(aulasSalvas)) {
-                    setModal({ tipo: "aviso", titulo: "Salve as alterações antes de exportar", texto: "O arquivo contém as alocações salvas do quadro." });
+                    setModal({ tipo: "aviso", titulo: "Salve as alterações antes de exportar", texto: "O PDF reúne os horários salvos das turmas ativas deste curso e ano." });
                     return;
                   }
                   setProcessando(true);
@@ -521,6 +522,7 @@ export function TelaAlocacao({
                 variant="primary"
                 size="small"
                 className="gap-2"
+                title="Exportar PDF das turmas ativas deste curso e ano"
               >
                 <FileDown className="h-4 w-4" aria-hidden="true" />
                 Exportar
@@ -851,6 +853,7 @@ export default function Alocacao() {
   const [quadroId, setQuadroId] = useState<number | null>(null);
   const [erro, setErro] = useState("");
   const [tentativa, setTentativa] = useState(0);
+  const gravacaoPendente = useRef<number | null>(null);
   useEffect(() => {
     let ativo = true;
     if (quadroId === null) return () => { ativo = false; };
@@ -861,15 +864,38 @@ export default function Alocacao() {
   if (erro) return <div role="alert" className="p-8">{erro} <Button onClick={() => { setErro(""); setTentativa(n => n + 1); }}>Tentar novamente</Button></div>;
   if (!dados) return <div role="status" className="p-8">Carregando grades...</div>;
   if (!dados.grades.length) return <div role="alert" className="p-8">O quadro selecionado não está ativo ou não possui turma. <Button onClick={() => { setDados(null); setQuadroId(null); }}>Voltar</Button></div>;
-  return <TelaAlocacao key={quadroId} gradeInicialId={dados.grades[0].id} aoVoltar={() => { setDados(null); setQuadroId(null); }} grades={dados.grades} disciplinas={dados.disciplinas} salas={dados.salas} salvarAlocacao={async (id, aulas) => {
-    const grade = dados.grades.find(g => g.id === id);
+  const dadosAbertos = dados;
+  const idQuadro = quadroId;
+
+  async function salvarQuadro(id: string, aulas: Aula[]) {
+    async function atualizarBase() {
+      const atualizados = await carregarDados(idQuadro);
+      const grade = atualizados.grades.find(g => g.id === id);
+      if (!grade) throw new Error("ALOCACAO:O quadro não está mais disponível para edição.");
+      setDados(atualizados);
+      return { ...atualizados, grade };
+    }
+
+    const reconciliar = gravacaoPendente.current === idQuadro;
+    const base = reconciliar ? await atualizarBase() : dadosAbertos;
+    const grade = base.grades.find(g => g.id === id);
     if (!grade) throw new Error("ALOCACAO:Grade não encontrada.");
-    try { await salvarGrade(grade, aulas, dados.disciplinas); } catch (error) {
-      try { setDados(await carregarDados(quadroId)); } catch { setDados(null); setTentativa(n => n + 1); }
+    gravacaoPendente.current = idQuadro;
+    try {
+      await salvarGrade(grade, aulas, base.disciplinas, reconciliar);
+    } catch (error) {
+      // Algumas alterações individuais podem ter sido persistidas antes da falha.
+      try { await atualizarBase(); } catch { /* A próxima tentativa consulta o quadro novamente. */ }
       throw error;
     }
-    const atualizados = await carregarDados(quadroId);
-    setDados(atualizados);
-    return atualizados.grades.find(g => g.id === id)?.aulas ?? [];
-  }} />;
+    try {
+      const atualizados = await atualizarBase();
+      gravacaoPendente.current = null;
+      return atualizados.grade.aulas;
+    } catch {
+      throw new Error("ALOCACAO:As alterações foram enviadas, mas a confirmação do quadro falhou. Tente salvar novamente para conferir o resultado.");
+    }
+  }
+
+  return <TelaAlocacao key={quadroId} gradeInicialId={dados.grades[0].id} aoVoltar={() => { setDados(null); setQuadroId(null); }} grades={dados.grades} disciplinas={dados.disciplinas} salas={dados.salas} salvarAlocacao={salvarQuadro} />;
 }

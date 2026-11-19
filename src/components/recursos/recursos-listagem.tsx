@@ -142,7 +142,7 @@ export function RecursosListagem() {
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                     <Link
-                        href="/coordenador/estrutura-academica"
+                        href="/administrador/home"
                         aria-label="Voltar"
                         className="flex size-9 items-center justify-center rounded-lg text-[#17264D]/70 transition-colors hover:bg-[#F2F2F2]"
                     >
