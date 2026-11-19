@@ -18,6 +18,8 @@ type FilterField = {
   showLabel?: boolean;
   type?: "input" | "select";
   inputType?: React.HTMLInputTypeAttribute;
+  min?: number;
+  disableExponent?: boolean;
   placeholder?: string;
   options?: FilterOption[];
   defaultValue?: string;
@@ -137,11 +139,23 @@ function TableFilters({
               showLabel={field.showLabel ?? true}
               height="36px"
               type={field.inputType ?? "text"}
+              min={field.min}
               placeholder={field.placeholder}
               value={filters[field.name] ?? ""}
-              onChange={(event) =>
-                handleChange(field.name, event.target.value)
-              }
+              onKeyDown={field.disableExponent ? (event) => {
+                if ((event.key === "e" || event.key === "E") && !event.ctrlKey && !event.metaKey && !event.altKey) {
+                  event.preventDefault();
+                }
+              } : undefined}
+              onPaste={field.disableExponent ? (event) => {
+                if (/[eE]/.test(event.clipboardData.getData("text/plain"))) event.preventDefault();
+              } : undefined}
+              onChange={(event) => {
+                const input = event.currentTarget;
+                if (field.min !== undefined && input.validity.rangeUnderflow) return;
+                if (field.disableExponent && /[eE]/.test(input.value)) return;
+                handleChange(field.name, input.value);
+              }}
               className="w-full rounded-[10px] text-[14px]"
             />
           )}
