@@ -5,15 +5,15 @@ export const coordinatorHeaderConfig = {
   homeEventName: "coordinator:show-home",
   navigationGroups: [
     {
-      label: "Grade e planejamento",
+      label: "Quadro planejamento",
       links: [
         {
           label: "Alocação",
-          href: "/coordenador/grade-planejamento/alocacao",
+          href: "/coordenador/quadro-planejamento/alocacao",
         },
         {
           label: "Quadro Horário",
-          href: "/coordenador/grade-planejamento/grade-horaria",
+          href: "/coordenador/quadro-planejamento/quadro-horaria",
         },
       ],
     },

@@ -110,7 +110,7 @@ describe("CoordinatorDashboard", () => {
     ).toHaveAttribute("href", "/coordenador/estrutura-academica/periodo-letivo");
     expect(screen.getByRole("link", { name: /Alocação/ })).toHaveAttribute(
       "href",
-      "/coordenador/grade-planejamento/alocacao",
+      "/coordenador/quadro-planejamento/alocacao",
     );
   });
 });

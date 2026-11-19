@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const permissions: Record<string, string[]> = {
-  ADMIN: ["/administrador", "/adminstrador"],
-  ADMINISTRADOR: ["/administrador", "/adminstrador"],
+  ADMIN: ["/administrador", "/administrador"],
+  ADMINISTRADOR: ["/administrador", "/administrador"],
   COORDENADOR: ["/coordenador"],
 };
 
 const publicPaths = ["/", "/login", "/403"];
 
 function homeForRole(role: string): string {
-  return role === "COORDENADOR" ? "/coordenador/home" : "/adminstrador/home";
+  return role === "COORDENADOR" ? "/coordenador/home" : "/administrador/home";
 }
 
 function isPublicRoute(pathname: string): boolean {
@@ -66,7 +66,7 @@ export const config = {
   matcher: [
     "/((?!api|_next/static|_next/image|images|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp)$).*)",
     "/administrador/:path*",
-    "/adminstrador/:path*",
+    "/administrador/:path*",
     "/coordenador/:path*",
   ],
 };

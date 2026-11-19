@@ -53,6 +53,19 @@ function montarRequest(dados: DadosDisponibilidade): DisponibilidadeProfessorReq
     };
 }
 
+async function carregarCatalogoProfessores() {
+    const professores: ProfessorResponse[] = [];
+    let pagina = 0;
+    let totalPaginas: number;
+    do {
+        const resposta = await professoresService.listar({ page: pagina, size: TAMANHO_MAXIMO });
+        professores.push(...resposta.content);
+        totalPaginas = resposta.totalPages;
+        pagina++;
+    } while (pagina < totalPaginas);
+    return professores;
+}
+
 export function DisponibilidadeProfessorListagem() {
     const [disponibilidades, setDisponibilidades] = React.useState<
         DisponibilidadeProfessor[] | null
@@ -86,10 +99,10 @@ export function DisponibilidadeProfessorListagem() {
             try {
                 const [, profs, blocosResposta] = await Promise.all([
                     carregarDisponibilidades(),
-                    professoresService.listar({ size: TAMANHO_MAXIMO }),
+                    carregarCatalogoProfessores(),
                     blocoHorariosService.listar({ size: TAMANHO_MAXIMO }),
                 ]);
-                setProfessores(profs.content);
+                setProfessores(profs);
                 setBlocos(blocosResposta.content);
             } catch {
                 setDisponibilidades([]);
@@ -178,7 +191,7 @@ export function DisponibilidadeProfessorListagem() {
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                     <Link
-                        href="/adminstrador/home"
+                        href="/administrador/home"
                         aria-label="Voltar"
                         className="flex size-9 items-center justify-center rounded-lg text-[#17264D]/70 transition-colors hover:bg-[#F2F2F2]"
                     >

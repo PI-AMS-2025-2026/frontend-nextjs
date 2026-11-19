@@ -8,7 +8,7 @@ import { ApiError } from "@/lib/api";
 import { quadroHorariosService } from "@/services/quadro-horarios.service";
 import type { QuadroHorarioResponse } from "@/types/api";
 
-const BASE = "/coordenador/grade-planejamento/grade-horaria";
+const BASE = "/coordenador/quadro-planejamento/quadro-horaria";
 
 function dataBR(value: string) {
     const data = value.slice(0, 10);

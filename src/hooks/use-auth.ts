@@ -133,7 +133,7 @@ export function useAuth() {
         if (role === "COORDENADOR") {
           router.push("/coordenador/home");
         } else if (role === "ADMIN" || role === "ADMINISTRADOR") {
-          router.push("/adminstrador/home");
+          router.push("/administrador/home");
         } else {
           throw new Error("Tipo de usuário não autorizado.");
         }

@@ -144,7 +144,7 @@ export function HistoricoAlteracoes() {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link
-            href="/adminstrador/home"
+            href="/administrador/home"
             aria-label="Voltar"
             className="flex size-8 shrink-0 items-center justify-center rounded-md text-[#17264D] transition-colors hover:bg-[#F2F2F2]"
           >

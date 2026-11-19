@@ -77,7 +77,7 @@ const acessosRapidos = [
   {
     titulo: "Alocação",
     descricao: "Realize e edite as alocações do seu curso",
-    href: "/coordenador/grade-planejamento/alocacao",
+    href: "/coordenador/quadro-planejamento/alocacao",
     cor: "#E8588B",
     icone: CalendarDays,
   },
@@ -87,7 +87,7 @@ const resumoInfraestrutura = [
   {
     id: "alocacoes",
     titulo: "Alocações realizadas",
-    href: "/coordenador/grade-planejamento/alocacao",
+    href: "/coordenador/quadro-planejamento/alocacao",
     icone: CalendarDays,
   },
   {

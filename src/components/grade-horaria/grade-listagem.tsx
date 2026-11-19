@@ -18,7 +18,7 @@ import { ApiError } from "@/lib/api";
 import { periodoAtividadeQuadroService, quadroHorariosService, turmasService } from "@/services";
 import type { PeriodoAtividadeQuadroResponse, QuadroHorarioRequest, QuadroHorarioResponse, TurmaResponse, Status } from "@/types/api";
 
-const BASE = "/coordenador/grade-planejamento/grade-horaria";
+const BASE = "/coordenador/quadro-planejamento/quadro-horaria";
 
 function nomePeriodo(periodo: PeriodoAtividadeQuadroResponse) {
     return periodo.tipoPeridoAtividadeQuadro === "ANUAL"
@@ -222,7 +222,7 @@ export function GradeListagem() {
 
             <TableFilters
                 fields={[
-                    { name: "versao", label: "Versão", type: "input", inputType: "number" },
+                    { name: "versao", label: "Versão", type: "input", inputType: "number", min: 0, disableExponent: true },
                     { name: "data", label: "Data de Criação", type: "input", inputType: "date" },
                     { name: "periodo", label: "Período Atividade Quadro", type: "select", placeholder: "Selecione...", width: "w-[220px]", options: [...new Map((grades ?? []).map((g) => [g.periodoAtividadeQuadro.id, { label: nomePeriodo(g.periodoAtividadeQuadro), value: String(g.periodoAtividadeQuadro.id) }])).values()] },
                 ]}
