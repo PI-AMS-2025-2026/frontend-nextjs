@@ -35,6 +35,7 @@ import {
 import { carregarDados, erroAlocacao, exportarGrade, interpretarSugestao, salvarGrade, validar } from "./integracao";
 import { SelecaoQuadro } from "./selecao-quadro";
 import { pertenceAoTurno, type Turno } from "./turnos";
+import { gerarId } from "@/lib/id";
 
 export type AlocacaoScreenProps = {
   grades: Grade[];
@@ -349,7 +350,7 @@ export function TelaAlocacao({
       horario: modal.horario,
       // Uma aula removida do rascunho pode voltar mantendo seu ID persistido.
       aulaId: atual.aulas.some(aula => aula.id === modal.aulaId) ? modal.aulaId : undefined,
-      novoId: modal.aulaId ?? crypto.randomUUID(),
+      novoId: modal.aulaId ?? gerarId(),
     });
     if (resultado.status === "ocupada") {
       setErroValidacao(AVISO_CELULA_OCUPADA);
