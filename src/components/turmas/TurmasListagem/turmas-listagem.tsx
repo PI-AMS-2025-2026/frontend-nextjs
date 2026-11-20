@@ -12,8 +12,9 @@ import { TableFilterHead } from "@/components/ui/table-filter-head";
 import { Pagination } from "@/components/ui/pagination";
 import { Modal } from "@/components/ui/modal";
 import { ApiError } from "@/lib/api";
+import { useAuth } from "@/hooks/use-auth";
 import { turmasService } from "@/services/turmas.service";
-import type { Status, TurmaRequest, TurmaResponse } from "@/types/api";
+import type { CursoResponse, Status, TurmaRequest, TurmaResponse } from "@/types/api";
 import { rotuloPeriodoTurma } from "@/lib/turma-periodo";
 
 import { TurmaFormModal } from "../TurmaFormModal/turma-form-modal";
@@ -25,6 +26,10 @@ function mensagemErro(error: unknown, fallback: string) {
 }
 
 export function TurmasListagem() {
+    const { user, isLoading: carregandoPerfil } = useAuth();
+    const cursoCoordenador = user
+        ? (user as { curso?: CursoResponse }).curso
+        : undefined;
     const [turmas, setTurmas] = React.useState<TurmaResponse[]>([]);
     const [totalTurmas, setTotalTurmas] = React.useState(0);
     const [loading, setLoading] = React.useState(true);
@@ -111,7 +116,12 @@ export function TurmasListagem() {
             else await carregarTurmas(1);
         } catch (error) {
             const fallback = modo === "criar" ? "Erro ao cadastrar turma." : "Erro ao editar turma.";
-            throw new Error(error instanceof ApiError ? error.message : fallback);
+            const mensagem = error instanceof ApiError
+                ? error.status === 403
+                    ? "O curso selecionado não está associado ao seu perfil. Confira a seleção ou solicite a associação do curso ao administrador."
+                    : error.message
+                : fallback;
+            throw new Error(mensagem);
         }
     }
 
@@ -216,7 +226,7 @@ export function TurmasListagem() {
                 onItemsPerPageChange={(quantidade) => { setItensPorPagina(quantidade); setPaginaAtual(1); }}
             />
 
-            <TurmaFormModal open={cadastrarAberto} onClose={() => setCadastrarAberto(false)} mode="cadastrar" onConfirm={(dados) => salvarTurma(dados, "criar")} />
+            <TurmaFormModal open={cadastrarAberto} onClose={() => setCadastrarAberto(false)} mode="cadastrar" cursoCoordenador={cursoCoordenador} carregandoPerfil={carregandoPerfil} onConfirm={(dados) => salvarTurma(dados, "criar")} />
             <TurmaFormModal open={editarAberto} onClose={() => { setEditarAberto(false); setSelecionada(null); }} mode="editar" turma={selecionada} onConfirm={(dados) => salvarTurma(dados, "editar")} />
             <Modal open={sucesso !== null} onClose={() => setSucesso(null)} type="success" message={sucesso ?? ""} />
         </div>

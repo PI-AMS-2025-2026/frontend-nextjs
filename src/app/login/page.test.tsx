@@ -10,6 +10,12 @@ vi.mock("next/link", () => ({ default: ({ href, children, ...props }: React.Anch
 describe("aviso de sessão expirada", () => {
   afterEach(() => window.history.replaceState({}, "", "/login"));
 
+  it("direciona para recuperação de senha", () => {
+    render(<LoginPage />);
+
+    expect(screen.getByRole("link", { name: "Esqueci a senha" })).toHaveAttribute("href", "/recuperar-senha");
+  });
+
   it("mostra o aviso quando o logout automático encaminha ao login", () => {
     window.history.replaceState({}, "", "/login?motivo=sessao-expirada");
 

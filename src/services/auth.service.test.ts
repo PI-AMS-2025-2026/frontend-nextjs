@@ -28,4 +28,24 @@ describe("autenticação da sessão", () => {
     expect(localStorage.getItem("refresh_token")).toBe("refresh-456");
     expect(JSON.parse(localStorage.getItem("usuario") ?? "{}").nome).toBe("Carlos");
   });
+
+  it("solicita recuperação usando o endpoint público", async () => {
+    await authService.solicitarRecuperacao({ email: "carlos@example.com" });
+
+    expect(api.post).toHaveBeenCalledWith(
+      "/auth/solicitar-recuperacao",
+      { email: "carlos@example.com" },
+      false,
+    );
+  });
+
+  it("redefine senha com token pelo endpoint público", async () => {
+    await authService.redefinirSenha({ token: "token-123", senha: "nova-senha" });
+
+    expect(api.post).toHaveBeenCalledWith(
+      "/auth/redefinir-senha",
+      { token: "token-123", senha: "nova-senha" },
+      false,
+    );
+  });
 });

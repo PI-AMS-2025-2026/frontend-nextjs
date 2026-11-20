@@ -15,6 +15,8 @@ interface TurmaFormModalProps {
     onClose: () => void;
     mode: "cadastrar" | "editar";
     turma?: TurmaResponse | null;
+    cursoCoordenador?: CursoResponse;
+    carregandoPerfil?: boolean;
     onConfirm: (dados: TurmaRequest) => Promise<void> | void;
 }
 
@@ -23,6 +25,8 @@ export function TurmaFormModal({
     onClose,
     mode,
     turma,
+    cursoCoordenador,
+    carregandoPerfil = false,
     onConfirm,
 }: TurmaFormModalProps) {
     return (
@@ -31,6 +35,8 @@ export function TurmaFormModal({
                 key={turma?.id ?? "novo"}
                 mode={mode}
                 turma={turma}
+                cursoCoordenador={cursoCoordenador}
+                carregandoPerfil={carregandoPerfil}
                 onCancel={onClose}
                 onConfirm={onConfirm}
             />
@@ -41,16 +47,22 @@ export function TurmaFormModal({
 function TurmaFormConteudo({
     mode,
     turma,
+    cursoCoordenador,
+    carregandoPerfil,
     onCancel,
     onConfirm,
 }: {
     mode: "cadastrar" | "editar";
     turma?: TurmaResponse | null;
+    cursoCoordenador?: CursoResponse;
+    carregandoPerfil: boolean;
     onCancel: () => void;
     onConfirm: (dados: TurmaRequest) => Promise<void> | void;
 }) {
     const [periodo, setPeriodo] = React.useState(turma ? String(turma.periodo) : "");
-    const [cursoId, setCursoId] = React.useState(turma ? String(turma.curso.id) : "");
+    const [cursoIdSelecionado, setCursoIdSelecionado] = React.useState(
+        turma ? String(turma.curso.id) : "",
+    );
     const [qtdAlunos, setQtdAlunos] = React.useState(turma ? String(turma.numeroAlunos) : "");
     const [ano, setAno] = React.useState(turma ? String(turma.ano) : "");
     const [status, setStatus] = React.useState<Status>(turma?.status ?? "ATIVO");
@@ -60,15 +72,23 @@ function TurmaFormConteudo({
     const [cursos, setCursos] = React.useState<CursoResponse[]>([]);
     const [carregandoCursos, setCarregandoCursos] = React.useState(true);
     const [erroCursos, setErroCursos] = React.useState(false);
-    const curso = cursos.find((item) => String(item.id) === cursoId);
+    const cursoDoCoordenadorFixo = mode === "cadastrar" && !!cursoCoordenador?.id;
+    const cursoId = cursoDoCoordenadorFixo ? String(cursoCoordenador.id) : cursoIdSelecionado;
+    const curso = cursos.find((item) => String(item.id) === cursoId)
+        ?? (cursoCoordenador && String(cursoCoordenador.id) === cursoId ? cursoCoordenador : undefined)
+        ?? (turma && String(turma.curso.id) === cursoId ? turma.curso : undefined);
     const opcoesPeriodo = opcoesPeriodoCurso(curso);
     const opcoesCurso = React.useMemo(
-        () =>
-            cursos.map((curso) => ({
+        () => {
+            const cursosDisponiveis = cursoCoordenador
+                ? [cursoCoordenador, ...cursos.filter((item) => item.id !== cursoCoordenador.id)]
+                : cursos;
+            return cursosDisponiveis.map((curso) => ({
                 label: curso.nome,
                 value: String(curso.id),
-            })),
-        [cursos]
+            }));
+        },
+        [cursos, cursoCoordenador]
     );
 
     React.useEffect(() => {
@@ -110,6 +130,7 @@ function TurmaFormConteudo({
     const titulo = mode === "cadastrar" ? "Cadastrar Turma" : "Editar Turma";
 
     async function handleConfirmar() {
+        if (carregandoPerfil) return setErro("Aguarde o carregamento do perfil do coordenador.");
         if (!curso) return setErro("Selecione um curso carregado pelo backend.");
         const periodoNumero = Number(periodo);
         if (!Number.isInteger(periodoNumero) || periodoNumero < 1 || periodoNumero > curso.duracao) {
@@ -156,15 +177,20 @@ function TurmaFormConteudo({
                         aria-label="Curso da turma"
                         options={opcoesCurso}
                         value={cursoId}
+                        disabled={carregandoPerfil || carregandoCursos || cursoDoCoordenadorFixo}
+                        className="max-w-[220px]"
+                        maxVisibleOptions={5}
+                        slimScrollbar
                         onChange={(valor) => {
                             const cursoSelecionado = cursos.find((item) => String(item.id) === valor);
-                            setCursoId(valor);
+                            setCursoIdSelecionado(valor);
                             setPeriodo("");
                             if (cursoSelecionado?.status === "INATIVO") setStatus("INATIVO");
                             setErro("");
                         }}
-                        placeholder={carregandoCursos ? "Carregando cursos..." : "Selecione..."}
+                        placeholder={carregandoPerfil || carregandoCursos ? "Carregando curso..." : "Selecione..."}
                     />
+                    {cursoDoCoordenadorFixo && <p className="text-xs text-[#17264D]/70">Curso associado ao seu perfil.</p>}
                     {erroCursos && <p className="text-sm text-red-600">Não foi possível carregar os cursos.</p>}
                 </div>
 
@@ -236,7 +262,7 @@ function TurmaFormConteudo({
                 </RadioGroup>
             </div>
 
-            {erro && <p className="text-sm text-[#BA1A1A]">{erro}</p>}
+            {erro && <p role="alert" className="text-sm text-[#BA1A1A]">{erro}</p>}
 
             <div className="flex justify-end gap-3">
                 <Button variant="ghost" size="small" onClick={onCancel} disabled={submitting}>
