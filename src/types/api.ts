@@ -271,6 +271,15 @@ export interface LoginRequest {
   senha: string;
 }
 
+export interface SolicitarRecuperacaoSenhaRequest {
+  email: string;
+}
+
+export interface RedefinirSenhaRequest {
+  token: string;
+  senha: string;
+}
+
 export interface LoginResponse {
   accessToken: string;
   refreshToken: string;

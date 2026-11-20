@@ -2,7 +2,9 @@ import { api } from "@/lib/api";
 import type {
   LoginRequest,
   LoginResponse,
+  RedefinirSenhaRequest,
   RefreshTokenRequest,
+  SolicitarRecuperacaoSenhaRequest,
 } from "@/types/api";
 import {
   clearSession as limparSessao,
@@ -18,6 +20,14 @@ export const authService = {
     const response = await api.post<LoginResponse>("/auth/login", data, false);
     storeSession(response);
     return response;
+  },
+
+  solicitarRecuperacao(data: SolicitarRecuperacaoSenhaRequest) {
+    return api.post<void>("/auth/solicitar-recuperacao", data, false);
+  },
+
+  redefinirSenha(data: RedefinirSenhaRequest) {
+    return api.post<void>("/auth/redefinir-senha", data, false);
   },
 
   async refreshToken() {

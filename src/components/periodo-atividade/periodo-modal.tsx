@@ -2,7 +2,8 @@
 "use client";
 
 import * as React from "react";
-import { X, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { Modal } from "@/components/ui/modal";
 
 import type {
   PeriodoAtividadeQuadroRequest,
@@ -68,6 +69,7 @@ function PeriodoModalForm({
 
   const [salvando, setSalvando] = React.useState(false);
   const [erro, setErro] = React.useState<string | null>(null);
+  const tituloId = React.useId();
 
   React.useEffect(() => {
     if (!open || salvando) return;
@@ -147,26 +149,16 @@ function PeriodoModalForm({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onMouseDown={(event) => {
-        if (
-          !salvando &&
-          event.target === event.currentTarget
-        ) {
-          onClose();
-        }
-      }}
+    <Modal
+      open={open}
+      onClose={onClose}
+      closeDisabled={salvando}
+      labelledBy={tituloId}
+      className="max-h-[90dvh] max-w-xl overflow-y-auto"
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="periodo-modal-title"
-        className="w-full max-w-[650px] rounded-xl bg-white p-6 shadow-2xl sm:p-8"
-      >
         <div className="mb-7 flex items-start justify-between gap-4">
           <h2
-            id="periodo-modal-title"
+            id={tituloId}
             className="text-xl font-bold text-[#17264D]"
           >
             {mode === "cadastrar"
@@ -174,15 +166,6 @@ function PeriodoModalForm({
               : "Editar Período Atividade Quadro"}
           </h2>
 
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={salvando}
-            aria-label="Fechar"
-            className="rounded-lg p-1 text-[#64748B] hover:bg-[#F2F2F2] disabled:opacity-50"
-          >
-            <X size={20} />
-          </button>
         </div>
 
         <form onSubmit={confirmar}>
@@ -398,7 +381,6 @@ function PeriodoModalForm({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

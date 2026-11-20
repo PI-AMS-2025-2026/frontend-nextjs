@@ -6,7 +6,13 @@ const permissions: Record<string, string[]> = {
   COORDENADOR: ["/coordenador"],
 };
 
-const publicPaths = ["/", "/login", "/403"];
+const publicPaths = [
+  "/",
+  "/login",
+  "/403",
+  "/recuperar-senha",
+  "/redefinir-senha",
+];
 
 function homeForRole(role: string): string {
   return role === "COORDENADOR" ? "/coordenador/home" : "/administrador/home";
