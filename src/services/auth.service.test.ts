@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { api } from "@/lib/api";
 import { authService } from "./auth.service";
 
-vi.mock("@/lib/api", () => ({ api: { post: vi.fn() } }));
+vi.mock("@/lib/api", () => ({ api: { post: vi.fn(), put: vi.fn() } }));
 
 describe("autenticação da sessão", () => {
   afterEach(() => {
@@ -40,12 +40,21 @@ describe("autenticação da sessão", () => {
   });
 
   it("redefine senha com token pelo endpoint público", async () => {
-    await authService.redefinirSenha({ token: "token-123", senha: "nova-senha" });
+    await authService.redefinirSenha({ token: "token-123", senha: "Nova-senha" });
 
     expect(api.post).toHaveBeenCalledWith(
       "/auth/redefinir-senha",
-      { token: "token-123", senha: "nova-senha" },
+      { token: "token-123", senha: "Nova-senha" },
       false,
     );
+  });
+
+  it("altera a senha atual no endpoint autenticado", async () => {
+    await authService.alterarSenha({ senhaAtual: "Senha-atual", novaSenha: "Nova-senha" });
+
+    expect(api.put).toHaveBeenCalledWith("/auth/alterar-senha", {
+      senhaAtual: "Senha-atual",
+      novaSenha: "Nova-senha",
+    });
   });
 });

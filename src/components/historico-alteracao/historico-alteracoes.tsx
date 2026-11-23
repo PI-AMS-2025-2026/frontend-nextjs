@@ -112,13 +112,13 @@ export function HistoricoAlteracoes() {
             {colunas.map((coluna) => <col key={coluna.chave} style={{ width: coluna.largura }} />)}
           </colgroup>
           <thead>
-            <tr className="h-[38px] bg-[#3199A9] text-white">
+            <tr className="h-[51px] bg-[#3199A9] text-white">
               {colunas.map((coluna) => {
                 const ativa = ordenacao?.coluna === coluna.chave;
                 return (
                   <th
                     key={coluna.chave}
-                    className="px-3 text-left text-[11px] font-semibold"
+                    className="px-4 text-left text-[15px] font-semibold"
                     aria-sort={ativa ? (ordenacao.direcao === "asc" ? "ascending" : "descending") : "none"}
                   >
                     <button
@@ -139,13 +139,13 @@ export function HistoricoAlteracoes() {
             {carregando ? (
               <tr><td colSpan={colunas.length} className="h-24 text-center text-sm text-[#6B7280]"><span className="inline-flex items-center gap-2"><LoaderCircle className="size-4 animate-spin" />Carregando histórico...</span></td></tr>
             ) : registrosPagina.map((item, index) => (
-              <tr key={item.id} className={`h-[37px] border-b border-[#D5D9DC] last:border-b-0 ${index % 2 === 0 ? "bg-white" : "bg-[#F0F0F0]"}`}>
-                <td className="truncate px-3 text-[11px] text-[#171717]" title={item.usuario.nome}>{item.usuario.nome}</td>
-                <td className="whitespace-nowrap px-3 text-[11px] text-[#171717]">{dataFormatada(item.dataAlteracao)}</td>
-                <td className="truncate px-3 text-[11px] text-[#171717]" title={item.campoAlterado}>{item.campoAlterado}</td>
-                <td className="truncate px-3 text-[11px] text-[#171717]" title={item.valorAntigo ?? "—"}>{item.valorAntigo || "—"}</td>
-                <td className="truncate px-3 text-[11px] text-[#171717]" title={item.valorNovo ?? "—"}>{item.valorNovo || "—"}</td>
-                <td className="truncate px-3 text-[11px] text-[#171717]" title={descricaoAlocacao(item)}>{descricaoAlocacao(item)}</td>
+              <tr key={item.id} className={`h-[46px] border-b border-[#D5D9DC] last:border-b-0 ${index % 2 === 0 ? "bg-white" : "bg-[#F0F0F0]"}`}>
+                <td className="whitespace-normal break-words px-4 py-2 text-[15px] text-[#171717]" title={item.usuario.nome}>{item.usuario.nome}</td>
+                <td className="whitespace-nowrap px-4 py-2 text-[15px] text-[#171717]">{dataFormatada(item.dataAlteracao)}</td>
+                <td className="whitespace-normal break-words px-4 py-2 text-[15px] text-[#171717]" title={item.campoAlterado}>{item.campoAlterado}</td>
+                <td className="whitespace-normal break-words px-4 py-2 text-[15px] text-[#171717]" title={item.valorAntigo ?? "—"}>{item.valorAntigo || "—"}</td>
+                <td className="whitespace-normal break-words px-4 py-2 text-[15px] text-[#171717]" title={item.valorNovo ?? "—"}>{item.valorNovo || "—"}</td>
+                <td className="whitespace-normal break-words px-4 py-2 text-[15px] text-[#171717]" title={descricaoAlocacao(item)}>{descricaoAlocacao(item)}</td>
               </tr>
             ))}
             {!carregando && registrosPagina.length === 0 && (
@@ -155,7 +155,7 @@ export function HistoricoAlteracoes() {
         </table>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-[11px] text-[#171717]">
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-sm text-[#171717]">
         <label className="flex h-8 items-center overflow-hidden rounded-md border border-[#D0D7DB] bg-white">
           <span className="px-3 whitespace-nowrap">Itens por página:</span>
           <select

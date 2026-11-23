@@ -280,6 +280,11 @@ export interface RedefinirSenhaRequest {
   senha: string;
 }
 
+export interface AlterarSenhaRequest {
+  senhaAtual: string;
+  novaSenha: string;
+}
+
 export interface LoginResponse {
   accessToken: string;
   refreshToken: string;

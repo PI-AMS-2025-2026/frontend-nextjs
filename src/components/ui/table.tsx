@@ -12,8 +12,8 @@ interface TableColumn<T> {
 }
 
 interface TableAction<T> {
-  label: string;
-  icon: React.ReactNode;
+  label: string | ((item: T) => string);
+  icon: React.ReactNode | ((item: T) => React.ReactNode);
   onClick: (item: T) => void;
   className?: string;
   disabled?: (item: T) => boolean;
@@ -120,24 +120,30 @@ function DataTable<T>({
                   <td className={cn(cellPadding, "py-2")}>
                     <div className="flex justify-end gap-2">
                       {actions.map((action) => (
-                        <button
-                          key={action.label}
-                          type="button"
-                          aria-label={action.label}
-                          title={action.label}
-                          onClick={() => action.onClick(item)}
-                          disabled={action.disabled?.(item) ?? false}
-                          className={cn(
-                            "flex size-[34px] items-center justify-center rounded-[7px]",
-                            "border border-[#D0D4D8] bg-white",
-                            "text-[#0099AA] transition-colors",
-                            "hover:bg-[#0099AA]/10",
-                            "disabled:pointer-events-none disabled:opacity-50",
-                            action.className,
-                          )}
-                        >
-                          {action.icon}
-                        </button>
+                        (() => {
+                          const label = typeof action.label === "function" ? action.label(item) : action.label;
+                          const icon = typeof action.icon === "function" ? action.icon(item) : action.icon;
+                          return (
+                            <button
+                              key={label}
+                              type="button"
+                              aria-label={label}
+                              title={label}
+                              onClick={() => action.onClick(item)}
+                              disabled={action.disabled?.(item) ?? false}
+                              className={cn(
+                                "flex size-[34px] items-center justify-center rounded-[7px]",
+                                "border border-[#D0D4D8] bg-white",
+                                "text-[#0099AA] transition-colors",
+                                "hover:bg-[#0099AA]/10",
+                                "disabled:pointer-events-none disabled:opacity-50",
+                                action.className,
+                              )}
+                            >
+                              {icon}
+                            </button>
+                          );
+                        })()
                       ))}
                     </div>
                   </td>
