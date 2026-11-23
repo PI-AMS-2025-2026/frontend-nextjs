@@ -233,6 +233,13 @@ export interface DisponibilidadeProfessorRequest {
   diaSemana: DiaSemana;
   blocoHorario: LongDTO;
 }
+export interface HorarioDisponibilidadeProfessorRequest {
+  diaSemana: DiaSemana;
+  blocoHorarioId: Id;
+}
+export interface GradeDisponibilidadeProfessorRequest {
+  horarios: HorarioDisponibilidadeProfessorRequest[];
+}
 export interface DisponibilidadeProfessorResponse {
   id: Id;
   professor: ProfessorResponse;

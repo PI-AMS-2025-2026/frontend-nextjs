@@ -1,124 +1,80 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { blocoHorariosService, disponibilidadesProfessoresService, professoresService } from "@/services";
 import { DisponibilidadeProfessorListagem } from "./disponibilidade-professor-listagem";
 
 vi.mock("@/services", () => ({
-    blocoHorariosService: { listar: vi.fn() },
-    disponibilidadesProfessoresService: { listar: vi.fn(), criar: vi.fn(), atualizar: vi.fn() },
-    professoresService: { listar: vi.fn() },
+  blocoHorariosService: { listar: vi.fn() },
+  disponibilidadesProfessoresService: { listar: vi.fn(), sincronizarGrade: vi.fn() },
+  professoresService: { listar: vi.fn() },
 }));
 
-const primeiraAna = { id: 11, nome: "Ana Mária", email: "ana1@teste.com", status: "ATIVO", createdAt: "", updatedAt: "" } as const;
-const segundaAna = { ...primeiraAna, id: 12, email: "ana2@teste.com" };
-const bruno = { ...primeiraAna, id: 13, nome: "Bruno Silva", email: "bruno@teste.com" };
-const bloco = { id: 21, horaInicio: "08:00:00", horaFim: "08:50:00", duracao: 50, createdAt: "", updatedAt: "" };
+const professor = { id: 12, nome: "Ana Mária", email: "ana@teste.com", status: "ATIVO", createdAt: "", updatedAt: "" } as const;
+const blocoManha = { id: 21, horaInicio: "08:00:00", horaFim: "08:50:00", duracao: 50, createdAt: "", updatedAt: "" };
+const blocoTarde = { id: 22, horaInicio: "13:00:00", horaFim: "13:50:00", duracao: 50, createdAt: "", updatedAt: "" };
 const disponibilidade = {
-    id: 31, professor: segundaAna, diaSemana: "SEGUNDA", blocoHorario: bloco, createdAt: "", updatedAt: "",
+  id: 31, professor, diaSemana: "SEGUNDA", blocoHorario: blocoManha, createdAt: "", updatedAt: "",
 } as const;
 const profs = vi.mocked(professoresService);
 const disp = vi.mocked(disponibilidadesProfessoresService);
 
-function pagina<T>(content: T[], page = 0, totalPages = 1) {
-    return { content, page, size: 1000, totalElements: 3, totalPages };
+function pagina<T>(content: T[]) {
+  return { content, page: 0, size: 1000, totalElements: content.length, totalPages: 1 };
 }
 
-async function abrirCadastro() {
-    render(<DisponibilidadeProfessorListagem />);
-    fireEvent.click(await screen.findByRole("button", { name: "Cadastrar" }));
-    return screen.getByRole("combobox", { name: "Professor" });
+async function selecionarProfessor() {
+  render(<DisponibilidadeProfessorListagem />);
+  const campo = await screen.findByRole("combobox", { name: "Professor" });
+  fireEvent.change(campo, { target: { value: "ana" } });
+  fireEvent.click(await screen.findByRole("option", { name: /ana@teste\.com/ }));
+  await screen.findByRole("table");
+  await waitFor(() => expect(disp.listar).toHaveBeenCalledWith({ professor: professor.id, page: 0, size: 1000 }));
 }
 
-function escolherDiaEHorario() {
-    fireEvent.click(screen.getByRole("button", { name: "Selecione..." }));
-    fireEvent.click(screen.getByRole("button", { name: "Terça" }));
-    fireEvent.click(screen.getByRole("button", { name: "Selecione o bloco de horário..." }));
-    fireEvent.click(screen.getByRole("button", { name: "08:00 - 08:50" }));
-}
+describe("grade de disponibilidade semanal", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    profs.listar.mockResolvedValue(pagina([professor]));
+    vi.mocked(blocoHorariosService.listar).mockResolvedValue(pagina([blocoManha, blocoTarde]));
+    disp.listar.mockResolvedValue(pagina([disponibilidade]));
+    disp.sincronizarGrade.mockResolvedValue([disponibilidade]);
+  });
 
-describe("seletor de professor em disponibilidade", () => {
-    beforeEach(() => {
-        vi.resetAllMocks();
-        profs.listar.mockImplementation(async ({ page } = {}) => page === 1
-            ? pagina([segundaAna, bruno], 1, 2)
-            : pagina([primeiraAna], 0, 2));
-        vi.mocked(blocoHorariosService.listar).mockResolvedValue(pagina([bloco]));
-        disp.listar.mockResolvedValue(pagina([disponibilidade]));
-        disp.criar.mockResolvedValue(disponibilidade);
-        disp.atualizar.mockResolvedValue(disponibilidade);
-    });
+  it("carrega a grade do professor e permite marcar vários horários antes de salvar", async () => {
+    await selecionarProfessor();
 
-    it("busca por nome sem acentos e envia o ID do homônimo escolhido com o mouse", async () => {
-        const campo = await abrirCadastro();
-        fireEvent.change(campo, { target: { value: "maria" } });
+    expect(screen.getByRole("button", { name: "Remover disponibilidade Segunda, 08:00 a 08:50" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar disponibilidade Quarta, 08:00 a 08:50" }));
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar disponibilidade Sexta, 13:00 a 13:50" }));
+    fireEvent.click(screen.getByRole("button", { name: "Salvar grade" }));
 
-        const lista = await screen.findByRole("listbox", { name: "Professores" });
-        const outraAna = await within(lista).findByRole("option", { name: /ana2@teste\.com/ });
-        expect(within(lista).getAllByRole("option")).toHaveLength(2);
-        expect(within(lista).queryByText("Bruno Silva")).not.toBeInTheDocument();
-        expect(profs.listar).toHaveBeenCalledWith({ page: 1, size: 1000 });
-        fireEvent.mouseDown(outraAna);
-        fireEvent.click(outraAna);
-        expect(campo).toHaveValue(segundaAna.nome);
-        expect(campo).toHaveAttribute("aria-expanded", "false");
+    await waitFor(() => expect(disp.sincronizarGrade).toHaveBeenCalledWith(professor.id, {
+      horarios: [
+        { diaSemana: "SEGUNDA", blocoHorarioId: blocoManha.id },
+        { diaSemana: "QUARTA", blocoHorarioId: blocoManha.id },
+        { diaSemana: "SEXTA", blocoHorarioId: blocoTarde.id },
+      ],
+    }));
+  });
 
-        escolherDiaEHorario();
-        fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
-        await waitFor(() => expect(disp.criar).toHaveBeenCalledWith({
-            professor: { id: segundaAna.id }, diaSemana: "TERÇA", blocoHorario: { id: bloco.id },
-        }));
-    });
+  it("replica o padrão de segunda nos dias úteis em um atalho", async () => {
+    await selecionarProfessor();
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar aos dias úteis" }));
 
-    it("mostra lista vazia, recusa texto livre e permite selecionar pelo teclado", async () => {
-        const campo = await abrirCadastro();
-        fireEvent.change(campo, { target: { value: "Nome inexistente" } });
-        expect(screen.getByRole("status")).toHaveTextContent("Nenhum professor encontrado.");
+    expect(screen.getByRole("button", { name: "Remover disponibilidade Terça, 08:00 a 08:50" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Remover disponibilidade Quarta, 08:00 a 08:50" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Adicionar disponibilidade Sábado, 08:00 a 08:50" })).toHaveAttribute("aria-pressed", "false");
+  });
 
-        fireEvent.change(campo, { target: { value: bruno.nome } });
-        const opcao = await screen.findByRole("option", { name: /Bruno Silva/ });
-        fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
-        expect(screen.getByRole("alert")).toHaveTextContent("Selecione um professor na lista.");
-        expect(disp.criar).not.toHaveBeenCalled();
+  it("pede confirmação antes de remover uma disponibilidade existente", async () => {
+    await selecionarProfessor();
+    fireEvent.click(screen.getByRole("button", { name: "Remover disponibilidade Segunda, 08:00 a 08:50" }));
+    fireEvent.click(screen.getByRole("button", { name: "Salvar grade" }));
 
-        fireEvent.keyDown(campo, { key: "ArrowDown" });
-        expect(campo).toHaveAttribute("aria-activedescendant", opcao.id);
-        fireEvent.keyDown(campo, { key: "Escape" });
-        expect(campo).toHaveAttribute("aria-expanded", "false");
-        fireEvent.keyDown(campo, { key: "ArrowDown" });
-        fireEvent.keyDown(campo, { key: "Enter" });
-        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-        expect(campo).toHaveAttribute("aria-expanded", "false");
-
-        escolherDiaEHorario();
-        fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
-        await waitFor(() => expect(disp.criar).toHaveBeenCalledWith(expect.objectContaining({
-            professor: { id: bruno.id },
-        })));
-    });
-
-    it("preserva o vínculo atual na edição e exige nova seleção após alterar o texto", async () => {
-        render(<DisponibilidadeProfessorListagem />);
-        fireEvent.click(await screen.findByRole("button", { name: "Editar" }));
-        let campo = screen.getByRole("combobox", { name: "Professor" });
-        expect(campo).toHaveValue(segundaAna.nome);
-        fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
-        await waitFor(() => expect(disp.atualizar).toHaveBeenCalledWith(disponibilidade.id, {
-            professor: { id: segundaAna.id }, diaSemana: "SEGUNDA", blocoHorario: { id: bloco.id },
-        }));
-        await waitFor(() => expect(campo).not.toBeInTheDocument());
-        fireEvent.click(screen.getByRole("button", { name: "Fechar modal" }));
-
-        fireEvent.click(screen.getByRole("button", { name: "Editar" }));
-        campo = screen.getByRole("combobox", { name: "Professor" });
-        fireEvent.change(campo, { target: { value: "Ana" } });
-        fireEvent.change(campo, { target: { value: segundaAna.nome } });
-        fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
-        expect(screen.getByRole("alert")).toHaveTextContent("Selecione um professor na lista.");
-        expect(disp.atualizar).toHaveBeenCalledTimes(1);
-
-        fireEvent.click(screen.getByRole("option", { name: /ana1@teste\.com/ }));
-        fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
-        await waitFor(() => expect(disp.atualizar).toHaveBeenLastCalledWith(disponibilidade.id,
-            expect.objectContaining({ professor: { id: primeiraAna.id } })));
-    });
+    expect(screen.getByRole("dialog")).toHaveTextContent("Remover horários da grade?");
+    expect(disp.sincronizarGrade).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar remoções" }));
+    await waitFor(() => expect(disp.sincronizarGrade).toHaveBeenCalledWith(professor.id, { horarios: [] }));
+  });
 });
