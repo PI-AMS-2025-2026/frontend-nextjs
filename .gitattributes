@@ -1,0 +1,2 @@
+# Scripts shell precisam de fim de linha LF para rodar no container (alpine).
+*.sh text eol=lf

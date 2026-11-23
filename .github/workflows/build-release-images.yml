@@ -122,17 +122,88 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # FASE A da imagem única: mesma imagem para todos os ambientes, com a URL da
+  # API definida em runtime (variável API_URL, ver docker-entrypoint.sh).
+  # Builda SEM NEXT_PUBLIC_API_URL (o Dockerfile usa o placeholder) e publica
+  # SOMENTE a tag sha-<7>; as tags dev/staging/main, semver e latest continuam
+  # nas imagens por ambiente do job `build` até a migração (FASE B).
+  build-unified:
+    name: Build e push da imagem única (URL da API em runtime)
+    needs: tests
+    # Mesmas refs mapeadas pelo job `build` (evita publicar a partir de
+    # workflow_dispatch em branches sem ambiente).
+    if: github.ref_type == 'tag' || contains(fromJSON('["dev", "staging", "main"]'), github.ref_name)
+    runs-on: ubuntu-latest
+    outputs:
+      unified_tag: ${{ steps.vars.outputs.unified_tag }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Calcular a tag da imagem única
+        id: vars
+        env:
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          echo "unified_tag=sha-${GIT_SHA:0:7}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Metadados da imagem única (tag e labels OCI)
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository }}
+          # Desliga o `latest` automático: só a tag imutável sha-<7>.
+          flavor: |
+            latest=false
+          tags: |
+            type=raw,value=${{ steps.vars.outputs.unified_tag }}
+          # O rótulo runtime-api-url permite aos scripts de deploy verificarem
+          # que a imagem aceita API_URL. As imagens antigas não o recebem.
+          labels: |
+            org.opencontainers.image.title=frontend-nextjs
+            org.opencontainers.image.description=Frontend do Projeto Integrador (Next.js) - URL da API em runtime
+            org.opencontainers.image.vendor=PI AMS 2025-2026
+            br.fatec.gini.runtime-api-url=true
+
+      - name: Build e push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          provenance: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Sem build-args: NEXT_PUBLIC_API_URL fica com o placeholder do Dockerfile.
+          cache-from: type=gha,scope=frontend-unified
+          cache-to: type=gha,mode=max,scope=frontend-unified
+
   notify-infra:
     name: Notificar repositório de infraestrutura
-    needs: build
-    if: github.ref == 'refs/heads/dev'
+    needs: [build, build-unified]
+    # always(): uma falha na imagem única não bloqueia o dispatch da imagem
+    # antiga enquanto FRONTEND_DISPATCH_UNIFIED não for 'true'.
+    if: always() && github.ref == 'refs/heads/dev' && needs.build.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Disparar repository_dispatch (image-published)
         env:
           INFRA_TOKEN: ${{ secrets.INFRA_DISPATCH_TOKEN }}
           INFRA_REPOSITORY: ${{ vars.INFRA_REPOSITORY }}
-          IMAGE_TAG: ${{ needs.build.outputs.tag }}
+          LEGACY_TAG: ${{ needs.build.outputs.tag }}
+          UNIFIED_TAG: ${{ needs.build-unified.outputs.unified_tag }}
+          UNIFIED_RESULT: ${{ needs.build-unified.result }}
+          # Só envia a imagem única quando a variable for exatamente 'true'.
+          # Ausente/qualquer outro valor = comportamento antigo.
+          DISPATCH_UNIFIED: ${{ vars.FRONTEND_DISPATCH_UNIFIED }}
           COMMIT_SHA: ${{ needs.build.outputs.sha }}
           BRANCH: ${{ github.ref_name }}
         run: |
@@ -146,6 +217,16 @@ jobs:
           if [ -z "$INFRA_REPOSITORY" ]; then
             echo "::error::A variable INFRA_REPOSITORY (formato owner/repo) não está configurada."
             exit 1
+          fi
+
+          if [ "$DISPATCH_UNIFIED" = "true" ]; then
+            if [ "$UNIFIED_RESULT" != "success" ] || [ -z "$UNIFIED_TAG" ]; then
+              echo "::error::FRONTEND_DISPATCH_UNIFIED=true, mas o build da imagem única não foi concluído (resultado: $UNIFIED_RESULT)."
+              exit 1
+            fi
+            IMAGE_TAG="$UNIFIED_TAG"
+          else
+            IMAGE_TAG="$LEGACY_TAG"
           fi
 
           # O JSON é montado com jq a partir de variáveis de ambiente,
