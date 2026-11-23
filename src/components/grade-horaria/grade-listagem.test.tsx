@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GradeListagem } from "./grade-listagem";
 import { periodoAtividadeQuadroService, quadroHorariosService, turmasService } from "@/services";
@@ -28,8 +28,8 @@ const quadros: QuadroHorarioResponse[] = [
     { id: 23, versao: 3, periodoAtividadeQuadro: segundoPeriodo, dataCriacao: "2026-08-02" },
 ].map(quadro => ({ ...quadro, curso, turma: { id: 12 }, status: "ATIVO" as const, createdAt: "", updatedAt: "" }));
 
-function pagina<T>(content: T[]) {
-    return { content, page: 0, size: 1000, totalElements: content.length, totalPages: 1 };
+function pagina<T>(content: T[], size = 1000) {
+    return { content, page: 0, size, totalElements: content.length, totalPages: content.length ? 1 : 0 };
 }
 
 async function abrirListagem() {
@@ -40,7 +40,10 @@ async function abrirListagem() {
 
 describe("filtro de versão da listagem de quadros", () => {
     beforeEach(() => {
-        vi.mocked(quadroHorariosService.listar).mockResolvedValue(pagina(quadros));
+        vi.mocked(quadroHorariosService.listar).mockImplementation(async (params) => {
+            const content = params?.versao === undefined ? quadros : quadros.filter((quadro) => String(quadro.versao) === String(params.versao));
+            return pagina(content, params?.size);
+        });
         vi.mocked(periodoAtividadeQuadroService.listar).mockResolvedValue(pagina([primeiroPeriodo, segundoPeriodo]));
         vi.mocked(turmasService.listar).mockResolvedValue(pagina([]));
     });
@@ -54,6 +57,7 @@ describe("filtro de versão da listagem de quadros", () => {
         expect(screen.getByRole("cell", { name: "01" })).toBeInTheDocument();
 
         fireEvent.change(campo, { target: { value: "2" } });
+        await waitFor(() => expect(screen.getByRole("cell", { name: "02" })).toBeInTheDocument());
         fireEvent.change(campo, { target: { value: "-2.5" } });
         expect(campo).toHaveValue(2);
         expect(screen.getByRole("cell", { name: "02" })).toBeInTheDocument();
@@ -67,15 +71,17 @@ describe("filtro de versão da listagem de quadros", () => {
         expect(campo).toHaveValue(0);
         fireEvent.change(campo, { target: { value: "1.5" } });
         expect(campo).toHaveValue(1.5);
+        await waitFor(() => expect(quadroHorariosService.listar).toHaveBeenLastCalledWith(expect.objectContaining({ versao: "1.5" })));
         fireEvent.click(screen.getByRole("button", { name: "Limpar filtros" }));
         expect(campo).toHaveValue(null);
-        expect(screen.getByRole("cell", { name: "01" })).toBeInTheDocument();
+        await waitFor(() => expect(screen.getByRole("cell", { name: "01" })).toBeInTheDocument());
         expect(screen.getByRole("cell", { name: "03" })).toBeInTheDocument();
     });
 
     it("bloqueia notação científica digitada ou colada", async () => {
         const campo = await abrirListagem();
         fireEvent.change(campo, { target: { value: "2" } });
+        await waitFor(() => expect(screen.getByRole("cell", { name: "02" })).toBeInTheDocument());
 
         expect(fireEvent.keyDown(campo, { key: "e" })).toBe(false);
         expect(fireEvent.keyDown(campo, { key: "E", shiftKey: true })).toBe(false);

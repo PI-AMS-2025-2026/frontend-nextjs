@@ -22,6 +22,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { Modal } from "@/components/ui/modal";
 
 import { professoresService } from "@/services/professores.service";
+import { useServerPage } from "@/hooks/use-server-page";
 
 import {
   ProfessorFormModal,
@@ -33,39 +34,10 @@ type Formulario =
   | { modo: "cadastrar" }
   | { modo: "editar"; professor: Professor };
 
-function normalizar(texto: string) {
-  return texto
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
-
 function mensagemErro(erro: unknown, padrao: string) {
   return erro instanceof Error && erro.message
     ? erro.message
     : padrao;
-}
-
-// Carrega todas as páginas para manter a busca e os filtros no frontend.
-async function buscarTodosProfessores(): Promise<Professor[]> {
-  const primeira = await professoresService.listar({
-    page: 0,
-    size: 100,
-  });
-
-  const lista = [...primeira.content];
-
-  for (let page = 1; page < primeira.totalPages; page++) {
-    const proxima = await professoresService.listar({
-      page,
-      size: primeira.size,
-    });
-
-    lista.push(...proxima.content);
-  }
-
-  return lista;
 }
 
 export function ProfessoresListagem() {
@@ -73,13 +45,6 @@ export function ProfessoresListagem() {
   const hrefVoltar = pathname.startsWith("/coordenador/")
     ? "/coordenador/home"
     : "/administrador/home";
-  const [professores, setProfessores] =
-    React.useState<Professor[]>([]);
-
-  const [carregando, setCarregando] = React.useState(true);
-  const [erro, setErro] = React.useState<string | null>(null);
-  const [tentativa, setTentativa] = React.useState(0);
-
   const [busca, setBusca] = React.useState("");
   const [fNome, setFNome] = React.useState("");
   const [fEmail, setFEmail] = React.useState("");
@@ -87,6 +52,12 @@ export function ProfessoresListagem() {
 
   const [paginaAtual, setPaginaAtual] = React.useState(1);
   const [itensPorPagina, setItensPorPagina] = React.useState(6);
+  const filtros = React.useMemo(() => ({ busca: busca.trim() || undefined, nome: fNome.trim() || undefined, email: fEmail.trim() || undefined, status: fStatus || undefined }), [busca, fNome, fEmail, fStatus]);
+  const { data: pageData, loading: carregando, error: erro, reload } = useServerPage(
+    (query) => professoresService.listar(query as Parameters<typeof professoresService.listar>[0]),
+    filtros, paginaAtual, itensPorPagina,
+  );
+  const professores = pageData.content;
 
   const [formulario, setFormulario] =
     React.useState<Formulario | null>(null);
@@ -100,75 +71,10 @@ export function ProfessoresListagem() {
   const [sucesso, setSucesso] =
     React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    let ativo = true;
-
-    async function carregar() {
-      try {
-        const lista = await buscarTodosProfessores();
-
-        if (ativo) {
-          setProfessores(lista);
-        }
-      } catch (erro) {
-        if (ativo) {
-          setErro(
-            mensagemErro(
-              erro,
-              "Não foi possível carregar os professores.",
-            ),
-          );
-        }
-      } finally {
-        if (ativo) {
-          setCarregando(false);
-        }
-      }
-    }
-
-    void carregar();
-
-    return () => {
-      ativo = false;
-    };
-  }, [tentativa]);
-
-  const filtrados = React.useMemo(() => {
-    const buscaNormalizada = normalizar(busca);
-    const nome = normalizar(fNome);
-    const email = normalizar(fEmail);
-
-    return professores.filter((professor) => {
-      const nomeProfessor = normalizar(professor.nome);
-      const emailProfessor = normalizar(professor.email);
-
-      const correspondeBusca =
-        !buscaNormalizada ||
-        nomeProfessor.includes(buscaNormalizada) ||
-        emailProfessor.includes(buscaNormalizada);
-
-      return (
-        correspondeBusca &&
-        nomeProfessor.includes(nome) &&
-        emailProfessor.includes(email) &&
-        (!fStatus || professor.status === fStatus)
-      );
-    });
-  }, [professores, busca, fNome, fEmail, fStatus]);
-
-  const totalPaginas = Math.max(
-    1,
-    Math.ceil(filtrados.length / itensPorPagina),
-  );
-
-  const paginaSegura = Math.min(paginaAtual, totalPaginas);
-  const inicio = (paginaSegura - 1) * itensPorPagina;
-  const pagina = filtrados.slice(inicio, inicio + itensPorPagina);
+  const paginaSegura = Math.min(paginaAtual, Math.max(1, pageData.totalPages));
 
   function tentarNovamente() {
-    setErro(null);
-    setCarregando(true);
-    setTentativa((valor) => valor + 1);
+    reload();
   }
 
   function abrirFormulario(professor?: Professor) {
@@ -203,23 +109,17 @@ export function ProfessoresListagem() {
     setErroFormulario(null);
 
     try {
-      const salvo = selecionado
-        ? await professoresService.atualizar(
+      if (selecionado) {
+        await professoresService.atualizar(
             selecionado.id,
             dados,
-          )
-        : await professoresService.criar(dados);
+          );
+      } else {
+        await professoresService.criar(dados);
+      }
 
       // Atualiza a tabela com os dados devolvidos pelo backend.
-      setProfessores((lista) =>
-        selecionado
-          ? lista.map((professor) =>
-              professor.id === selecionado.id
-                ? salvo
-                : professor,
-            )
-          : [salvo, ...lista],
-      );
+      reload();
 
       if (!selecionado) {
         setPaginaAtual(1);
@@ -326,12 +226,12 @@ export function ProfessoresListagem() {
         }}
       />
 
-      {erro && (
+      {Boolean(erro) && (
         <div
           role="alert"
           className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-[#BA1A1A]"
         >
-          <span>{erro}</span>
+          <span>{mensagemErro(erro, "Não foi possível carregar os professores.")}</span>
 
           <Button
             variant="ghost"
@@ -355,7 +255,7 @@ export function ProfessoresListagem() {
         <>
           <div className="min-w-0 overflow-x-auto pb-2">
             <DataTable
-              data={pagina}
+              data={professores}
               getRowKey={(professor) => professor.id}
               emptyMessage="Nenhum professor encontrado."
               columns={[
@@ -419,7 +319,7 @@ export function ProfessoresListagem() {
           <div className="w-full overflow-x-auto pb-2">
             <Pagination
               className="mt-2 min-w-max px-0"
-              totalItems={filtrados.length}
+              totalItems={pageData.totalElements}
               currentPage={paginaSegura}
               itemsPerPage={itensPorPagina}
               onPageChange={setPaginaAtual}

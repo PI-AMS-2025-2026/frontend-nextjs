@@ -332,7 +332,7 @@ export default function CadastroUsuario() {
                                 name: "status",
                                 label: "Status",
                                 type: "select",
-                                placeholder: "Selecione...",
+                                placeholder: "Todos",
                                 width: "w-[225px]",
                                 options: [
                                     { label: "Ativo", value: "Ativo" },
@@ -343,7 +343,7 @@ export default function CadastroUsuario() {
                                 name: "tipo",
                                 label: "Tipo de Usuário",
                                 type: "select",
-                                placeholder: "Selecione...",
+                                placeholder: "Todos",
                                 width: "w-[225px]",
                                 options: [
                                     { label: "Administrador", value: "Administrador" },
