@@ -6,12 +6,13 @@ import {
     CircleSlash,
     Pencil,
     Plus,
-    Trash2,
+    Power,
+    PowerOff,
     Loader2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { SearchInput, Input } from "@/components/ui/input";
+import { SearchInput, Input, PasswordInput } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dropdown } from "@/components/ui/dropdown";
 import { TableFilters } from "@/components/ui/tablefilters";
@@ -21,6 +22,8 @@ import { Modal } from "@/components/ui/modal";
 
 import { usuariosService } from "@/services/usuarios.service";
 import { cursosService } from "@/services/cursos.service";
+import { authService } from "@/services/auth.service";
+import { authSessionEvents } from "@/services/auth-session";
 import type {
     UsuarioResponse,
     UsuarioRequest,
@@ -30,6 +33,7 @@ import type {
     PageResponse,
 } from "@/types/api";
 import { ApiError } from "@/lib/api";
+import { senhaForte, SENHA_FORTE_MENSAGEM } from "@/lib/password-policy";
 
 interface FormUsuario {
     nome: string;
@@ -81,6 +85,25 @@ export default function CadastroUsuario() {
     const [usuarioParaInativar, setUsuarioParaInativar] = React.useState<UsuarioResponse | null>(null);
     const [erroInativacao, setErroInativacao] = React.useState("");
     const [inativando, setInativando] = React.useState(false);
+    const [usuarioAutenticado, setUsuarioAutenticado] = React.useState<Pick<UsuarioResponse, "id" | "tipoUsuario"> | null>(null);
+
+    React.useEffect(() => {
+        const sincronizarUsuario = () => {
+            const usuario = authService.getUser() as Partial<UsuarioResponse> | null;
+            setUsuarioAutenticado(usuario?.id && usuario.tipoUsuario
+                ? { id: usuario.id, tipoUsuario: usuario.tipoUsuario }
+                : null);
+        };
+
+        sincronizarUsuario();
+        window.addEventListener(authSessionEvents.userUpdated, sincronizarUsuario);
+        return () => window.removeEventListener(authSessionEvents.userUpdated, sincronizarUsuario);
+    }, []);
+
+    const ehAdministradorAutenticado = (usuario: UsuarioResponse) =>
+        usuario.tipoUsuario === "ADMINISTRADOR"
+        && usuarioAutenticado?.tipoUsuario === "ADMINISTRADOR"
+        && usuario.id === usuarioAutenticado.id;
 
     // Alterar a busca ou os filtros volta para a primeira pagina. O reset
     // acontece junto da acao do usuario, em vez de um efeito reagindo ao
@@ -196,6 +219,11 @@ export default function CadastroUsuario() {
             return;
         }
 
+        if (senha.trim() && !senhaForte(senha)) {
+            setErrosCampos({ senha: SENHA_FORTE_MENSAGEM });
+            return;
+        }
+
         if (formulario.tipoUsuario === "COORDENADOR" && !formulario.cursoId) {
             setErrosCampos({ curso: "Selecione o curso do coordenador." });
             return;
@@ -211,7 +239,7 @@ export default function CadastroUsuario() {
                 email: formulario.email,
                 tipoUsuario: formulario.tipoUsuario,
                 status: formulario.status,
-                ...(senha ? { senha } : {}),
+                ...(senha.trim() ? { senha } : {}),
                 ...(formulario.tipoUsuario === "COORDENADOR"
                     ? { curso: { id: Number(formulario.cursoId) } }
                     : {}),
@@ -258,7 +286,7 @@ export default function CadastroUsuario() {
         }
     }
 
-    function abrirInativacao(usuario: UsuarioResponse) {
+    function abrirAlteracaoStatus(usuario: UsuarioResponse) {
         setErroInativacao("");
         setUsuarioParaInativar(usuario);
     }
@@ -267,18 +295,31 @@ export default function CadastroUsuario() {
         if (!inativando) setUsuarioParaInativar(null);
     }
 
-    async function confirmarInativacao() {
+    async function confirmarAlteracaoStatus() {
         if (!usuarioParaInativar || inativando) return;
         setInativando(true);
         setErroInativacao("");
+        const ativandoUsuario = usuarioParaInativar.status === "INATIVO";
         try {
-            await usuariosService.deletar(usuarioParaInativar.id);
+            if (ativandoUsuario) {
+                await usuariosService.atualizar(usuarioParaInativar.id, {
+                    nome: usuarioParaInativar.nome,
+                    email: usuarioParaInativar.email,
+                    tipoUsuario: usuarioParaInativar.tipoUsuario,
+                    status: "ATIVO",
+                    ...(usuarioParaInativar.curso ? { curso: { id: usuarioParaInativar.curso.id } } : {}),
+                });
+            } else {
+                await usuariosService.deletar(usuarioParaInativar.id);
+            }
             setUsuarioParaInativar(null);
-            setMensagemSucesso("Usuário inativado com sucesso!");
+            setMensagemSucesso(ativandoUsuario ? "Usuário ativado com sucesso!" : "Usuário inativado com sucesso!");
             setModalSucesso(true);
             carregarUsuarios();
         } catch (err) {
-            setErroInativacao(err instanceof ApiError && err.message ? err.message : "Erro ao inativar usuário.");
+            setErroInativacao(err instanceof ApiError && err.message
+                ? err.message
+                : `Erro ao ${ativandoUsuario ? "ativar" : "inativar"} usuário.`);
         } finally {
             setInativando(false);
         }
@@ -332,7 +373,7 @@ export default function CadastroUsuario() {
                                 name: "status",
                                 label: "Status",
                                 type: "select",
-                                placeholder: "Selecione...",
+                                placeholder: "Todos",
                                 width: "w-[225px]",
                                 options: [
                                     { label: "Ativo", value: "Ativo" },
@@ -343,7 +384,7 @@ export default function CadastroUsuario() {
                                 name: "tipo",
                                 label: "Tipo de Usuário",
                                 type: "select",
-                                placeholder: "Selecione...",
+                                placeholder: "Todos",
                                 width: "w-[225px]",
                                 options: [
                                     { label: "Administrador", value: "Administrador" },
@@ -415,9 +456,12 @@ export default function CadastroUsuario() {
                                         onClick: abrirEdicao,
                                     },
                                     {
-                                        label: "Inativar usuário",
-                                        icon: <Trash2 className="size-5 text-red-500" />,
-                                        onClick: abrirInativacao,
+                                        label: (usuario) => usuario.status === "ATIVO" ? "Inativar usuário" : "Ativar usuário",
+                                        icon: (usuario) => usuario.status === "ATIVO"
+                                            ? <PowerOff className="size-5 text-red-500" />
+                                            : <Power className="size-5 text-emerald-600" />,
+                                        onClick: abrirAlteracaoStatus,
+                                        disabled: (usuario) => usuario.status === "ATIVO" && ehAdministradorAutenticado(usuario),
                                     },
                                 ]}
                             />
@@ -438,7 +482,7 @@ export default function CadastroUsuario() {
             <Modal
                 open={modalAberto}
                 onClose={fecharModal}
-                className="max-w-[586px] overflow-visible rounded-[20px]"
+                className="max-w-[640px] overflow-visible rounded-[20px]"
             >
                 <div className="relative">
                     <div className="mb-5">
@@ -447,7 +491,7 @@ export default function CadastroUsuario() {
                         </h2>
                     </div>
 
-                    <form onSubmit={salvarUsuario} className="grid grid-cols-2 items-start gap-x-5 gap-y-5">
+                    <form onSubmit={salvarUsuario} noValidate className="grid grid-cols-1 items-start gap-x-5 gap-y-4 sm:grid-cols-2">
                         <div className="min-w-0">
                         <Input
                             label="Nome"
@@ -479,88 +523,99 @@ export default function CadastroUsuario() {
                         {errosCampos.email && <p id="usuario-email-erro" className="mt-1.5 text-[11px] leading-4 text-[#BA1A1A]">{errosCampos.email}</p>}
                         </div>
 
-                        <div className="col-span-2 grid grid-cols-[1fr_1fr_auto] items-end gap-5">
-                            <div>
-                                <label className="mb-2 block text-[11px] font-medium text-black">
+                        <div className="min-w-0">
+                            <div className="mb-2 text-[11px] font-medium text-black">
+                                <label id="usuario-tipo-label">
                                     Tipo Usuário
                                 </label>
-
-                                <Dropdown
-                                    value={
-                                        formulario.tipoUsuario === "ADMINISTRADOR"
-                                            ? "Administrador"
-                                            : "Coordenador"
-                                    }
-                                    onChange={(valor) => {
-                                        const tipoUsuario = valor === "Administrador"
-                                            ? "ADMINISTRADOR"
-                                            : "COORDENADOR";
-                                        alterarCampo("tipoUsuario", tipoUsuario);
-                                        if (tipoUsuario === "ADMINISTRADOR") {
-                                            alterarCampo("cursoId", "");
-                                        }
-                                    }}
-                                    placeholder="Selecione..."
-                                    options={[
-                                        { label: "Administrador", value: "Administrador" },
-                                        { label: "Coordenador", value: "Coordenador" },
-                                    ]}
-                                    className="[&>button]:h-[34px] [&>button]:rounded-[7px] [&>button]:border-[#17264D] [&>button]:bg-white [&>button]:text-[12px]"
-                                />
                             </div>
 
-                            <div className="min-w-0">
-                            <Input
+                            <Dropdown
+                                value={
+                                    formulario.tipoUsuario === "ADMINISTRADOR"
+                                        ? "Administrador"
+                                        : "Coordenador"
+                                }
+                                onChange={(valor) => {
+                                    const tipoUsuario = valor === "Administrador"
+                                        ? "ADMINISTRADOR"
+                                        : "COORDENADOR";
+                                    alterarCampo("tipoUsuario", tipoUsuario);
+                                    if (tipoUsuario === "ADMINISTRADOR") {
+                                        alterarCampo("cursoId", "");
+                                    }
+                                }}
+                                placeholder="Selecione..."
+                                options={[
+                                    { label: "Administrador", value: "Administrador" },
+                                    { label: "Coordenador", value: "Coordenador" },
+                                ]}
+                                className="[&>button]:h-[40px] [&>button]:rounded-[7px] [&>button]:border-[#17264D] [&>button]:bg-white [&>button]:text-[12px]"
+                            />
+                        </div>
+
+                        <fieldset className="min-w-0">
+                            <legend className="mb-2 text-[11px] font-medium text-black">
+                                    Status
+                            </legend>
+
+                            <RadioGroup
+                                value={formulario.status === "ATIVO" ? "Ativo" : "Inativo"}
+                                disabled={!!usuarioEditando && ehAdministradorAutenticado(usuarioEditando)}
+                                onValueChange={(valor) =>
+                                    alterarCampo(
+                                        "status",
+                                        valor === "Ativo" ? "ATIVO" : "INATIVO"
+                                    )
+                                }
+                                className="flex min-h-[40px] items-center gap-5"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <RadioGroupItem value="Ativo" className="size-[14px] border-2" />
+                                    <span className="text-[12px] text-black">Ativo</span>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    <RadioGroupItem value="Inativo" className="size-[14px] border-2" />
+                                    <span className="text-[12px] text-black">Inativo</span>
+                                </div>
+                            </RadioGroup>
+                            {!!usuarioEditando && ehAdministradorAutenticado(usuarioEditando) && (
+                                <p className="mt-1 text-[10px] leading-4 text-[#17264D]/70">
+                                    Administradores não podem se auto inativar.
+                                </p>
+                            )}
+                        </fieldset>
+
+                        <div className="col-span-1 min-w-0 sm:col-span-2">
+                            <PasswordInput
                                 label="Senha"
                                 showLabel
-                                type="password"
                                 placeholder={usuarioEditando ? "Manter senha atual" : "Digite a senha..."}
                                 value={senha}
-                                onChange={(event) => setSenha(event.target.value)}
+                                minLength={8}
+                                onChange={(event) => {
+                                    setSenha(event.target.value);
+                                    setErrosCampos((prev) => {
+                                        if (!prev.senha) return prev;
+                                        const proximo = { ...prev };
+                                        delete proximo.senha;
+                                        return proximo;
+                                    });
+                                }}
                                 aria-invalid={!!errosCampos.senha}
-                                aria-describedby={errosCampos.senha ? "usuario-senha-erro" : undefined}
-                                height="34px"
-                                className={`rounded-[7px] bg-white text-[12px] ${errosCampos.senha ? "border-[#BA1A1A] focus:border-[#BA1A1A]" : ""}`}
+                                aria-describedby={`usuario-senha-requisitos${errosCampos.senha ? " usuario-senha-erro" : ""}`}
+                                className={`h-[40px] rounded-[7px] bg-white text-[12px] ${errosCampos.senha ? "border-[#BA1A1A] focus:border-[#BA1A1A]" : ""}`}
                             />
+                            <p id="usuario-senha-requisitos" className="mt-1.5 text-[11px] leading-4 text-[#17264D]/70">
+                                Mínimo de 8 caracteres, com uma letra maiúscula e uma minúscula.
+                                {usuarioEditando ? " Deixe vazio para manter a senha atual." : ""}
+                            </p>
                             {errosCampos.senha && <p id="usuario-senha-erro" className="mt-1.5 text-[11px] leading-4 text-[#BA1A1A]">{errosCampos.senha}</p>}
-                            </div>
-
-                            <div>
-                                <label className="mb-2 block text-[11px] font-medium text-black">
-                                    Status
-                                </label>
-
-                                <RadioGroup
-                                    value={formulario.status === "ATIVO" ? "Ativo" : "Inativo"}
-                                    onValueChange={(valor) =>
-                                        alterarCampo(
-                                            "status",
-                                            valor === "Ativo" ? "ATIVO" : "INATIVO"
-                                        )
-                                    }
-                                    className="h-[34px] items-center gap-3"
-                                >
-                                    <div className="flex items-center gap-1">
-                                        <RadioGroupItem
-                                            value="Ativo"
-                                            className="size-[14px] border-2"
-                                        />
-                                        <span className="text-[12px] text-black">Ativo</span>
-                                    </div>
-
-                                    <div className="flex items-center gap-1">
-                                        <RadioGroupItem
-                                            value="Inativo"
-                                            className="size-[14px] border-2"
-                                        />
-                                        <span className="text-[12px] text-black">Inativo</span>
-                                    </div>
-                                </RadioGroup>
-                            </div>
                         </div>
 
                         {formulario.tipoUsuario === "COORDENADOR" && (
-                            <div className="col-span-2">
+                            <div className="col-span-1 sm:col-span-2">
                                 <label className="mb-2 block text-[11px] font-medium text-black">
                                     Curso do Coordenador
                                 </label>
@@ -581,15 +636,15 @@ export default function CadastroUsuario() {
                             </div>
                         )}
 
-                        {errosCampos.tipoUsuario && <p className="col-span-2 -mt-3 text-[11px] leading-4 text-[#BA1A1A]">{errosCampos.tipoUsuario}</p>}
+                        {errosCampos.tipoUsuario && <p className="col-span-1 -mt-3 text-[11px] leading-4 text-[#BA1A1A] sm:col-span-2">{errosCampos.tipoUsuario}</p>}
 
                         {erro && (
-                            <p className="col-span-2 text-[12px] font-medium text-[#BA1A1A]">
+                            <p className="col-span-1 text-[12px] font-medium text-[#BA1A1A] sm:col-span-2">
                                 {erro}
                             </p>
                         )}
 
-                        <div className="col-span-2 mt-2 flex items-center justify-end gap-7">
+                        <div className="col-span-1 mt-2 flex items-center justify-end gap-7 sm:col-span-2">
                             <button
                                 type="button"
                                 onClick={fecharModal}
@@ -616,24 +671,26 @@ export default function CadastroUsuario() {
                 open={usuarioParaInativar !== null}
                 onClose={fecharInativacao}
                 closeDisabled={inativando}
-                labelledBy="inativar-usuario-titulo"
-                describedBy="inativar-usuario-descricao"
+                labelledBy="alterar-status-usuario-titulo"
+                describedBy="alterar-status-usuario-descricao"
                 className="max-w-xl overflow-visible"
             >
                 <div className="flex flex-col gap-4">
-                    <h2 id="inativar-usuario-titulo" className="pr-12 text-xl font-semibold">
-                        Inativar usuário
+                    <h2 id="alterar-status-usuario-titulo" className="pr-12 text-xl font-semibold">
+                        {usuarioParaInativar?.status === "ATIVO" ? "Inativar usuário" : "Ativar usuário"}
                     </h2>
-                    <p id="inativar-usuario-descricao" className="wrap-anywhere text-sm">
-                        Deseja inativar <strong>{usuarioParaInativar?.nome}</strong>? O usuário poderá ser reativado depois.
+                    <p id="alterar-status-usuario-descricao" className="wrap-anywhere text-sm">
+                        Deseja {usuarioParaInativar?.status === "ATIVO" ? "inativar" : "ativar"} <strong>{usuarioParaInativar?.nome}</strong>?
                     </p>
                     {erroInativacao && <p role="alert" className="text-sm text-[#BA1A1A]">{erroInativacao}</p>}
                     <div className="flex flex-wrap justify-end gap-3">
                         <Button type="button" variant="ghost" size="small" autoFocus disabled={inativando} onClick={fecharInativacao}>
                             Cancelar
                         </Button>
-                        <Button type="button" variant="danger" size="small" disabled={inativando} onClick={confirmarInativacao}>
-                            {inativando ? "Inativando..." : "Inativar"}
+                        <Button type="button" variant={usuarioParaInativar?.status === "ATIVO" ? "danger" : "secondary"} size="small" disabled={inativando} onClick={confirmarAlteracaoStatus}>
+                            {inativando
+                                ? usuarioParaInativar?.status === "ATIVO" ? "Inativando..." : "Ativando..."
+                                : usuarioParaInativar?.status === "ATIVO" ? "Inativar" : "Ativar"}
                         </Button>
                     </div>
                 </div>

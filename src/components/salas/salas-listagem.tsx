@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Plus, Pencil, Trash2, Wrench, ArrowLeft, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Wrench, ArrowLeft } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/input";
@@ -21,6 +21,7 @@ import { salasService } from "@/services/salas.service";
 import { tiposSalaService } from "@/services/tipos-sala.service";
 import { recursoSalaService } from "@/services/recurso-sala.service";
 import type { Id, SalaResponse, TipoSalaResponse } from "@/types/api";
+import { useServerPage } from "@/hooks/use-server-page";
 
 // Linha exibida na tabela (as chaves batem com as colunas do DataTable)
 interface SalaRow {
@@ -85,48 +86,41 @@ async function sincronizarRecursosSala(
 export function SalasListagem() {
     const pathname = usePathname();
     const isCoordinatorRoute = pathname.startsWith("/coordenador/");
-    const [salas, setSalas] = React.useState<SalaResponse[] | null>(null);
     const [tiposSala, setTiposSala] = React.useState<TipoSalaResponse[]>([]);
     const [erro, setErro] = React.useState<string | null>(null);
     const [erroForm, setErroForm] = React.useState<string | null>(null);
     const [salvando, setSalvando] = React.useState(false);
 
-    const carregar = React.useCallback(async () => {
+    const carregarCatalogo = React.useCallback(async () => {
         try {
             setErro(null);
-            const [pagina, tipos] = await Promise.all([
-                // busca tudo de uma vez; filtro e paginação continuam no cliente
-                salasService.listar({ page: 0, size: 1000 }),
-                tiposSalaService.listar(),
-            ]);
-            setSalas(pagina.content);
+            const tipos = await tiposSalaService.listar();
             setTiposSala(tipos);
         } catch (e) {
             setErro(mensagemErro(e, "Não foi possível carregar as salas."));
-            setSalas((atual) => atual ?? []);
         }
     }, []);
-
-    React.useEffect(() => {
-        let vivo = true;
-        // A chamada e adiada para um microtask porque o carregamento liga o
-        // estado de loading de forma sincrona; assim o efeito nao encadeia um
-        // render dentro do proprio commit. O guard evita atualizar apos desmontar.
-        void Promise.resolve().then(() => {
-            if (vivo) carregar();
-        });
-        return () => {
-            vivo = false;
-        };
-    }, [carregar]);
 
     const [busca, setBusca] = React.useState("");
     const [fCodigo, setFCodigo] = React.useState("");
     const [fCapacidade, setFCapacidade] = React.useState("");
-    const [fTipo, setFTipo] = React.useState("");
+    const [fTipoSala, setFTipoSala] = React.useState("");
 
     const [itensPorPagina, setItensPorPagina] = React.useState(6);
     const [paginaAtual, setPaginaAtual] = React.useState(1);
+    const filtros = React.useMemo(() => ({
+        busca: busca.trim() || undefined,
+        codigo: fCodigo.trim() || undefined,
+        capacidade: /^\d+$/.test(fCapacidade) ? Number(fCapacidade) : undefined,
+        tipo_sala: fTipoSala ? Number(fTipoSala) : undefined,
+    }), [busca, fCodigo, fCapacidade, fTipoSala]);
+    const { data: pageData, loading, error: erroLista, reload } = useServerPage(
+        (query) => salasService.listar(query as Parameters<typeof salasService.listar>[0]),
+        filtros, paginaAtual, itensPorPagina,
+    );
+    const salasPagina = pageData.content;
+
+    React.useEffect(() => { void Promise.resolve().then(carregarCatalogo); }, [carregarCatalogo]);
 
     const [cadastrarAberto, setCadastrarAberto] = React.useState(false);
     const [editarAberto, setEditarAberto] = React.useState(false);
@@ -141,31 +135,10 @@ export function SalasListagem() {
         return () => clearTimeout(timer);
     }, [sucesso]);
 
-    const filtradas = React.useMemo(() => {
-        if (salas === null) return [];
-        const b = busca.trim().toLowerCase();
-        const c = fCodigo.trim().toLowerCase();
-        const t = fTipo.trim().toLowerCase();
-
-        return salas.map(paraRow).filter((s) => {
-            const buscaOk =
-                !b ||
-                s.codigo.toLowerCase().includes(b) ||
-                s.tipo.toLowerCase().includes(b);
-            const codigoOk = !c || s.codigo.toLowerCase().includes(c);
-            const capacidadeOk = !fCapacidade || String(s.capacidade).includes(fCapacidade);
-            const tipoOk = !t || s.tipo.toLowerCase().includes(t);
-            return buscaOk && codigoOk && capacidadeOk && tipoOk;
-        });
-    }, [salas, busca, fCodigo, fCapacidade, fTipo]);
-
-    const totalPaginas = Math.max(1, Math.ceil(filtradas.length / itensPorPagina));
-    const paginaSegura = Math.min(paginaAtual, totalPaginas);
-    const inicioIndice = (paginaSegura - 1) * itensPorPagina;
-    const pagina = filtradas.slice(inicioIndice, inicioIndice + itensPorPagina);
+    const paginaSegura = Math.min(paginaAtual, Math.max(1, pageData.totalPages));
 
     function selecionar(row: SalaRow) {
-        setSelecionada(salas?.find((s) => s.id === row.id) ?? null);
+        setSelecionada(salasPagina.find((s) => s.id === row.id) ?? null);
     }
 
     async function confirmarCadastro(dados: DadosSala) {
@@ -183,7 +156,7 @@ export function SalasListagem() {
                 tipoSala: { id: tipoSalaId },
             });
             await sincronizarRecursosSala(criada.id, dados.recursos);
-            await carregar();
+            reload();
             setCadastrarAberto(false);
             setSucesso("Sala cadastrada com sucesso!");
         } catch (e) {
@@ -209,7 +182,7 @@ export function SalasListagem() {
                 tipoSala: { id: tipoSalaId },
             });
             await sincronizarRecursosSala(selecionada.id, dados.recursos);
-            await carregar();
+            reload();
             setEditarAberto(false);
             setSelecionada(null);
             setSucesso("Sala editada com sucesso!");
@@ -226,7 +199,7 @@ export function SalasListagem() {
             setSalvando(true);
             setErro(null);
             await salasService.deletar(selecionada.id);
-            await carregar();
+            reload();
             setExcluirAberto(false);
             setSelecionada(null);
             setSucesso("Sala excluída com sucesso!");
@@ -238,15 +211,6 @@ export function SalasListagem() {
         } finally {
             setSalvando(false);
         }
-    }
-
-    if (salas === null) {
-        return (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
-                <Loader2 className="size-6 animate-spin text-[#0099AA]" />
-                <span className="text-sm text-[#17264D]/70">Carregando salas...</span>
-            </div>
-        );
     }
 
     return (
@@ -296,15 +260,15 @@ export function SalasListagem() {
                 </div>
             </div>
 
-            {erro && (
+            {Boolean(erro || erroLista) && (
                 <div
                     role="alert"
                     className="flex items-center justify-between gap-3 rounded-[10px] border border-[#FF0000]/40 bg-red-50 px-4 py-3 text-sm text-[#FF0000]"
                 >
-                    <span>{erro}</span>
+                    <span>{erro || mensagemErro(erroLista, "Não foi possível carregar as salas.")}</span>
                     <button
                         type="button"
-                        onClick={carregar}
+                        onClick={() => { reload(); void carregarCatalogo(); }}
                         className="font-semibold underline underline-offset-2"
                     >
                         Tentar novamente
@@ -319,26 +283,37 @@ export function SalasListagem() {
                         name: "capacidade",
                         label: "Capacidade",
                         type: "input",
+                        inputType: "number",
+                        min: 0,
+                        disableExponent: true,
                         placeholder: "Digite aqui...",
                     },
-                    { name: "tipo", label: "Tipo", type: "input", placeholder: "Digite aqui..." },
+                    {
+                        name: "tipoSala",
+                        label: "Tipo",
+                        type: "select",
+                        placeholder: "Todos",
+                        options: tiposSala.map((tipo) => ({ label: tipo.nome, value: String(tipo.id) })),
+                    },
                 ]}
                 onChange={(f) => {
                     setFCodigo(f.codigo ?? "");
                     setFCapacidade(f.capacidade ?? "");
-                    setFTipo(f.tipo ?? "");
+                    setFTipoSala(f.tipoSala ?? "");
                     setPaginaAtual(1);
                 }}
             />
 
-            {pagina.length === 0 ? (
+            {loading && salasPagina.length === 0 ? (
+                <div className="py-10 text-center text-sm text-[#17264D]/70">Carregando salas...</div>
+            ) : salasPagina.length === 0 ? (
                 <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">
                     Nenhuma sala encontrada.
                 </div>
             ) : (
                 <div className="min-w-0 overflow-x-auto pb-2">
                     <DataTable
-                        data={pagina}
+                        data={salasPagina.map(paraRow)}
                         getRowKey={(s) => s.id}
                         columns={[
                             { key: "codigo", label: "Código", headerClassName: "min-w-[160px]" },
@@ -378,7 +353,7 @@ export function SalasListagem() {
             )}
 
             <Pagination
-                totalItems={filtradas.length}
+                totalItems={pageData.totalElements}
                 currentPage={paginaSegura}
                 itemsPerPage={itensPorPagina}
                 onPageChange={setPaginaAtual}

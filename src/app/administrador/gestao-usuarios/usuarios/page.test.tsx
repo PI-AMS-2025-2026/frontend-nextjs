@@ -42,6 +42,29 @@ describe("formulário de usuários", () => {
         expect(screen.getByText("E-mail é obrigatório.")).toBeInTheDocument();
     });
 
+    it("impede criar usuário com senha fraca e mostra os requisitos junto ao campo", async () => {
+        render(<CadastroUsuario />);
+        fireEvent.click(await screen.findByRole("button", { name: /Cadastrar/ }));
+        fireEvent.change(screen.getByPlaceholderText("Digite o nome..."), { target: { value: "Ana" } });
+        fireEvent.change(screen.getByPlaceholderText("Digite o email..."), { target: { value: "ana@teste.com" } });
+        fireEvent.change(screen.getByPlaceholderText("Digite a senha..."), { target: { value: "abcdefgh" } });
+        fireEvent.click(screen.getByRole("button", { name: "CONFIRMAR" }));
+
+        expect(await screen.findByText("A senha deve ter pelo menos 8 caracteres, uma letra maiúscula e uma letra minúscula.")).toBeInTheDocument();
+        expect(usuariosApi.criar).not.toHaveBeenCalled();
+    });
+
+    it("mantém a senha atual quando a edição deixa o campo vazio", async () => {
+        usuariosApi.listar.mockResolvedValue(paginaUsuario);
+        usuariosApi.atualizar.mockResolvedValue({} as never);
+        render(<CadastroUsuario />);
+        fireEvent.click(await screen.findByRole("button", { name: "Editar usuário" }));
+        fireEvent.click(screen.getByRole("button", { name: "CONFIRMAR" }));
+
+        await waitFor(() => expect(usuariosApi.atualizar).toHaveBeenCalled());
+        expect(usuariosApi.atualizar.mock.calls[0][1]).not.toHaveProperty("senha");
+    });
+
     it("mostra a razão da API abaixo do curso inválido", async () => {
         usuariosApi.criar.mockRejectedValue(new ApiError("Curso não encontrado com ID: 999", 404));
         render(<CadastroUsuario />);
@@ -49,7 +72,7 @@ describe("formulário de usuários", () => {
 
         fireEvent.change(screen.getByPlaceholderText("Digite o nome..."), { target: { value: "Coordenação" } });
         fireEvent.change(screen.getByPlaceholderText("Digite o email..."), { target: { value: "coord@teste.com" } });
-        fireEvent.change(screen.getByPlaceholderText("Digite a senha..."), { target: { value: "123456" } });
+        fireEvent.change(screen.getByPlaceholderText("Digite a senha..."), { target: { value: "Senha123" } });
         fireEvent.click(screen.getByRole("button", { name: "Administrador" }));
         fireEvent.click(screen.getByRole("button", { name: "Coordenador" }));
         fireEvent.click(await screen.findByRole("button", { name: "Selecione o curso..." }));

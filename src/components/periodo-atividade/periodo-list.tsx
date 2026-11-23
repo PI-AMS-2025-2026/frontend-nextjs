@@ -29,6 +29,7 @@ import type {
   PeriodoAtividadeQuadroRequest,
   PeriodoAtividadeQuadroResponse,
 } from "@/types/api";
+import { useServerPage } from "@/hooks/use-server-page";
 
 import {
   formatarData,
@@ -48,15 +49,6 @@ function mensagemErro(
 }
 
 export function PeriodoList() {
-  const [periodos, setPeriodos] = React.useState<
-    PeriodoAtividadeQuadroResponse[]
-  >([]);
-
-  const [totalPeriodos, setTotalPeriodos] =
-    React.useState(0);
-
-  const [loading, setLoading] = React.useState(true);
-  const [erro, setErro] = React.useState<string | null>(null);
 
   const [busca, setBusca] = React.useState("");
   const [fPeriodo, setFPeriodo] = React.useState("");
@@ -68,6 +60,17 @@ export function PeriodoList() {
     React.useState(PAGE_SIZE_DEFAULT);
 
   const [paginaAtual, setPaginaAtual] = React.useState(1);
+  const filtros = React.useMemo(() => ({
+    busca: busca.trim() || undefined,
+    periodo: fPeriodo ? Number(fPeriodo) : undefined,
+    ano: fAno ? Number(fAno) : undefined,
+    status: fStatus || undefined,
+  }), [busca, fPeriodo, fAno, fStatus]);
+  const { data: pageData, loading, error: erroPagina, reload } = useServerPage(
+    (query) => periodoAtividadeQuadroService.listar(query as Parameters<typeof periodoAtividadeQuadroService.listar>[0]),
+    filtros, paginaAtual, itensPorPagina,
+  );
+  const periodos = pageData.content;
 
   const [cadastrarAberto, setCadastrarAberto] =
     React.useState(false);
@@ -83,70 +86,6 @@ export function PeriodoList() {
   const [sucesso, setSucesso] =
     React.useState<string | null>(null);
 
-  const requisicaoAtual = React.useRef(0);
-
-  const carregarPeriodos = React.useCallback(
-    async (pagina = paginaAtual) => {
-      const idRequisicao = ++requisicaoAtual.current;
-
-      setLoading(true);
-      setErro(null);
-
-      try {
-        const resposta =
-          await periodoAtividadeQuadroService.listar({
-            page: pagina - 1,
-            size: itensPorPagina,
-            periodo: fPeriodo
-              ? Number(fPeriodo)
-              : undefined,
-            ano: fAno ? Number(fAno) : undefined,
-            status: fStatus || undefined,
-          });
-
-        if (idRequisicao === requisicaoAtual.current) {
-          setPeriodos(resposta.content);
-          setTotalPeriodos(resposta.totalElements);
-        }
-      } catch (error) {
-        if (idRequisicao === requisicaoAtual.current) {
-          setErro(
-            mensagemErro(
-              error,
-              "Não foi possível carregar os períodos."
-            )
-          );
-
-          setPeriodos([]);
-          setTotalPeriodos(0);
-        }
-      } finally {
-        if (idRequisicao === requisicaoAtual.current) {
-          setLoading(false);
-        }
-      }
-    },
-    [
-      paginaAtual,
-      itensPorPagina,
-      fPeriodo,
-      fAno,
-      fStatus,
-    ]
-  );
-
-  React.useEffect(() => {
-    let vivo = true;
-
-    void Promise.resolve().then(() => {
-      if (vivo) void carregarPeriodos();
-    });
-
-    return () => {
-      vivo = false;
-      requisicaoAtual.current += 1;
-    };
-  }, [carregarPeriodos]);
 
   React.useEffect(() => {
     if (!sucesso) return;
@@ -184,7 +123,7 @@ export function PeriodoList() {
       if (paginaAtual !== 1) {
         setPaginaAtual(1);
       } else {
-        await carregarPeriodos(1);
+        reload();
       }
     } catch (error) {
       const fallback =
@@ -199,28 +138,6 @@ export function PeriodoList() {
       );
     }
   }
-
-  const periodosFiltrados = React.useMemo(() => {
-    const texto = busca.trim().toLowerCase();
-
-    if (!texto) return periodos;
-
-    return periodos.filter((item) => {
-      return (
-        String(item.id).includes(texto) ||
-        String(item.periodo).includes(texto) ||
-        String(item.ano).includes(texto) ||
-        formatarData(item.dataInicio).includes(texto) ||
-        formatarData(item.dataFim).includes(texto) ||
-        rotuloTipoPeriodo(
-          item.tipoPeridoAtividadeQuadro
-        )
-          .toLowerCase()
-          .includes(texto) ||
-        item.status.toLowerCase().includes(texto)
-      );
-    });
-  }, [periodos, busca]);
 
   return (
     <div className="mx-auto flex w-full max-w-[1100px] min-w-0 flex-1 flex-col gap-6 px-6 py-8">
@@ -302,17 +219,17 @@ export function PeriodoList() {
       />
 
       {/* ERROS */}
-      {erro && (
+      {Boolean(erroPagina) && (
         <div
           role="alert"
           className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-[#BA1A1A]"
         >
-          <span>{erro}</span>
+          <span>{mensagemErro(erroPagina, "Não foi possível carregar os períodos.")}</span>
 
           <Button
             variant="ghost"
             size="small"
-            onClick={() => void carregarPeriodos()}
+            onClick={reload}
           >
             Tentar novamente
           </Button>
@@ -334,7 +251,7 @@ export function PeriodoList() {
       ) : (
         <div className="min-w-0 pb-2">
           <DataTable
-            data={periodosFiltrados}
+            data={periodos}
             getRowKey={(periodo) => periodo.id}
             emptyMessage="Nenhum período encontrado."
             columns={[
@@ -436,7 +353,7 @@ export function PeriodoList() {
 
       {/* PAGINAÇÃO */}
       <Pagination
-        totalItems={totalPeriodos}
+        totalItems={pageData.totalElements}
         currentPage={paginaAtual}
         itemsPerPage={itensPorPagina}
         onPageChange={setPaginaAtual}

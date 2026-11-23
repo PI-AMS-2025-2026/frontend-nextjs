@@ -34,8 +34,8 @@ describe("redefinição de senha", () => {
 
   it("não chama a API quando as senhas não coincidem", async () => {
     render(<RedefinirSenhaForm token="token-seguro" />);
-    fireEvent.change(screen.getByLabelText("Nova senha"), { target: { value: "senha-segura" } });
-    fireEvent.change(screen.getByLabelText("Confirmar nova senha"), { target: { value: "outra-senha" } });
+    fireEvent.change(screen.getByLabelText("Nova senha"), { target: { value: "Senha-segura" } });
+    fireEvent.change(screen.getByLabelText("Confirmar nova senha"), { target: { value: "Outra-senha" } });
     fireEvent.click(screen.getByRole("button", { name: "Redefinir senha" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("As senhas não coincidem.");
@@ -44,11 +44,11 @@ describe("redefinição de senha", () => {
 
   it("envia token e senha e oferece voltar ao login após sucesso", async () => {
     render(<RedefinirSenhaForm token="token-seguro" />);
-    fireEvent.change(screen.getByLabelText("Nova senha"), { target: { value: "senha-segura" } });
-    fireEvent.change(screen.getByLabelText("Confirmar nova senha"), { target: { value: "senha-segura" } });
+    fireEvent.change(screen.getByLabelText("Nova senha"), { target: { value: "Senha-segura" } });
+    fireEvent.change(screen.getByLabelText("Confirmar nova senha"), { target: { value: "Senha-segura" } });
     fireEvent.click(screen.getByRole("button", { name: "Redefinir senha" }));
 
-    await waitFor(() => expect(authService.redefinirSenha).toHaveBeenCalledWith({ token: "token-seguro", senha: "senha-segura" }));
+    await waitFor(() => expect(authService.redefinirSenha).toHaveBeenCalledWith({ token: "token-seguro", senha: "Senha-segura" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Agora você pode entrar no sistema com sua nova senha.");
     expect(screen.getByRole("link", { name: "Ir para o login" })).toHaveAttribute("href", "/login");
   });
@@ -56,11 +56,21 @@ describe("redefinição de senha", () => {
   it("informa que o link expirou ou é inválido", async () => {
     redefinirMock.mockRejectedValueOnce(new ApiError("Token de recuperação expirado", 400));
     render(<RedefinirSenhaForm token="token-expirado" />);
-    fireEvent.change(screen.getByLabelText("Nova senha"), { target: { value: "senha-segura" } });
-    fireEvent.change(screen.getByLabelText("Confirmar nova senha"), { target: { value: "senha-segura" } });
+    fireEvent.change(screen.getByLabelText("Nova senha"), { target: { value: "Senha-segura" } });
+    fireEvent.change(screen.getByLabelText("Confirmar nova senha"), { target: { value: "Senha-segura" } });
     fireEvent.click(screen.getByRole("button", { name: "Redefinir senha" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Este link é inválido ou expirou.");
     expect(screen.getByRole("link", { name: "Voltar ao login" })).toHaveAttribute("href", "/login");
+  });
+
+  it("não chama a API quando a senha não atende aos requisitos de força", async () => {
+    render(<RedefinirSenhaForm token="token-seguro" />);
+    fireEvent.change(screen.getByLabelText("Nova senha"), { target: { value: "abcdefgh" } });
+    fireEvent.change(screen.getByLabelText("Confirmar nova senha"), { target: { value: "abcdefgh" } });
+    fireEvent.click(screen.getByRole("button", { name: "Redefinir senha" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("uma letra maiúscula e uma letra minúscula");
+    expect(authService.redefinirSenha).not.toHaveBeenCalled();
   });
 });

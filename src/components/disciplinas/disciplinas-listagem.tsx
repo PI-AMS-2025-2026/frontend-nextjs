@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Plus, Pencil, ArrowLeft, Loader2 } from "lucide-react";
+import { Plus, Pencil, ArrowLeft } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/input";
@@ -23,6 +23,7 @@ import { disciplinasService } from "@/services/disciplinas.service";
 import { cursosService } from "@/services/cursos.service";
 import { tiposSalaService } from "@/services/tipos-sala.service";
 import type { CursoResponse, DisciplinaRequest, DisciplinaResponse, TipoSalaResponse } from "@/types/api";
+import { useServerPage } from "@/hooks/use-server-page";
 
 function mensagemErro(error: unknown, padrao: string) {
     if (error instanceof ApiError) {
@@ -73,7 +74,6 @@ function paraRequest(dados: DadosDisciplina): DisciplinaRequest {
 }
 
 export function DisciplinasListagem() {
-    const [disciplinas, setDisciplinas] = React.useState<DisciplinaComVinculos[] | null>(null);
     const [cursos, setCursos] = React.useState<CursoResponse[]>([]);
     const [tiposSala, setTiposSala] = React.useState<TipoSalaResponse[]>([]);
     const [erroCarga, setErroCarga] = React.useState("");
@@ -90,6 +90,19 @@ export function DisciplinasListagem() {
 
     const [itensPorPagina, setItensPorPagina] = React.useState(10);
     const [paginaAtual, setPaginaAtual] = React.useState(1);
+    const cursoId = cursos.find((curso) => curso.nome === filtroCurso)?.id;
+    const tipoSalaId = tiposSala.find((tipo) => tipo.nome === filtroTipoSala)?.id;
+    const filtros = React.useMemo(() => ({
+        busca: busca.trim() || undefined, nome: filtroNome.trim() || undefined,
+        tipo_disciplina: filtroTipo || undefined, periodo: filtroPeriodo ? Number(filtroPeriodo) : undefined,
+        modalidade: filtroModalidade === "Híbrida" ? "Hibrida" : filtroModalidade || undefined, cor: filtroCor || undefined,
+        curso: cursoId, tipo_sala: tipoSalaId,
+    }), [busca, filtroNome, filtroTipo, filtroPeriodo, filtroModalidade, filtroCor, cursoId, tipoSalaId]);
+    const { data: pageData, loading, error: erroPagina, reload } = useServerPage(
+        (query) => disciplinasService.listar(query as Parameters<typeof disciplinasService.listar>[0]),
+        filtros, paginaAtual, itensPorPagina,
+    );
+    const disciplinas = pageData.content.map(paraDisciplina);
 
     const [cadastrarAberto, setCadastrarAberto] = React.useState(false);
     const [editarAberto, setEditarAberto] = React.useState(false);
@@ -99,19 +112,16 @@ export function DisciplinasListagem() {
     React.useEffect(() => {
         let vivo = true;
         void Promise.all([
-            disciplinasService.listarTodos(),
             cursosService.listarTodos(),
             tiposSalaService.listar(),
-        ]).then(([disciplinasCarregadas, cursosCarregados, tiposCarregados]) => {
+        ]).then(([cursosCarregados, tiposCarregados]) => {
             if (!vivo) return;
-            setDisciplinas(disciplinasCarregadas.map(paraDisciplina));
             setCursos(cursosCarregados);
             setTiposSala(tiposCarregados);
             setErroCarga("");
         }).catch((error: unknown) => {
             if (!vivo) return;
             setErroCarga(mensagemErro(error, "Não foi possível carregar as disciplinas."));
-            setDisciplinas([]);
         });
         return () => {
             vivo = false;
@@ -124,90 +134,25 @@ export function DisciplinasListagem() {
         return () => clearTimeout(timer);
     }, [sucesso]);
 
-    const filtradas = React.useMemo(() => {
-        if (disciplinas === null) return [];
-        const b = busca.trim().toLowerCase();
-        const n = filtroNome.trim().toLowerCase();
-
-        return disciplinas.filter((d) => {
-            const buscaOk =
-                !b ||
-                d.nome.toLowerCase().includes(b) ||
-                d.cursoVinculado.toLowerCase().includes(b) ||
-                String(d.codigo).includes(b);
-
-            const nomeOk = !n || d.nome.toLowerCase().includes(n);
-
-            return (
-                buscaOk &&
-                nomeOk &&
-                (!filtroTipo || d.tipo === filtroTipo) &&
-                (!filtroPeriodo || String(d.periodo) === filtroPeriodo) &&
-                (!filtroModalidade || d.modalidade === filtroModalidade) &&
-                (!filtroCor || d.cor === filtroCor) &&
-                (!filtroCurso || d.cursoVinculado === filtroCurso) &&
-                (!filtroTipoSala || d.tipoSala === filtroTipoSala)
-            );
-        });
-    }, [
-        disciplinas,
-        busca,
-        filtroNome,
-        filtroTipo,
-        filtroPeriodo,
-        filtroModalidade,
-        filtroCor,
-        filtroCurso,
-        filtroTipoSala,
-    ]);
-
-    const totalPaginas = Math.max(1, Math.ceil(filtradas.length / itensPorPagina));
-    const paginaSegura = Math.min(paginaAtual, totalPaginas);
-    const inicioIndice = (paginaSegura - 1) * itensPorPagina;
-    const pagina = filtradas.slice(inicioIndice, inicioIndice + itensPorPagina);
+    const paginaSegura = Math.min(paginaAtual, Math.max(1, pageData.totalPages));
 
     async function confirmarCadastro(dados: DadosDisciplina) {
-        const salvo = await disciplinasService.criar(paraRequest(dados));
-        setDisciplinas((prev) => [...(prev ?? []), paraDisciplina(salvo)]);
+        await disciplinasService.criar(paraRequest(dados));
+        reload();
         setCadastrarAberto(false);
         setSucesso("Disciplina cadastrada com sucesso!");
     }
 
     async function confirmarEdicao(dados: DadosDisciplina) {
         if (!selecionada) return;
-        const salvo = await disciplinasService.atualizar(
+        await disciplinasService.atualizar(
             Number(selecionada.id),
             paraRequest(dados),
         );
-        setDisciplinas((prev) => (prev ?? []).map((d) =>
-            d.id === selecionada.id ? paraDisciplina(salvo) : d,
-        ));
+        reload();
         setEditarAberto(false);
         setSelecionada(null);
         setSucesso("Disciplina editada com sucesso!");
-    }
-
-    if (disciplinas === null) {
-        return (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
-                <Loader2 className="size-6 animate-spin text-[#0099AA]" />
-                <span className="text-sm text-[#17264D]/70">Carregando disciplinas...</span>
-            </div>
-        );
-    }
-
-    if (erroCarga) {
-        return (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24" role="alert">
-                <span className="text-sm text-[#BA1A1A]">{erroCarga}</span>
-                <Button onClick={() => {
-                    setDisciplinas(null);
-                    setTentativa((atual) => atual + 1);
-                }}>
-                    Tentar novamente
-                </Button>
-            </div>
-        );
     }
 
     return (
@@ -334,7 +279,16 @@ export function DisciplinasListagem() {
                 }}
             />
 
-            {pagina.length === 0 ? (
+            {(erroCarga || erroPagina) && (
+                <div role="alert" className="flex items-center justify-between gap-3 rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-[#BA1A1A]">
+                    <span>{erroCarga || mensagemErro(erroPagina, "Não foi possível carregar as disciplinas.")}</span>
+                    <Button onClick={() => { reload(); setTentativa((atual) => atual + 1); }}>Tentar novamente</Button>
+                </div>
+            )}
+
+            {loading && disciplinas.length === 0 ? (
+                <div className="py-10 text-center text-sm text-[#17264D]/70">Carregando disciplinas...</div>
+            ) : disciplinas.length === 0 ? (
                 <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">
                     Nenhuma disciplina encontrada.
                 </div>
@@ -342,7 +296,7 @@ export function DisciplinasListagem() {
                 <DataTable
                     compact
                     tableClassName="min-w-[1160px]"
-                    data={pagina}
+                    data={disciplinas}
                     getRowKey={(d) => d.id}
                     columns={[
                         {
@@ -414,7 +368,7 @@ export function DisciplinasListagem() {
             )}
 
             <Pagination
-                totalItems={filtradas.length}
+                totalItems={pageData.totalElements}
                 currentPage={paginaSegura}
                 itemsPerPage={itensPorPagina}
                 onPageChange={setPaginaAtual}

@@ -10,6 +10,7 @@ import { PasswordInput } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api";
 import { authService } from "@/services/auth.service";
+import { senhaForte, SENHA_FORTE_MENSAGEM } from "@/lib/password-policy";
 
 interface RedefinirSenhaFormProps {
   token: string | null;
@@ -33,8 +34,8 @@ export function RedefinirSenhaForm({ token }: RedefinirSenhaFormProps) {
   async function redefinir(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!token) return;
-    if (senha.length < 8) {
-      setErro("A senha deve ter pelo menos 8 caracteres.");
+    if (!senhaForte(senha)) {
+      setErro(SENHA_FORTE_MENSAGEM);
       return;
     }
     if (senha !== confirmacao) {
@@ -86,7 +87,7 @@ export function RedefinirSenhaForm({ token }: RedefinirSenhaFormProps) {
           </Link>
         </div>
       ) : (
-        <form onSubmit={redefinir} className="mt-9 w-full max-w-[380px]" aria-label="Redefinir senha">
+        <form onSubmit={redefinir} noValidate className="mt-9 w-full max-w-[380px]" aria-label="Redefinir senha">
           {erro && <div role="alert" className="mb-4 rounded-md border border-red-400 bg-red-500/20 p-3 text-center text-sm text-red-100">{erro}</div>}
           <div className="space-y-[7px]">
             <Label htmlFor="nova-senha" className="text-[18px] leading-6 font-semibold text-white sm:text-[20px]">
@@ -98,6 +99,7 @@ export function RedefinirSenhaForm({ token }: RedefinirSenhaFormProps) {
               autoComplete="new-password"
               minLength={8}
               required
+              aria-describedby="requisitos-senha"
               placeholder="Digite a nova senha"
               height="50px"
               value={senha}
@@ -105,7 +107,7 @@ export function RedefinirSenhaForm({ token }: RedefinirSenhaFormProps) {
               onChange={(event) => { setSenha(event.target.value); setErro(null); }}
               className="border-[1.5px] border-[#B1C9D1] bg-[#C9C9C9]/26 text-base text-white placeholder:text-white/56 focus:border-white focus-visible:ring-2 focus-visible:ring-white/50 [&+button]:text-[#B1C9D1]"
             />
-            <p className="text-xs text-white/75">Use pelo menos 8 caracteres.</p>
+            <p id="requisitos-senha" className="text-xs text-white/75">Mínimo de 8 caracteres, com uma letra maiúscula e uma minúscula.</p>
           </div>
 
           <div className="mt-4 space-y-[7px]">
@@ -118,6 +120,7 @@ export function RedefinirSenhaForm({ token }: RedefinirSenhaFormProps) {
               autoComplete="new-password"
               minLength={8}
               required
+              aria-describedby="requisitos-senha"
               placeholder="Digite novamente a nova senha"
               height="50px"
               value={confirmacao}

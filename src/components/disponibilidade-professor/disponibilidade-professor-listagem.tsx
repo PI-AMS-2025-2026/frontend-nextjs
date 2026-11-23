@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Plus, Pencil, Trash2, ArrowLeft, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/input";
 import { DataTable } from "@/components/ui/table";
@@ -15,7 +15,7 @@ import {
     type DadosDisponibilidade,
 } from "./disponibilidade-professor-form-modal";
 import { DisponibilidadeProfessorExclusaoModal } from "./disponibilidade-professor-exclusao-modal";
-import { DIAS_SEMANA, formatarHora, mesmoDia, rotuloDia } from "./dias-semana";
+import { DIAS_SEMANA, formatarHora, rotuloDia } from "./dias-semana";
 import {
     blocoHorariosService,
     disponibilidadesProfessoresService,
@@ -27,6 +27,7 @@ import type {
     DisponibilidadeProfessorRequest,
     ProfessorResponse,
 } from "@/types/api";
+import { useServerPage } from "@/hooks/use-server-page";
 import {
     normalizarDisponibilidades,
     type DisponibilidadeProfessor,
@@ -62,9 +63,6 @@ async function carregarCatalogoProfessores() {
 }
 
 export function DisponibilidadeProfessorListagem() {
-    const [disponibilidades, setDisponibilidades] = React.useState<
-        DisponibilidadeProfessor[] | null
-    >(null);
     const [professores, setProfessores] = React.useState<ProfessorResponse[]>([]);
     const [blocos, setBlocos] = React.useState<BlocoHorarioResponse[]>([]);
     const [busca, setBusca] = React.useState("");
@@ -73,30 +71,32 @@ export function DisponibilidadeProfessorListagem() {
     const [filtroHorario, setFiltroHorario] = React.useState("");
     const [itensPorPagina, setItensPorPagina] = React.useState(6);
     const [paginaAtual, setPaginaAtual] = React.useState(1);
+    const filtros = React.useMemo(() => ({
+        busca: busca.trim() || undefined,
+        professor_nome: filtroProfessor.trim() || undefined,
+        dia_semana: filtroDia || undefined,
+        horario: filtroHorario.trim() || undefined,
+    }), [busca, filtroProfessor, filtroDia, filtroHorario]);
+    const { data: pageData, loading, error: erroLista, reload } = useServerPage(
+        (query) => disponibilidadesProfessoresService.listar(query as Parameters<typeof disponibilidadesProfessoresService.listar>[0]),
+        filtros, paginaAtual, itensPorPagina,
+    );
+    const disponibilidades = normalizarDisponibilidades(pageData.content as unknown as DisponibilidadeProfessorApi[]);
     const [cadastroAberto, setCadastroAberto] = React.useState(false);
     const [editando, setEditando] = React.useState<DisponibilidadeProfessor | null>(null);
     const [excluindo, setExcluindo] = React.useState<DisponibilidadeProfessor | null>(null);
     const [feedback, setFeedback] = React.useState<Feedback | null>(null);
 
-    const carregarDisponibilidades = React.useCallback(async () => {
-        const resposta = await disponibilidadesProfessoresService.listar({ size: TAMANHO_MAXIMO });
-        setDisponibilidades(
-            normalizarDisponibilidades(resposta.content as unknown as DisponibilidadeProfessorApi[]),
-        );
-    }, []);
-
     React.useEffect(() => {
         async function carregar() {
             try {
-                const [, profs, blocosResposta] = await Promise.all([
-                    carregarDisponibilidades(),
+                const [profs, blocosResposta] = await Promise.all([
                     carregarCatalogoProfessores(),
                     blocoHorariosService.listar({ size: TAMANHO_MAXIMO }),
                 ]);
                 setProfessores(profs);
                 setBlocos(blocosResposta.content);
             } catch (error) {
-                setDisponibilidades([]);
                 setFeedback({
                     tipo: "error",
                     mensagem:
@@ -107,7 +107,7 @@ export function DisponibilidadeProfessorListagem() {
             }
         }
         carregar();
-    }, [carregarDisponibilidades]);
+        }, []);
 
     React.useEffect(() => {
         if (!feedback) return;
@@ -115,32 +115,13 @@ export function DisponibilidadeProfessorListagem() {
         return () => clearTimeout(timer);
     }, [feedback]);
 
-    const filtrados = React.useMemo(() => {
-        if (disponibilidades === null) return [];
-        const b = busca.trim().toLowerCase();
-        const p = filtroProfessor.trim().toLowerCase();
-        const h = filtroHorario.trim();
-        return disponibilidades.filter((d) => {
-            const professor = d.professor.nome.toLowerCase();
-            const dia = rotuloDia(d.diaSemana).toLowerCase();
-            const horario = formatarIntervalo(d.blocoHorario).toLowerCase();
-            const buscaOk = !b || professor.includes(b) || dia.includes(b) || horario.includes(b);
-            const professorOk = !p || professor.includes(p);
-            const diaOk = !filtroDia || mesmoDia(d.diaSemana, filtroDia);
-            const horarioOk = !h || horario.includes(h.toLowerCase());
-            return buscaOk && professorOk && diaOk && horarioOk;
-        });
-    }, [disponibilidades, busca, filtroProfessor, filtroDia, filtroHorario]);
 
-    const totalPaginas = Math.max(1, Math.ceil(filtrados.length / itensPorPagina));
-    const paginaSegura = Math.min(paginaAtual, totalPaginas);
-    const inicioIndice = (paginaSegura - 1) * itensPorPagina;
-    const pagina = filtrados.slice(inicioIndice, inicioIndice + itensPorPagina);
+    const paginaSegura = Math.min(paginaAtual, Math.max(1, pageData.totalPages));
 
     async function confirmarCadastro(dados: DadosDisponibilidade) {
         try {
             await disponibilidadesProfessoresService.criar(montarRequest(dados));
-            await carregarDisponibilidades();
+            reload();
             setCadastroAberto(false);
             setFeedback({ tipo: "success", mensagem: "Disponibilidade cadastrada com sucesso!" });
         } catch (error) {
@@ -156,7 +137,7 @@ export function DisponibilidadeProfessorListagem() {
         if (!editando) return;
         try {
             await disponibilidadesProfessoresService.atualizar(editando.id, montarRequest(dados));
-            await carregarDisponibilidades();
+            reload();
             setEditando(null);
             setFeedback({ tipo: "success", mensagem: "Disponibilidade editada com sucesso!" });
         } catch (error) {
@@ -172,7 +153,7 @@ export function DisponibilidadeProfessorListagem() {
         if (!excluindo) return;
         try {
             await disponibilidadesProfessoresService.deletar(excluindo.id);
-            await carregarDisponibilidades();
+            reload();
             setFeedback({ tipo: "success", mensagem: "Disponibilidade excluída com sucesso!" });
         } catch (error) {
             setFeedback({
@@ -184,15 +165,6 @@ export function DisponibilidadeProfessorListagem() {
             });
         }
         setExcluindo(null);
-    }
-
-    if (disponibilidades === null) {
-        return (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
-                <Loader2 className="size-6 animate-spin text-[#0099AA]" />
-                <span className="text-sm text-[#17264D]/70">Carregando disponibilidades...</span>
-            </div>
-        );
     }
 
     return (
@@ -251,7 +223,7 @@ export function DisponibilidadeProfessorListagem() {
                         name: "dia",
                         label: "Dia da Semana",
                         type: "select",
-                        placeholder: "Filtrar por dia",
+                        placeholder: "Todos",
                         options: DIAS_SEMANA,
                         maxVisibleOptions: 4,
                         width: "w-[200px]",
@@ -271,14 +243,16 @@ export function DisponibilidadeProfessorListagem() {
                     setPaginaAtual(1);
                 }}
             />
-            {pagina.length === 0 ? (
+            {loading && disponibilidades.length === 0 ? (
+                <div className="py-10 text-center text-sm text-[#17264D]/70">Carregando disponibilidades...</div>
+            ) : disponibilidades.length === 0 ? (
                 <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">
                     Nenhuma disponibilidade encontrada.
                 </div>
             ) : (
                 <div className="min-w-0 overflow-x-auto pb-2">
                     <DataTable
-                        data={pagina}
+                        data={disponibilidades}
                         getRowKey={(d) => d.id}
                         columns={[
                             { key: "professor", label: "Professor", render: (d) => d.professor.nome },
@@ -310,7 +284,7 @@ export function DisponibilidadeProfessorListagem() {
                 </div>
             )}
             <Pagination
-                totalItems={filtrados.length}
+                totalItems={pageData.totalElements}
                 currentPage={paginaSegura}
                 itemsPerPage={itensPorPagina}
                 onPageChange={setPaginaAtual}
@@ -341,10 +315,10 @@ export function DisponibilidadeProfessorListagem() {
                 onConfirm={confirmarExclusao}
             />
             <Modal
-                open={feedback !== null}
+                open={feedback !== null || Boolean(erroLista)}
                 onClose={() => setFeedback(null)}
-                type={feedback?.tipo}
-                message={feedback?.mensagem ?? ""}
+                type={feedback?.tipo ?? "error"}
+                message={feedback?.mensagem ?? (erroLista instanceof Error ? erroLista.message : "Não foi possível carregar as disponibilidades.")}
             />
         </div>
     );

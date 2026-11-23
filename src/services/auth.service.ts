@@ -2,6 +2,7 @@ import { api } from "@/lib/api";
 import type {
   LoginRequest,
   LoginResponse,
+  AlterarSenhaRequest,
   RedefinirSenhaRequest,
   RefreshTokenRequest,
   SolicitarRecuperacaoSenhaRequest,
@@ -28,6 +29,10 @@ export const authService = {
 
   redefinirSenha(data: RedefinirSenhaRequest) {
     return api.post<void>("/auth/redefinir-senha", data, false);
+  },
+
+  alterarSenha(data: AlterarSenhaRequest) {
+    return api.put<void>("/auth/alterar-senha", data);
   },
 
   async refreshToken() {

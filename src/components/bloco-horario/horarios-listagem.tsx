@@ -52,6 +52,7 @@ export function HorariosListagem() {
         size: itensPorPagina,
         hora_inicio: filtroInicio || undefined,
         hora_fim: filtroFim || undefined,
+        busca: busca.trim() || undefined,
       });
       setPageData(res);
     } catch (err) {
@@ -63,7 +64,7 @@ export function HorariosListagem() {
     } finally {
       setLoading(false);
     }
-  }, [paginaAtual, itensPorPagina, filtroInicio, filtroFim]);
+  }, [paginaAtual, itensPorPagina, filtroInicio, filtroFim, busca]);
 
   React.useEffect(() => {
     let vivo = true;
@@ -139,13 +140,7 @@ export function HorariosListagem() {
     }
   }
 
-  const exibidos = React.useMemo(() => {
-    if (!busca.trim()) return pageData.content;
-    const b = busca.trim();
-    return pageData.content.filter(
-      (h) => h.horaInicio.includes(b) || h.horaFim.includes(b),
-    );
-  }, [pageData.content, busca]);
+  const exibidos = pageData.content;
 
   return (
     <div className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-6 px-4 py-8 sm:px-6">

@@ -76,7 +76,7 @@ function TableFilters({
   return (
     <div
       className={cn(
-        "flex w-full items-end gap-3 overflow-x-auto rounded-[5px] border border-[#C8DDE2] bg-[#F1FBFD] px-4 py-2.5",
+        "flex w-full flex-wrap items-end gap-3 overflow-visible rounded-[5px] border border-[#C8DDE2] bg-[#F1FBFD] px-4 py-2.5",
         className,
       )}
     >
@@ -152,7 +152,7 @@ function TableFilters({
               } : undefined}
               onChange={(event) => {
                 const input = event.currentTarget;
-                if (field.min !== undefined && input.validity.rangeUnderflow) return;
+                if (field.min !== undefined && (input.validity.rangeUnderflow || (input.value !== "" && Number(input.value) < field.min))) return;
                 if (field.disableExponent && /[eE]/.test(input.value)) return;
                 handleChange(field.name, input.value);
               }}
