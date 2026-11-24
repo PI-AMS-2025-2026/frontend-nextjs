@@ -280,6 +280,11 @@ export interface RedefinirSenhaRequest {
   senha: string;
 }
 
+export interface AlterarSenhaRequest {
+  senhaAtual: string;
+  novaSenha: string;
+}
+
 export interface LoginResponse {
   accessToken: string;
   refreshToken: string;
@@ -322,14 +327,18 @@ export interface ListTurmaParams {
   size?: number;
 }
 export interface ListSalaParams {
+  codigo?: string;
   tipo_sala?: Id;
+  tipo_sala_nome?: string;
   capacidade?: number;
+  busca?: string;
   page?: number;
   size?: number;
 }
 export interface ListRecursoParams {
   nome?: string;
   tipo_recurso?: Id;
+  busca?: string;
   page?: number;
   size?: number;
 }
@@ -344,6 +353,9 @@ export interface ListQuadroHorarioParams {
   turma?: Id;
   periodo_atividade_quadro?: Id;
   status?: Status;
+  versao?: string | number;
+  data_criacao?: DateOnly;
+  busca?: string;
   page?: number;
   size?: number;
 }
@@ -352,12 +364,16 @@ export interface ListProfessorParams {
   email?: string;
   cidade?: string;
   status?: Status;
+  busca?: string;
   page?: number;
   size?: number;
 }
 export interface ListProfessorDisciplinaParams {
   usuario?: Id;
   disciplina?: Id;
+  professor_nome?: string;
+  disciplina_nome?: string;
+  busca?: string;
   page?: number;
   size?: number;
 }
@@ -367,6 +383,7 @@ export interface ListPeriodoAtividadeQuadroParams {
   status?: Status;
   dataInicio?: DateOnly;
   dataFim?: DateOnly;
+  busca?: string;
   page?: number;
   size?: number;
 }
@@ -374,6 +391,9 @@ export interface ListDisponibilidadeProfessorParams {
   professor?: Id;
   dia_semana?: DiaSemana;
   bloco_horario?: Id;
+  professor_nome?: string;
+  horario?: string;
+  busca?: string;
   page?: number;
   size?: number;
 }
@@ -381,6 +401,11 @@ export interface ListDisciplinaParams {
   nome?: string;
   curso?: Id;
   tipo_sala?: Id;
+  tipo_disciplina?: string;
+  periodo?: number;
+  modalidade?: string;
+  cor?: string;
+  busca?: string;
   page?: number;
   size?: number;
 }
@@ -389,6 +414,7 @@ export interface ListCursoParams {
   periodicidade?: string;
   status?: Status;
   duracao?: number;
+  busca?: string;
   page?: number;
   size?: number;
 }
@@ -396,6 +422,7 @@ export interface ListBlocoHorarioParams {
   hora_inicio?: string;
   hora_fim?: string;
   duracao?: number;
+  busca?: string;
   page?: number;
   size?: number;
 }
@@ -413,6 +440,9 @@ export interface ListAlocacaoParams {
 export interface ListHistoricoParams {
   alocacao?: Id;
   usuario?: Id;
+  busca?: string;
+  sort?: string;
+  direction?: "asc" | "desc";
   page?: number;
   size?: number;
 }

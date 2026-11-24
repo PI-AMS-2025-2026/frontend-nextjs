@@ -17,6 +17,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { ApiError } from "@/lib/api";
 import { periodoAtividadeQuadroService, quadroHorariosService, turmasService } from "@/services";
 import type { PeriodoAtividadeQuadroResponse, QuadroHorarioRequest, QuadroHorarioResponse, TurmaResponse, Status } from "@/types/api";
+import { useServerPage } from "@/hooks/use-server-page";
 
 const BASE = "/coordenador/quadro-planejamento/quadro-horaria";
 
@@ -48,7 +49,6 @@ export function GradeListagem() {
     const cursoId = perfilCurso?.id;
     const cursoNome = perfilCurso?.nome ?? "Curso do coordenador";
 
-    const [grades, setGrades] = React.useState<QuadroHorarioResponse[] | null>(null);
     const [turmas, setTurmas] = React.useState<TurmaResponse[]>([]);
     const [periodos, setPeriodos] = React.useState<PeriodoAtividadeQuadroResponse[]>([]);
     const [erro, setErro] = React.useState("");
@@ -62,6 +62,21 @@ export function GradeListagem() {
     const [filtroPeriodo, setFiltroPeriodo] = React.useState("");
     const [itensPorPagina, setItensPorPagina] = React.useState(6);
     const [paginaAtual, setPaginaAtual] = React.useState(1);
+    const periodoId = filtroPeriodo ? Number(filtroPeriodo) : undefined;
+    const filtros = React.useMemo(() => ({
+        curso: cursoId,
+        busca: busca.trim() || undefined,
+        versao: filtroVersao || undefined,
+        data_criacao: filtroData || undefined,
+        periodo_atividade_quadro: periodoId,
+    }), [cursoId, busca, filtroVersao, filtroData, periodoId]);
+    const { data: pageData, error: erroPagina, reload } = useServerPage(
+        (query) => cursoId
+            ? quadroHorariosService.listar(query as Parameters<typeof quadroHorariosService.listar>[0])
+            : Promise.resolve({ content: [], page: 0, size: itensPorPagina, totalElements: 0, totalPages: 0 }),
+        filtros, paginaAtual, itensPorPagina,
+    );
+    const grades = pageData.content;
 
     const [cadastrarAberto, setCadastrarAberto] = React.useState(false);
     const [editarAberto, setEditarAberto] = React.useState(false);
@@ -76,21 +91,19 @@ export function GradeListagem() {
         setCarregando(true);
         setErro("");
         try {
-            const [quadros, periodosAtivos, turmasAtivas] = await Promise.all([
-                quadroHorariosService.listar({ curso: cursoId, page: 0, size: 1000 }),
-                periodoAtividadeQuadroService.listar({ status: "ATIVO", page: 0, size: 1000 }),
+            const [periodosAtivos, turmasAtivas] = await Promise.all([
+                periodoAtividadeQuadroService.listar({ page: 0, size: 1000 }),
                 turmasService.listar({ curso: cursoId, status: "ATIVO", page: 0, size: 1000 }),
             ]);
-            setGrades(quadros.content);
             setPeriodos(periodosAtivos.content);
             setTurmas(turmasAtivas.content.filter(t => t.curso.id === cursoId && t.status === "ATIVO"));
         } catch (error) {
             setErro(mensagemErro(error));
-            setGrades([]);
         } finally {
             setCarregando(false);
         }
-    }, [cursoId]);
+        reload();
+    }, [cursoId, reload]);
 
     React.useEffect(() => {
         if (!autenticando && cursoId) {
@@ -98,20 +111,7 @@ export function GradeListagem() {
         }
     }, [autenticando, cursoId, carregar]);
 
-    const filtradas = React.useMemo(() => {
-        const b = busca.trim().toLowerCase();
-        return (grades ?? []).filter((grade) => {
-            const buscaOk = !b || grade.curso.nome.toLowerCase().includes(b) || String(grade.versao).includes(b);
-            const versaoOk = !filtroVersao || String(grade.versao) === filtroVersao;
-            const dataOk = !filtroData || grade.dataCriacao.slice(0, 10) === filtroData;
-            const periodoOk = !filtroPeriodo || String(grade.periodoAtividadeQuadro.id) === filtroPeriodo;
-            return buscaOk && versaoOk && dataOk && periodoOk;
-        });
-    }, [grades, busca, filtroVersao, filtroData, filtroPeriodo]);
-
-    const totalPaginas = Math.max(1, Math.ceil(filtradas.length / itensPorPagina));
-    const paginaSegura = Math.min(paginaAtual, totalPaginas);
-    const pagina = filtradas.slice((paginaSegura - 1) * itensPorPagina, paginaSegura * itensPorPagina);
+    const paginaSegura = Math.min(paginaAtual, Math.max(1, pageData.totalPages));
 
     function request(dados: GradeFormValues, statusOverride?: Status): QuadroHorarioRequest {
         if (!cursoId) throw new Error("Curso do coordenador não encontrado.");
@@ -222,18 +222,18 @@ export function GradeListagem() {
                     <Button variant="secondary" size="small" className="gap-2" onClick={() => { setErroModal(""); setCadastrarAberto(true); }} disabled={mutando || !periodos.length}><Plus className="size-5" />Cadastrar</Button>
                 </div>
             </div>
-            {erroVisivel && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-[#BA1A1A]">{erroVisivel}{cursoId && <Button variant="ghost" size="small" onClick={() => void carregar()}>Tentar novamente</Button>}</div>}
+            {Boolean(erroVisivel || erroPagina) && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-[#BA1A1A]">{erroVisivel || mensagemErro(erroPagina)}{cursoId && <Button variant="ghost" size="small" onClick={() => { reload(); void carregar(); }}>Tentar novamente</Button>}</div>}
             <TableFilters
                 fields={[
                     { name: "versao", label: "Versão", type: "input", inputType: "number", min: 0, disableExponent: true },
                     { name: "data", label: "Data de Criação", type: "input", inputType: "date" },
-                    { name: "periodo", label: "Período Atividade Quadro", type: "select", placeholder: "Selecione...", width: "w-[220px]", options: [...new Map((grades ?? []).map((g) => [g.periodoAtividadeQuadro.id, { label: nomePeriodo(g.periodoAtividadeQuadro), value: String(g.periodoAtividadeQuadro.id) }])).values()] },
+                    { name: "periodo", label: "Período Atividade Quadro", type: "select", placeholder: "Todos", width: "w-[220px]", options: periodos.map((periodo) => ({ label: nomePeriodo(periodo), value: String(periodo.id) })) },
                 ]}
                 onChange={(f) => { setFiltroVersao(f.versao ?? ""); setFiltroData(f.data ?? ""); setFiltroPeriodo(f.periodo ?? ""); setPaginaAtual(1); }}
             />
-            {pagina.length === 0 ? <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">{erroVisivel ? "Não foi possível carregar os quadros de horários." : "Nenhum quadro de horários encontrado para o curso."}</div> : (
+            {grades.length === 0 ? <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">{erroVisivel || erroPagina ? "Não foi possível carregar os quadros de horários." : "Nenhum quadro de horários encontrado para o curso."}</div> : (
                 <DataTable
-                    data={pagina}
+                    data={grades}
                     getRowKey={(grade) => grade.id}
                     columns={[
                         { key: "versao", label: "Versão", render: (grade) => String(grade.versao).padStart(2, "0") },
@@ -250,7 +250,7 @@ export function GradeListagem() {
                     ]}
                 />
             )}
-            <Pagination totalItems={filtradas.length} currentPage={paginaSegura} itemsPerPage={itensPorPagina} onPageChange={setPaginaAtual} onItemsPerPageChange={(n) => { setItensPorPagina(n); setPaginaAtual(1); }} />
+            <Pagination totalItems={pageData.totalElements} currentPage={paginaSegura} itemsPerPage={itensPorPagina} onPageChange={setPaginaAtual} onItemsPerPageChange={(n) => { setItensPorPagina(n); setPaginaAtual(1); }} />
             <GradeFormModal open={cadastrarAberto} onClose={() => setCadastrarAberto(false)} mode="cadastrar" periodos={periodos} turmas={turmas} cursoNome={cursoNome} onConfirm={(dados) => void confirmarCadastro(dados)} submitting={mutando} errorMessage={erroModal} />
             <GradeFormModal open={editarAberto} onClose={() => { setEditarAberto(false); setSelecionada(null); }} mode="editar" grade={selecionada} periodos={periodos} turmas={turmas} cursoNome={cursoNome} onConfirm={(dados) => void confirmarEdicao(dados)} submitting={mutando} errorMessage={erroModal} />
             <CopiarGradeModal key={copiarAberto ? `copiar-${selecionada?.id ?? "grade"}` : "copiar-fechado"} open={copiarAberto} onClose={() => { setCopiarAberto(false); setSelecionada(null); }} periodos={periodos.filter((periodo) => selecionada?.status !== "ATIVO" || periodo.id !== selecionada.periodoAtividadeQuadro.id)} onConfirm={(periodoId) => void confirmarCopia(periodoId)} submitting={mutando} errorMessage={erroModal} />

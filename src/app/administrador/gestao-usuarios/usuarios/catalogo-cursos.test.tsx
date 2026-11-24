@@ -24,7 +24,7 @@ describe("catálogo no cadastro de coordenador", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Cadastrar/i }));
     fireEvent.change(screen.getByPlaceholderText("Digite o nome..."), { target: { value: "Coordenador" } });
     fireEvent.change(screen.getByPlaceholderText("Digite o email..."), { target: { value: "coord@teste.com" } });
-    fireEvent.change(screen.getByPlaceholderText("Digite a senha..."), { target: { value: "123456" } });
+    fireEvent.change(screen.getByPlaceholderText("Digite a senha..."), { target: { value: "Senha123" } });
     fireEvent.click(screen.getByRole("button", { name: "Administrador" }));
     fireEvent.click(screen.getByRole("button", { name: "Coordenador" }));
     fireEvent.click(screen.getByRole("button", { name: "Selecione o curso..." }));

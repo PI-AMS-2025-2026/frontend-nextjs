@@ -20,6 +20,7 @@ import {
 } from "@/lib/cursos";
 import { cursosService } from "@/services/cursos.service";
 import type { CursoRequest, CursoResponse } from "@/types/api";
+import { useServerPage } from "@/hooks/use-server-page";
 
 function paraCurso(curso: CursoResponse): Curso {
     return { id: String(curso.id), nome: curso.nome, periodicidade: curso.periodicidade as Periodicidade,
@@ -32,23 +33,6 @@ function paraRequest(dados: { nome: string; periodicidade: Periodicidade; duraca
 }
 
 export function CursosListagem() {
-    const [cursos, setCursos] = React.useState<Curso[] | null>(null);
-    const [erroCarga, setErroCarga] = React.useState("");
-    const [tentativa, setTentativa] = React.useState(0);
-
-    React.useEffect(() => {
-        let vivo = true;
-        void cursosService.listarTodos().then((resultado) => {
-            if (vivo) { setCursos(resultado.map(paraCurso)); setErroCarga(""); }
-        }).catch((error: unknown) => {
-            if (vivo) setErroCarga(error instanceof Error && error.message !== "Failed to fetch"
-                ? error.message : "Não foi possível carregar os cursos. Tente novamente.");
-        });
-        return () => {
-            vivo = false;
-        };
-    }, [tentativa]);
-
     const [busca, setBusca] = React.useState("");
     const [filtroNome, setFiltroNome] = React.useState("");
     const [filtroPeriodicidade, setFiltroPeriodicidade] = React.useState("");
@@ -57,6 +41,20 @@ export function CursosListagem() {
 
     const [itensPorPagina, setItensPorPagina] = React.useState(6);
     const [paginaAtual, setPaginaAtual] = React.useState(1);
+    const filtros = React.useMemo(() => ({
+        busca: busca.trim() || undefined,
+        nome: filtroNome.trim() || undefined,
+        periodicidade: filtroPeriodicidade || undefined,
+        duracao: filtroDuracao ? Number.parseInt(filtroDuracao, 10) || undefined : undefined,
+        status: filtroStatus === "Ativo" ? "ATIVO" : filtroStatus === "Inativo" ? "INATIVO" : undefined,
+    }), [busca, filtroNome, filtroPeriodicidade, filtroDuracao, filtroStatus]);
+    const { data: pageData, loading, error, reload } = useServerPage(
+        (query) => cursosService.listar(query as Parameters<typeof cursosService.listar>[0]),
+        filtros,
+        paginaAtual,
+        itensPorPagina,
+    );
+    const cursos = pageData.content.map(paraCurso);
 
     const [cadastrarAberto, setCadastrarAberto] = React.useState(false);
     const [editarAberto, setEditarAberto] = React.useState(false);
@@ -69,27 +67,7 @@ export function CursosListagem() {
         return () => clearTimeout(timer);
     }, [sucesso]);
 
-    const filtrados = React.useMemo(() => {
-        if (cursos === null) return [];
-        const b = busca.trim().toLowerCase();
-        const n = filtroNome.trim().toLowerCase();
-        const d = filtroDuracao.trim().toLowerCase();
-
-        return cursos.filter((c) => {
-            const buscaOk = !b || c.nome.toLowerCase().includes(b);
-            const nomeOk = !n || c.nome.toLowerCase().includes(n);
-            const periodicidadeOk =
-                !filtroPeriodicidade || c.periodicidade === filtroPeriodicidade;
-            const duracaoOk = !d || c.duracao.toLowerCase().includes(d);
-            const statusOk = !filtroStatus || c.status === filtroStatus;
-            return buscaOk && nomeOk && periodicidadeOk && duracaoOk && statusOk;
-        });
-    }, [cursos, busca, filtroNome, filtroPeriodicidade, filtroDuracao, filtroStatus]);
-
-    const totalPaginas = Math.max(1, Math.ceil(filtrados.length / itensPorPagina));
-    const paginaSegura = Math.min(paginaAtual, totalPaginas);
-    const inicioIndice = (paginaSegura - 1) * itensPorPagina;
-    const pagina = filtrados.slice(inicioIndice, inicioIndice + itensPorPagina);
+    const paginaSegura = Math.min(paginaAtual, Math.max(1, pageData.totalPages));
 
     async function confirmarCadastro(dados: {
         nome: string;
@@ -97,8 +75,8 @@ export function CursosListagem() {
         duracao: string;
         status: StatusCurso;
     }) {
-        const salvo = await cursosService.criar(paraRequest(dados));
-        setCursos((prev) => [...(prev ?? []), paraCurso(salvo)]);
+        await cursosService.criar(paraRequest(dados));
+        reload();
         setCadastrarAberto(false);
         setSucesso("Curso cadastrado com sucesso!");
     }
@@ -110,26 +88,11 @@ export function CursosListagem() {
         status: StatusCurso;
     }) {
         if (!selecionado) return;
-        const salvo = await cursosService.atualizar(Number(selecionado.id), paraRequest(dados));
-        setCursos((prev) => (prev ?? []).map((c) => c.id === selecionado.id ? paraCurso(salvo) : c));
+        await cursosService.atualizar(Number(selecionado.id), paraRequest(dados));
+        reload();
         setEditarAberto(false);
         setSelecionado(null);
         setSucesso("Curso editado com sucesso!");
-    }
-
-    if (cursos === null && erroCarga) {
-        return <div role="alert" className="flex flex-col items-center gap-3 py-24">
-            <p>{erroCarga}</p>
-            <Button onClick={() => { setErroCarga(""); setTentativa((atual) => atual + 1); }}>Tentar novamente</Button>
-        </div>;
-    }
-    if (cursos === null) {
-        return (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
-                <Loader2 className="size-6 animate-spin text-[#0099AA]" />
-                <span className="text-sm text-[#17264D]/70">Carregando cursos...</span>
-            </div>
-        );
     }
 
     return (
@@ -187,7 +150,7 @@ export function CursosListagem() {
                         name: "periodicidade",
                         label: "Periodicidade",
                         type: "select",
-                        placeholder: "Selecione...",
+                        placeholder: "Todos",
                         options: [
                             { label: "Semestral", value: "Semestral" },
                             { label: "Anual", value: "Anual" },
@@ -219,13 +182,22 @@ export function CursosListagem() {
                 }}
             />
 
-            {pagina.length === 0 ? (
+            {error && (
+                <div role="alert" className="flex items-center justify-between gap-3 rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-[#BA1A1A]">
+                    <span>{error instanceof Error ? error.message : "Não foi possível carregar os cursos."}</span>
+                    <Button onClick={reload}>Tentar novamente</Button>
+                </div>
+            )}
+
+            {loading && pageData.content.length === 0 ? (
+                <div className="flex items-center justify-center gap-3 py-10 text-sm text-[#17264D]/70"><Loader2 className="size-5 animate-spin text-[#0099AA]" />Carregando cursos...</div>
+            ) : pageData.content.length === 0 ? (
                 <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">
                     Nenhum curso encontrado.
                 </div>
             ) : (
                 <DataTable
-                    data={pagina}
+                    data={cursos}
                     getRowKey={(c) => c.id}
                     columns={[
                         { key: "nome", label: "Nome" },
@@ -262,7 +234,7 @@ export function CursosListagem() {
             )}
 
             <Pagination
-                totalItems={filtrados.length}
+                totalItems={pageData.totalElements}
                 currentPage={paginaSegura}
                 itemsPerPage={itensPorPagina}
                 onPageChange={setPaginaAtual}

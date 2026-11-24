@@ -5,7 +5,7 @@ import { disciplinasService } from "@/services/disciplinas.service";
 import { cursosService } from "@/services/cursos.service";
 import { tiposSalaService } from "@/services/tipos-sala.service";
 
-vi.mock("@/services/disciplinas.service", () => ({ disciplinasService: { listarTodos: vi.fn(), criar: vi.fn(), atualizar: vi.fn() } }));
+vi.mock("@/services/disciplinas.service", () => ({ disciplinasService: { listar: vi.fn(), listarTodos: vi.fn(), criar: vi.fn(), atualizar: vi.fn() } }));
 vi.mock("@/services/cursos.service", () => ({ cursosService: { listarTodos: vi.fn() } }));
 vi.mock("@/services/tipos-sala.service", () => ({ tiposSalaService: { listar: vi.fn() } }));
 vi.mock("next/link", () => ({ default: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
@@ -15,7 +15,7 @@ const registro = { id: 9, nome: "Banco de Dados", cargaHoraria: 40, tipoDiscipli
 describe("disciplinas integradas", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(disciplinasService.listarTodos).mockResolvedValue([registro]);
+    vi.mocked(disciplinasService.listar).mockResolvedValue({ content: [registro], page: 0, size: 10, totalElements: 1, totalPages: 1 });
     vi.mocked(cursosService.listarTodos).mockResolvedValue([registro.curso as never]);
     vi.mocked(tiposSalaService.listar).mockResolvedValue([registro.tipoSala]);
   });
@@ -25,7 +25,7 @@ describe("disciplinas integradas", () => {
     expect(await screen.findByText("Banco de Dados")).toBeInTheDocument();
     expect(screen.getByText("BD02")).toBeInTheDocument();
     expect(screen.getByRole("cell", { name: "4" })).toBeInTheDocument();
-    expect(disciplinasService.listarTodos).toHaveBeenCalled();
+    expect(disciplinasService.listar).toHaveBeenCalledWith(expect.objectContaining({ page: 0, size: 10 }));
   });
 
   it("preserva o código e a etapa ao editar pelo backend", async () => {
@@ -82,7 +82,7 @@ describe("disciplinas integradas", () => {
   });
 
   it("exibe falha de carregamento sem apresentar dados fictícios", async () => {
-    vi.mocked(disciplinasService.listarTodos).mockRejectedValue(new Error("API indisponível"));
+    vi.mocked(disciplinasService.listar).mockRejectedValue(new Error("API indisponível"));
     render(<DisciplinasListagem />);
     expect(await screen.findByRole("alert")).toHaveTextContent("API indisponível");
     expect(screen.queryByText("Banco de Dados")).not.toBeInTheDocument();

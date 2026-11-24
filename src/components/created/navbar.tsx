@@ -12,6 +12,7 @@ import {
   DoorOpen,
   History,
   Home,
+  KeyRound,
   Menu,
   School,
   Timer,
@@ -30,6 +31,7 @@ import {
 import { cn } from "@/lib/utils";
 import { authService } from "@/services/auth.service";
 import type { UsuarioResponse } from "@/types/api";
+import { AlterarSenhaModal } from "@/components/auth/alterar-senha-modal";
 
 export type TipoNavbar = "administrador" | "coordenador";
 
@@ -133,6 +135,7 @@ function NavbarContent({
 
   const [loggingOut, setLoggingOut] =
     React.useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = React.useState(false);
   const userSnapshot = React.useSyncExternalStore(
     subscribeToStoredUser,
     getStoredUserSnapshot,
@@ -398,6 +401,18 @@ function NavbarContent({
 
                 <button
                   type="button"
+                  onClick={() => {
+                    setProfileOpen(false);
+                    setPasswordModalOpen(true);
+                  }}
+                  className="mb-3 flex min-h-[60px] w-full items-center gap-4 rounded-[12px] border border-[#AAAAAA] px-4 text-left text-[15px] text-[#444444] transition-colors hover:bg-[#F2F5F6]"
+                >
+                  <KeyRound className="size-[30px]" strokeWidth={1.5} aria-hidden="true" />
+                  Redefinir senha
+                </button>
+
+                <button
+                  type="button"
                   disabled={loggingOut}
                   onClick={handleLogout}
                   className="flex min-h-[60px] w-full items-center gap-4 rounded-[12px] border border-[#AAAAAA] px-4 text-left text-[15px] text-[#444444] transition-colors hover:bg-[#F2F5F6] disabled:cursor-wait disabled:opacity-60"
@@ -468,6 +483,7 @@ function NavbarContent({
           </Sheet>
         </div>
       </div>
+      <AlterarSenhaModal open={passwordModalOpen} onClose={() => setPasswordModalOpen(false)} />
     </header>
   );
 }

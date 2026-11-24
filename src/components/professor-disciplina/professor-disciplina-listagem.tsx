@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Plus, Trash2, ArrowLeft, Loader2 } from "lucide-react";
+import { Plus, Trash2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/input";
 import { DataTable } from "@/components/ui/table";
@@ -22,15 +22,14 @@ import {
 } from "@/services";
 import type {
     DisciplinaResponse,
-    ProfessorDisciplinaResponse,
     ProfessorResponse,
 } from "@/types/api";
+import { useServerPage } from "@/hooks/use-server-page";
 
 const TAMANHO_MAXIMO = 1000;
 type Feedback = { tipo: "success" | "error"; mensagem: string };
 
 export function ProfessorDisciplinaListagem() {
-    const [vinculos, setVinculos] = React.useState<ProfessorDisciplinaResponse[] | null>(null);
     const [professores, setProfessores] = React.useState<ProfessorResponse[]>([]);
     const [disciplinas, setDisciplinas] = React.useState<DisciplinaResponse[]>([]);
     const [busca, setBusca] = React.useState("");
@@ -38,29 +37,30 @@ export function ProfessorDisciplinaListagem() {
     const [filtroDisciplina, setFiltroDisciplina] = React.useState("");
     const [itensPorPagina, setItensPorPagina] = React.useState(6);
     const [paginaAtual, setPaginaAtual] = React.useState(1);
+    const filtros = React.useMemo(() => ({
+        busca: busca.trim() || undefined,
+        professor_nome: filtroProfessor.trim() || undefined,
+        disciplina_nome: filtroDisciplina.trim() || undefined,
+    }), [busca, filtroProfessor, filtroDisciplina]);
+    const { data: pageData, loading, error: erroPagina, reload } = useServerPage(
+        (query) => professoresDisciplinasService.listar(query as Parameters<typeof professoresDisciplinasService.listar>[0]),
+        filtros, paginaAtual, itensPorPagina,
+    );
     const [vincularAberto, setVincularAberto] = React.useState(false);
     const [selecionado, setSelecionado] = React.useState<VinculoComNomes | null>(null);
     const [feedback, setFeedback] = React.useState<Feedback | null>(null);
     const [erroCarga, setErroCarga] = React.useState(false);
 
-    const carregarVinculos = React.useCallback(async () => {
-        const resposta = await professoresDisciplinasService.listar({ size: TAMANHO_MAXIMO });
-        return resposta.content;
-    }, []);
-
     React.useEffect(() => {
         async function carregar() {
             try {
-                const [vins, profs, discs] = await Promise.all([
-                    carregarVinculos(),
+                const [profs, discs] = await Promise.all([
                     professoresService.listar({ size: TAMANHO_MAXIMO }),
                     disciplinasService.listar({ size: TAMANHO_MAXIMO }),
                 ]);
-                setVinculos(vins);
                 setProfessores(profs.content);
                 setDisciplinas(discs.content);
             } catch (error) {
-                setVinculos([]);
                 setErroCarga(true);
                 setFeedback({
                     tipo: "error",
@@ -72,7 +72,7 @@ export function ProfessorDisciplinaListagem() {
             }
         }
         carregar();
-    }, [carregarVinculos]);
+    }, []);
 
     React.useEffect(() => {
         if (!feedback) return;
@@ -81,36 +81,13 @@ export function ProfessorDisciplinaListagem() {
     }, [feedback]);
 
     const vinculosComNomes = React.useMemo<VinculoComNomes[]>(() => {
-        if (vinculos === null) return [];
-        const professoresPorId = new Map(professores.map((p) => [p.id, p.nome]));
-        const disciplinasPorId = new Map(disciplinas.map((d) => [d.id, d.nome]));
-        return vinculos.map((v) => ({
+        return pageData.content.map((v) => ({
             ...v,
-            professorNome:
-                professoresPorId.get(v.professorId) ?? `Professor #${v.professorId} (não encontrado)`,
-            disciplinaNome:
-                disciplinasPorId.get(v.disciplinaId) ?? `Disciplina #${v.disciplinaId} (não encontrada)`,
+            professorNome: v.professor?.nome ?? `Professor #${v.professorId} (não encontrado)`,
+            disciplinaNome: v.disciplina?.nome ?? `Disciplina #${v.disciplinaId} (não encontrada)`,
         }));
-    }, [vinculos, professores, disciplinas]);
-
-    const filtrados = React.useMemo(() => {
-        const b = busca.trim().toLowerCase();
-        const p = filtroProfessor.trim().toLowerCase();
-        const d = filtroDisciplina.trim().toLowerCase();
-        return vinculosComNomes.filter((v) => {
-            const professor = v.professorNome.toLowerCase();
-            const disciplina = v.disciplinaNome.toLowerCase();
-            const buscaOk = !b || professor.includes(b) || disciplina.includes(b);
-            const professorOk = !p || professor.includes(p);
-            const disciplinaOk = !d || disciplina.includes(d);
-            return buscaOk && professorOk && disciplinaOk;
-        });
-    }, [vinculosComNomes, busca, filtroProfessor, filtroDisciplina]);
-
-    const totalPaginas = Math.max(1, Math.ceil(filtrados.length / itensPorPagina));
-    const paginaSegura = Math.min(paginaAtual, totalPaginas);
-    const inicioIndice = (paginaSegura - 1) * itensPorPagina;
-    const pagina = filtrados.slice(inicioIndice, inicioIndice + itensPorPagina);
+    }, [pageData.content]);
+    const paginaSegura = Math.min(paginaAtual, Math.max(1, pageData.totalPages));
 
     async function confirmarVinculo(dados: { professorId: number; disciplinaId: number }) {
         try {
@@ -118,7 +95,7 @@ export function ProfessorDisciplinaListagem() {
                 professor: { id: dados.professorId },
                 disciplina: { id: dados.disciplinaId },
             });
-            setVinculos(await carregarVinculos());
+            reload();
             setVincularAberto(false);
             setFeedback({ tipo: "success", mensagem: "Professor vinculado à disciplina com sucesso!" });
         } catch (error) {
@@ -134,7 +111,7 @@ export function ProfessorDisciplinaListagem() {
         if (!selecionado) return;
         try {
             await professoresDisciplinasService.deletar(selecionado.id);
-            setVinculos(await carregarVinculos());
+            reload();
             setFeedback({ tipo: "success", mensagem: "Vínculo excluído com sucesso!" });
         } catch (error) {
             setFeedback({
@@ -146,15 +123,6 @@ export function ProfessorDisciplinaListagem() {
             });
         }
         setSelecionado(null);
-    }
-
-    if (vinculos === null) {
-        return (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
-                <Loader2 className="size-6 animate-spin text-[#0099AA]" />
-                <span className="text-sm text-[#17264D]/70">Carregando vínculos...</span>
-            </div>
-        );
     }
 
     return (
@@ -222,15 +190,17 @@ export function ProfessorDisciplinaListagem() {
                     setPaginaAtual(1);
                 }}
             />
-            {pagina.length === 0 ? (
+            {loading && vinculosComNomes.length === 0 ? (
+                <div className="py-10 text-center text-sm text-[#17264D]/70">Carregando vínculos...</div>
+            ) : vinculosComNomes.length === 0 ? (
                 <div className="rounded-[10px] border border-[#C8CDD2] py-10 text-center text-sm text-[#17264D]/70">
-                    {erroCarga
+                    {erroCarga || erroPagina
                         ? "Não foi possível carregar os vínculos. Verifique se a API está disponível e recarregue a página."
                         : "Nenhum vínculo encontrado."}
                 </div>
             ) : (
                 <DataTable
-                    data={pagina}
+                    data={vinculosComNomes}
                     getRowKey={(v) => v.id}
                     columns={[
                         {
@@ -255,7 +225,7 @@ export function ProfessorDisciplinaListagem() {
                 />
             )}
             <Pagination
-                totalItems={filtrados.length}
+                totalItems={pageData.totalElements}
                 currentPage={paginaSegura}
                 itemsPerPage={itensPorPagina}
                 onPageChange={setPaginaAtual}
