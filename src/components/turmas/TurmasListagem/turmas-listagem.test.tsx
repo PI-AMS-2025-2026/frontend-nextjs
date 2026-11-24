@@ -77,7 +77,7 @@ describe("TurmasListagem", () => {
     fireEvent.click(screen.getByRole("button", { name: "Curso da turma" }));
     fireEvent.click(await screen.findByRole("button", { name: "ADS" }));
     fireEvent.click(screen.getByRole("button", { name: "Período da turma" }));
-    fireEvent.click(screen.getByRole("button", { name: "3º semestre" }));
+    fireEvent.click(screen.getByRole("button", { name: "3º Semestre" }));
     fireEvent.change(screen.getByPlaceholderText("Ex: 40"), { target: { value: "40" } });
     fireEvent.change(screen.getByPlaceholderText("Ex: 2026"), { target: { value: "2026" } });
     fireEvent.click(screen.getByLabelText("Inativo"));
@@ -114,7 +114,7 @@ describe("TurmasListagem", () => {
     fireEvent.click(screen.getByRole("button", { name: "Curso da turma" }));
     fireEvent.click(await screen.findByRole("button", { name: "ADS" }));
     fireEvent.click(screen.getByRole("button", { name: "Período da turma" }));
-    fireEvent.click(await screen.findByRole("button", { name: "3º semestre" }));
+    fireEvent.click(await screen.findByRole("button", { name: "3º Semestre" }));
     fireEvent.change(screen.getByPlaceholderText("Ex: 40"), { target: { value: "40" } });
     fireEvent.change(screen.getByPlaceholderText("Ex: 2026"), { target: { value: "2026" } });
     fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
