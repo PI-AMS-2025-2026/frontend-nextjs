@@ -68,8 +68,8 @@ const acessosRapidos = [
     icone: UsersRound,
   },
   {
-    titulo: "Período Letivo",
-    descricao: "Cadastre, edite e gerencie os períodos letivos da instituição",
+    titulo: "Período Atividade Quadro",
+    descricao: "Cadastre, edite e gerencie os Períodos Atividade Quadro da instituição",
     href: "/coordenador/estrutura-academica/periodo-letivo",
     cor: "#365BE5",
     icone: BookMarked,
@@ -98,7 +98,7 @@ const resumoInfraestrutura = [
   },
   {
     id: "periodos",
-    titulo: "Períodos Letivos cadastrados",
+    titulo: "Períodos Atividade Quadro cadastrados",
     href: "/coordenador/estrutura-academica/periodo-letivo",
     icone: BookMarked,
   },

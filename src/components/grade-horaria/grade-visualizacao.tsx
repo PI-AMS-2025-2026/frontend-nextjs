@@ -62,7 +62,7 @@ export function GradeVisualizacao({ gradeId }: { gradeId: string }) {
                         <div><dt className="text-sm font-semibold text-[#17264D]">Versão</dt><dd className="text-sm text-[#17264D]/70">{String(grade.versao).padStart(2, "0")}</dd></div>
                         <div><dt className="text-sm font-semibold text-[#17264D]">Data de criação</dt><dd className="text-sm text-[#17264D]/70">{dataBR(grade.dataCriacao)}</dd></div>
                         <div><dt className="text-sm font-semibold text-[#17264D]">Curso</dt><dd className="text-sm text-[#17264D]/70">{grade.curso.nome}</dd></div>
-                        <div><dt className="text-sm font-semibold text-[#17264D]">Período letivo</dt><dd className="text-sm text-[#17264D]/70">{periodoLabel(grade)}</dd></div>
+                        <div><dt className="text-sm font-semibold text-[#17264D]">Período Atividade Quadro</dt><dd className="text-sm text-[#17264D]/70">{periodoLabel(grade)}</dd></div>
                         <div><dt className="text-sm font-semibold text-[#17264D]">Status</dt><dd className="text-sm text-[#17264D]/70">{grade.status === "ATIVO" ? "Ativo" : "Inativo"}</dd></div>
                     </dl>
                 </section>

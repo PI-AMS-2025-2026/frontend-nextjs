@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { HelpTooltip } from "@/components/ui/help-tooltip";
+import { rotuloPeriodoTurma } from "@/lib/turma-periodo";
 import type { PeriodoAtividadeQuadroResponse, QuadroHorarioResponse, TurmaResponse, Status } from "@/types/api";
 
 export interface GradeFormValues {
@@ -33,6 +35,9 @@ function rotuloPeriodo(periodo: PeriodoAtividadeQuadroResponse) {
         ? `${periodo.ano} (Anual)`
         : `${periodo.periodo}º período de ${periodo.ano}`;
 }
+
+const EXPLICACAO_PERIODO_QUADRO = "Define o ano ou semestre letivo de vigência deste quadro.";
+const EXPLICACAO_PERIODO_TURMA = "Indica a etapa curricular da turma no curso (ano ou semestre), conforme a periodicidade do curso.";
 
 export function GradeFormModal({
     open,
@@ -137,10 +142,10 @@ function GradeFormConteudo({
                     <p className="rounded-lg border border-[#D0D4D8] bg-[#F2F2F2] px-3 py-2 text-sm">{cursoNome}</p>
                 </div>
                 <div className="flex flex-col gap-2 sm:col-span-2">
-                    <label className="text-sm font-medium text-[#17264D]">Turma</label>
+                    <label className="inline-flex items-center gap-2 text-sm font-medium text-[#17264D]">Turma<HelpTooltip description={EXPLICACAO_PERIODO_TURMA} /></label>
                     <Select
                         aria-label="Turma"
-                        options={turmas.map(t => ({ value: String(t.id), label: `${t.codigo} · ${t.ano} · ${t.periodo}º período` }))}
+                        options={turmas.map(t => ({ value: String(t.id), label: `${t.codigo} · ${t.ano} · ${rotuloPeriodoTurma(t.curso.periodicidade, t.periodo)}` }))}
                         value={valores.turmaId ? String(valores.turmaId) : ""}
                         onChange={v => atualizar("turmaId", Number(v))}
                         placeholder="Selecione a turma"
@@ -148,7 +153,7 @@ function GradeFormConteudo({
                     />
                 </div>
                 <div className="flex flex-col gap-2 sm:col-span-2">
-                    <label className="text-sm font-medium text-[#17264D]">Período Atividade Quadro</label>
+                    <label className="inline-flex items-center gap-2 text-sm font-medium text-[#17264D]">Período Atividade Quadro<HelpTooltip description={EXPLICACAO_PERIODO_QUADRO} /></label>
                     <Select
                         options={opcoesPeriodo}
                         value={valores.periodoAtividadeQuadroId ? String(valores.periodoAtividadeQuadroId) : ""}

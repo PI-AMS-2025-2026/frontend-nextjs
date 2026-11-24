@@ -50,7 +50,7 @@ export default function AlocacaoListagem({
     },
     {
       name: "periodoLetivo",
-      label: "Período letivo",
+      label: "Período Atividade Quadro",
       type: "select",
       placeholder: "Todos",
       options: periodos.map((periodo) => ({ label: periodo, value: periodo })),
@@ -100,7 +100,7 @@ export default function AlocacaoListagem({
             },
             { key: "curso", label: "Curso" },
             { key: "turma", label: "Turma" },
-            { key: "periodoLetivo", label: "Período letivo" },
+            { key: "periodoLetivo", label: "Período Atividade Quadro" },
             {
               key: "alocacao",
               label: "Alocação",

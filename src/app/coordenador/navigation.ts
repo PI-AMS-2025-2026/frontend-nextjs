@@ -25,7 +25,7 @@ export const coordinatorHeaderConfig = {
           href: "/coordenador/estrutura-academica/turmas",
         },
         {
-          label: "Período Letivo",
+          label: "Período Atividade Quadro",
           href: "/coordenador/estrutura-academica/periodo-letivo",
         },
       ],
