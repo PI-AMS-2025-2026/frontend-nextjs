@@ -7,26 +7,33 @@ interface ExcluirHorarioModalProps {
     open: boolean;
     onClose: () => void;
     onConfirm: () => void;
+    alocacoesVinculadas?: number | null;
+    disponibilidadesVinculadas?: number | null;
 }
 
 export function ExcluirHorarioModal({
     open,
     onClose,
     onConfirm,
+    alocacoesVinculadas = null,
+    disponibilidadesVinculadas = null,
 }: ExcluirHorarioModalProps) {
+    const possuiVinculos = alocacoesVinculadas !== null || disponibilidadesVinculadas !== null;
     return (
         <Modal open={open} onClose={onClose}>
             <div className="flex flex-col gap-4">
                 <h2 className="pr-12 text-xl font-semibold text-[#17264D]">
-                    Excluir Horário
+                    Excluir Bloco de Horário
                 </h2>
 
                 <div className="flex flex-col gap-1">
                     <p className="text-sm text-[#17264D]">
-                        Tem certeza que deseja excluir este horário?
+                        {possuiVinculos ? (
+                            <>Este bloco possui <strong>{alocacoesVinculadas ?? 0} alocações</strong> e <strong>{disponibilidadesVinculadas ?? 0} disponibilidades de professores</strong> vinculadas. Elas também serão excluídas.</>
+                        ) : "Tem certeza que deseja excluir este bloco de horário?"}
                     </p>
                     <p className="text-sm font-medium text-[#BA1A1A]">
-                        A ação será irreversível.
+                        {possuiVinculos ? "Os históricos das alocações serão preservados." : "A ação será irreversível."}
                     </p>
                 </div>
 
@@ -35,7 +42,7 @@ export function ExcluirHorarioModal({
                         Cancelar
                     </Button>
                     <Button variant="danger" size="small" onClick={onConfirm}>
-                        Confirmar
+                        {possuiVinculos ? "Excluir bloco e vínculos" : "Confirmar"}
                     </Button>
                 </div>
             </div>

@@ -6,5 +6,7 @@ export const blocoHorariosService = {
   criar(data: BlocoHorarioRequest) { return api.post<BlocoHorarioResponse>("/bloco-horarios", data); },
   criarLote(data: BlocoHorarioRequest[]) { return api.post<BlocoHorarioResponse[]>("/bloco-horarios/lote", data); },
   atualizar(id: Id, data: BlocoHorarioRequest) { return api.put<BlocoHorarioResponse>(`/bloco-horarios/${id}`, data); },
-  deletar(id: Id) { return api.delete<void>(`/bloco-horarios/${id}`); },
+  deletar(id: Id, confirmarVinculos = false) {
+    return api.delete<void>(`/bloco-horarios/${id}?confirmar_vinculos=${confirmarVinculos}`);
+  },
 };

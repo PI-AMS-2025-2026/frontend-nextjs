@@ -91,9 +91,12 @@ describe("etapa curricular e professor escolhido", () => {
   });
   it("envia o professor escolhido no rascunho ao salvar", async () => {
     const grade: Grade = { id: "40:10", quadroId: 40, turmaId: 10, versao: 1, dataCriacao: "2026-01-01", curso: "ADS", periodoLetivo: "2026", horarios: [{ inicio: "07:00", fim: "08:00" }], blocos: [{ id: 3, inicio: "07:00", fim: "08:00" }], intervalos: [], disciplinaIds: ["1"], salaIds: ["8"], aulas: [] };
-    vi.mocked(api.post).mockResolvedValueOnce([]);
+    vi.mocked(api.put).mockResolvedValueOnce(undefined);
     await salvarGrade(grade, [{ id: "nova", disciplinaId: "1", salaId: "8", dia: "segunda", inicio: "07:00", fim: "08:00", disciplina: "Banco", professor: "Bia", professorId: 12, sala: "A" }], [{ id: "1", disciplina: "Banco", professor: "Selecione", sala: "" }]);
-    expect(api.post).toHaveBeenCalledWith("/alocacoes/lote", [expect.objectContaining({ professor: { id: 12 }, usuarioAlteracao: { id: 99 } })]);
+    expect(api.put).toHaveBeenCalledWith("/alocacoes/sincronizar-grade", {
+      removidas: [], atualizadas: [],
+      novas: [expect.objectContaining({ professor: { id: 12 }, usuarioAlteracao: { id: 99 } })],
+    });
   });
 });
 
@@ -114,7 +117,7 @@ describe("feedback ao salvar alocações", () => {
 
   it("identifica a sala e a aula apontadas pelo índice do lote", async () => {
     const message = "A sala informada é incompatível com o tipo de sala exigido pela disciplina.";
-    vi.mocked(api.post).mockRejectedValueOnce(new ApiError(message, 409, { message, alocacaoIndice: 1 }));
+    vi.mocked(api.put).mockRejectedValueOnce(new ApiError(message, 409, { message, alocacaoIndice: 1 }));
     const resultado = salvarGrade(grade, [primeira, segunda], disciplinas);
     await expect(resultado).rejects.toThrow(/Redes · Quarta 07:00–08:00 · Sala: B-204.*incompatível/);
     await expect(resultado).rejects.not.toThrow(/A-101/);
@@ -126,13 +129,13 @@ describe("feedback ao salvar alocações", () => {
       fieldErrors: [{ field: "professor.id", message: "ID deve ser positivo" }],
     }));
     await expect(salvarGrade({ ...grade, aulas: [aula] }, [{ ...aula, professorId: 99 }], disciplinas))
-      .rejects.toThrow(/Ao atualizar \(Banco.*Professor: ID deve ser positivo/);
+      .rejects.toThrow(/Ao salvar \(Banco.*Professor: ID deve ser positivo/);
   });
 
   it("mostra mensagem útil sem atribuir uma falha sem detalhes à aula errada", async () => {
-    vi.mocked(api.post).mockRejectedValueOnce(new ApiError("Erro na API (503)", 503));
+    vi.mocked(api.put).mockRejectedValueOnce(new ApiError("Erro na API (503)", 503));
     await expect(salvarGrade(grade, [primeira, segunda], disciplinas))
-      .rejects.toThrow(/Ao criar \(2 aulas\): Não foi possível concluir a operação. Tente novamente/);
+      .rejects.toThrow(/Ao salvar \(2 aulas\): Não foi possível concluir a operação. Tente novamente/);
   });
 
   it("reconhece em uma nova tentativa a aula já persistida quando a confirmação falhou", async () => {

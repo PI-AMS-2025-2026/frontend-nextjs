@@ -23,16 +23,6 @@ function mensagemErro(e: unknown, padrao: string) {
     if (e instanceof ApiError) {
         if (e.status === 401) return "Sessão expirada. Faça login novamente.";
         if (e.status === 403) return "Você não tem permissão para essa ação.";
-        const mensagemApi = e.message.toLowerCase();
-        if (
-            (e.status === 400 || e.status === 409) &&
-            (mensagemApi.includes("integridade") ||
-                mensagemApi.includes("foreign key") ||
-                mensagemApi.includes("recurso_sala") ||
-                mensagemApi.includes("vinculado"))
-        ) {
-            return "Não é possível excluir este recurso porque ele está vinculado a uma ou mais salas. Remova os vínculos com as salas antes de tentar novamente.";
-        }
         if (e.status === 409) return e.message || "Conflito ao salvar o recurso.";
     }
     return e instanceof Error && e.message ? e.message : padrao;

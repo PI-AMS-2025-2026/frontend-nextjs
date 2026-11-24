@@ -174,14 +174,19 @@ export async function salvarGrade(grade: Grade, aulas: Aula[], disciplinas: Disc
     const anterior = antigos.find(item => item.id === aula.id);
     return anterior && !mesmaAlocacao(anterior, aula) ? [{ aula, payload: request(aula, "Ao atualizar") }] : [];
   });
-  for (const aula of removidas) {
-    await api.delete(`/alocacoes/${aula.id}`).catch(error => { throw erroAoSalvar(error, "Ao remover", [aula]); });
-  }
-  for (const { aula, payload } of alteradas) {
-    await api.put(`/alocacoes/${aula.id}`, payload).catch(error => { throw erroAoSalvar(error, "Ao atualizar", [aula]); });
-  }
-  if (novas.length) {
-    await api.post("/alocacoes/lote", novosPayloads).catch(error => { throw erroAoSalvar(error, "Ao criar", novas); });
+  if (removidas.length === 0 && alteradas.length === 0 && novosPayloads.length === 0) return;
+  try {
+    await api.put<void>("/alocacoes/sincronizar-grade", {
+      removidas: removidas.map(aula => Number(aula.id)),
+      atualizadas: alteradas.map(({ aula, payload }) => ({ id: Number(aula.id), alocacao: payload })),
+      novas: novosPayloads,
+    });
+  } catch (error) {
+    const indiceDaNova = detalhesDoErro(error).alocacaoIndice;
+    const falha = typeof indiceDaNova === "number"
+      ? erroAoSalvar(error, "Ao criar", novas)
+      : erroAoSalvar(error, "Ao salvar", [...removidas, ...alteradas.map(item => item.aula), ...novas]);
+    throw falha;
   }
 }
 export async function exportarGrade(grade: Grade) {

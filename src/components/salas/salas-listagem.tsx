@@ -131,6 +131,7 @@ export function SalasListagem() {
     const [cadastrarAberto, setCadastrarAberto] = React.useState(false);
     const [editarAberto, setEditarAberto] = React.useState(false);
     const [excluirAberto, setExcluirAberto] = React.useState(false);
+    const [alocacoesVinculadas, setAlocacoesVinculadas] = React.useState<number | null>(null);
     const [recursosAberto, setRecursosAberto] = React.useState(false);
     const [selecionada, setSelecionada] = React.useState<SalaResponse | null>(null);
     const [sucesso, setSucesso] = React.useState<string | null>(null);
@@ -225,15 +226,20 @@ export function SalasListagem() {
         try {
             setSalvando(true);
             setErro(null);
-            await salasService.deletar(selecionada.id);
+            await salasService.deletar(selecionada.id, alocacoesVinculadas !== null);
             await carregar();
             setExcluirAberto(false);
             setSelecionada(null);
+            setAlocacoesVinculadas(null);
             setSucesso("Sala excluída com sucesso!");
         } catch (e) {
-            // fecha o modal e mostra o erro no banner da página
+            if (e instanceof ApiError && (e.data as { code?: string } | undefined)?.code === "SALA_COM_ALOCACOES") {
+                setAlocacoesVinculadas((e.data as { linkedCount?: number }).linkedCount ?? 0);
+                return;
+            }
             setExcluirAberto(false);
             setSelecionada(null);
+            setAlocacoesVinculadas(null);
             setErro(mensagemErro(e, "Erro ao excluir a sala."));
         } finally {
             setSalvando(false);
@@ -369,6 +375,7 @@ export function SalasListagem() {
                                 className: "text-[#FF0000] hover:bg-red-50",
                                 onClick: (s) => {
                                     selecionar(s);
+                                    setAlocacoesVinculadas(null);
                                     setExcluirAberto(true);
                                 },
                             },
@@ -417,8 +424,10 @@ export function SalasListagem() {
                 onClose={() => {
                     setExcluirAberto(false);
                     setSelecionada(null);
+                    setAlocacoesVinculadas(null);
                 }}
                 onConfirm={confirmarExclusao}
+                linkedCount={alocacoesVinculadas}
             />
 
             <RecursosSalaModal
