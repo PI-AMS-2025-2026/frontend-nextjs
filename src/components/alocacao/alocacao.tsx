@@ -181,7 +181,7 @@ export function TelaAlocacao({
       origemDoArraste.current = null;
       return;
     }
-    // O card da lista envia o id da disciplina; o card da grade envia o id da aula.
+    // O card da lista envia o id da disciplina; o card do quadro horário envia o id da aula.
     // Este adaptador mantém o payload e as props dos componentes originais.
     const veioDaGrade = !!dados.aulaId || origemDoArraste.current === "grade";
     const origem = veioDaGrade
@@ -366,7 +366,7 @@ export function TelaAlocacao({
   function excluirAula(id: string) {
     if (!editando || bloqueado || !aulas.some((aula) => aula.id === id)) return;
     atualizarAulas(removerAula(aulas, id));
-    setMensagem("Disciplina removida da grade.");
+    setMensagem("Disciplina removida do quadro horário.");
     setArrastando(false);
     setModal(null);
   }
@@ -427,7 +427,7 @@ export function TelaAlocacao({
                 type="button"
                 variant="ghost"
                 size="small"
-                aria-label="Voltar para a listagem de grades"
+                aria-label="Voltar para a listagem de quadros horários"
                 disabled={bloqueado}
                 onClick={() => {
                   if (aoVoltar) { aoVoltar(); return; }
@@ -450,9 +450,9 @@ export function TelaAlocacao({
               <p className="mt-1 text-xs text-[#777777]">
                 {grade
                   ? editando
-                    ? "Realize as alocações desta grade"
-                    : "Visualize as alocações desta grade"
-                  : "Selecione uma grade cadastrada para abrir"}
+                    ? "Realize as alocações deste quadro horário"
+                    : "Visualize as alocações deste quadro horário"
+                  : "Selecione um quadro horário cadastrado para abrir"}
               </p>
               {grade && (
                 <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -563,7 +563,7 @@ export function TelaAlocacao({
             )}
             <section
               className="min-w-0 space-y-3"
-              aria-label="Alocação na grade"
+              aria-label="Alocação no quadro horário"
             >
               {editando && (
                 <Button
@@ -694,7 +694,7 @@ export function TelaAlocacao({
               setDiaSelecionado("segunda");
               setHorarioSelecionado("");
               origemDoArraste.current = null;
-              setMensagem("Grade aberta para visualização.");
+              setMensagem("Quadro horário aberto para visualização.");
             }}
           />
         )}
@@ -778,7 +778,7 @@ export function TelaAlocacao({
               variant="ghost"
               size="small"
             >
-              {erroValidacao ? "Voltar à grade" : "Cancelar"}
+              {erroValidacao ? "Voltar ao quadro horário" : "Cancelar"}
             </Button>
               <Button
                 type="button"
@@ -863,7 +863,7 @@ export default function Alocacao() {
   }, [tentativa, quadroId]);
   if (quadroId === null) return <SelecaoQuadro aoSelecionar={setQuadroId} />;
   if (erro) return <div role="alert" className="p-8">{erro} <Button onClick={() => { setErro(""); setTentativa(n => n + 1); }}>Tentar novamente</Button></div>;
-  if (!dados) return <div role="status" className="p-8">Carregando grades...</div>;
+  if (!dados) return <div role="status" className="p-8">Carregando quadros horários...</div>;
   if (!dados.grades.length) return <div role="alert" className="p-8">O quadro selecionado não está ativo ou não possui turma. <Button onClick={() => { setDados(null); setQuadroId(null); }}>Voltar</Button></div>;
   const dadosAbertos = dados;
   const idQuadro = quadroId;
@@ -880,7 +880,7 @@ export default function Alocacao() {
     const reconciliar = gravacaoPendente.current === idQuadro;
     const base = reconciliar ? await atualizarBase() : dadosAbertos;
     const grade = base.grades.find(g => g.id === id);
-    if (!grade) throw new Error("ALOCACAO:Grade não encontrada.");
+    if (!grade) throw new Error("ALOCACAO:Quadro horário não encontrado.");
     gravacaoPendente.current = idQuadro;
     try {
       await salvarGrade(grade, aulas, base.disciplinas, reconciliar);

@@ -87,11 +87,11 @@ export function SelecaoQuadro({ aoSelecionar }: { aoSelecionar: (id: number) => 
 
   return <main className="mx-auto max-w-3xl p-6 md:p-10">
     <h1 className="text-2xl font-semibold text-[#17264D]">Montar horários</h1>
-    <p className="mt-2 text-sm text-[#555]">Selecione uma turma cadastrada e o período letivo. Se ainda não existir quadro, será criado o primeiro.</p>
+    <p className="mt-2 text-sm text-[#555]">Selecione uma turma cadastrada e o Período Atividade Quadro. Se ainda não existir quadro, será criado o primeiro.</p>
     {curso && <p className="mt-4 text-sm">Curso: <strong>{curso.nome}</strong></p>}
     {carregando ? <p role="status" className="mt-6">Carregando turmas e períodos...</p> : <div className="mt-6 grid gap-5">
       <div><label className="mb-2 block text-sm font-medium">Turma</label><Select aria-label="Turma" value={turmaId} onChange={setTurmaId} placeholder="Selecione a turma" options={turmas.map(t => ({ value: String(t.id), label: `${t.codigo} · ${t.ano} · ${t.periodo}º ${curso?.periodicidade?.toLowerCase() === "anual" ? "ano" : "semestre"}` }))} disabled={abrindo || !turmas.length} />{!turmas.length && !erro && <p className="mt-2 text-sm">Nenhuma turma ativa cadastrada para este curso.</p>}</div>
-      <div><label className="mb-2 block text-sm font-medium">Período letivo</label><Select aria-label="Período letivo" value={periodoId} onChange={setPeriodoId} placeholder="Selecione o período letivo" options={periodos.map(p => ({ value: String(p.id), label: `${p.periodo}º período de ${p.ano}` }))} disabled={abrindo || !periodos.length} />{!periodos.length && !erro && <p className="mt-2 text-sm">Nenhum período letivo ativo cadastrado.</p>}</div>
+      <div><label className="mb-2 block text-sm font-medium">Período Atividade Quadro</label><Select aria-label="Período Atividade Quadro" value={periodoId} onChange={setPeriodoId} placeholder="Selecione o Período Atividade Quadro" options={periodos.map(p => ({ value: String(p.id), label: `${p.periodo}º período de ${p.ano}` }))} disabled={abrindo || !periodos.length} />{!periodos.length && !erro && <p className="mt-2 text-sm">Nenhum Período Atividade Quadro ativo cadastrado.</p>}</div>
       <Button onClick={() => void abrir()} disabled={!turmaId || !periodoId || abrindo}>{abrindo ? "Abrindo..." : "Abrir ou criar quadro"}</Button>
     </div>}
     {erro && <div role="alert" className="mt-5 text-sm text-red-700">{erro}{!carregando && <Button onClick={() => setTentativa(n => n + 1)}>Tentar novamente</Button>}</div>}

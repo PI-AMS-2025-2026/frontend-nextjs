@@ -5,5 +5,7 @@ export const salasService = {
   buscar(id: Id) { return api.get<SalaResponse>(`/salas/${id}`); },
   criar(data: SalaRequest) { return api.post<SalaResponse>("/salas", data); },
   atualizar(id: Id, data: SalaRequest) { return api.put<SalaResponse>(`/salas/${id}`, data); },
-  deletar(id: Id) { return api.delete<void>(`/salas/${id}`); },
+  deletar(id: Id, confirmarAlocacoes = false) {
+    return api.delete<void>(`/salas/${id}?confirmar_alocacoes=${confirmarAlocacoes}`);
+  },
 };

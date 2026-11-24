@@ -151,7 +151,7 @@ describe("sugestões na edição da grade", () => {
     atualizarGrade([aula("21", "terca")]);
     await act(async () => resolver(valido));
     expect(screen.getByRole("alert")).toHaveTextContent("Já tem uma disciplina alocada nesse local");
-    fireEvent.click(screen.getByRole("button", { name: "Voltar à grade" }));
+    fireEvent.click(screen.getByRole("button", { name: "Voltar ao quadro horário" }));
     fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
     await waitFor(() => expect(salvar).toHaveBeenCalledWith("g", [aula("21", "terca")]));
   });

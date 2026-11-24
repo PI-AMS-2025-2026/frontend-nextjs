@@ -106,7 +106,7 @@ describe("CoordinatorDashboard", () => {
       "/coordenador/estrutura-academica/turmas",
     );
     expect(
-      screen.getByRole("link", { name: /Período Letivo/ }),
+      screen.getByRole("link", { name: /Período Atividade Quadro/ }),
     ).toHaveAttribute("href", "/coordenador/estrutura-academica/periodo-letivo");
     expect(screen.getByRole("link", { name: /Alocação/ })).toHaveAttribute(
       "href",

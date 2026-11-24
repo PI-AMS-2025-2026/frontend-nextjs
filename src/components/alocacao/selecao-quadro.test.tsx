@@ -23,7 +23,7 @@ async function selecionar() {
   await waitFor(() => expect(screen.getByRole("button", { name: "Turma" })).toBeEnabled());
   fireEvent.click(screen.getByRole("button", { name: "Turma" }));
   fireEvent.click(screen.getByRole("button", { name: "2/2026 · 2026 · 2º ano" }));
-  fireEvent.click(screen.getByRole("button", { name: "Período letivo" }));
+  fireEvent.click(screen.getByRole("button", { name: "Período Atividade Quadro" }));
   fireEvent.click(screen.getByRole("button", { name: "1º período de 2026" }));
   fireEvent.click(screen.getByRole("button", { name: "Abrir ou criar quadro" }));
 }

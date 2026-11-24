@@ -10,6 +10,7 @@ import { DataTable } from "@/components/ui/table";
 import { TableFilters } from "@/components/ui/tablefilters";
 import { Pagination } from "@/components/ui/pagination";
 import { Modal } from "@/components/ui/modal";
+import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { GradeFormModal, type GradeFormValues } from "@/components/grade-horaria/grade-form-modal";
 import { CopiarGradeModal } from "@/components/grade-horaria/copiar-grade-modal";
 import { SucessoGradeModal } from "@/components/grade-horaria/sucesso-grade-modal";
@@ -18,8 +19,11 @@ import { ApiError } from "@/lib/api";
 import { periodoAtividadeQuadroService, quadroHorariosService, turmasService } from "@/services";
 import type { PeriodoAtividadeQuadroResponse, QuadroHorarioRequest, QuadroHorarioResponse, TurmaResponse, Status } from "@/types/api";
 import { useServerPage } from "@/hooks/use-server-page";
+import { rotuloPeriodoTurma } from "@/lib/turma-periodo";
 
 const BASE = "/coordenador/quadro-planejamento/quadro-horaria";
+const EXPLICACAO_PERIODO_QUADRO = "Define o ano ou semestre letivo de vigência deste quadro.";
+const EXPLICACAO_PERIODO_TURMA = "Indica a etapa curricular da turma no curso (ano ou semestre), conforme a periodicidade do curso.";
 
 function nomePeriodo(periodo: PeriodoAtividadeQuadroResponse) {
     return periodo.tipoPeridoAtividadeQuadro === "ANUAL"
@@ -50,6 +54,10 @@ export function GradeListagem() {
     const cursoNome = perfilCurso?.nome ?? "Curso do coordenador";
 
     const [turmas, setTurmas] = React.useState<TurmaResponse[]>([]);
+    const turmasPorId = React.useMemo(
+        () => new Map(turmas.map((turma) => [turma.id, turma] as const)),
+        [turmas],
+    );
     const [periodos, setPeriodos] = React.useState<PeriodoAtividadeQuadroResponse[]>([]);
     const [erro, setErro] = React.useState("");
     const [erroModal, setErroModal] = React.useState("");
@@ -91,12 +99,18 @@ export function GradeListagem() {
         setCarregando(true);
         setErro("");
         try {
-            const [periodosAtivos, turmasAtivas] = await Promise.all([
+            const [periodosAtivos, primeiraPaginaTurmas] = await Promise.all([
                 periodoAtividadeQuadroService.listar({ page: 0, size: 1000 }),
-                turmasService.listar({ curso: cursoId, status: "ATIVO", page: 0, size: 1000 }),
+                turmasService.listar({ curso: cursoId, page: 0, size: 1000 }),
             ]);
             setPeriodos(periodosAtivos.content);
-            setTurmas(turmasAtivas.content.filter(t => t.curso.id === cursoId && t.status === "ATIVO"));
+            const demaisPaginasTurmas = await Promise.all(
+                Array.from({ length: Math.max(0, primeiraPaginaTurmas.totalPages - 1) }, (_, index) =>
+                    turmasService.listar({ curso: cursoId, page: index + 1, size: 1000 }),
+                ),
+            );
+            setTurmas([...primeiraPaginaTurmas.content, ...demaisPaginasTurmas.flatMap((pagina) => pagina.content)]
+                .filter((turma) => turma.curso.id === cursoId));
         } catch (error) {
             setErro(mensagemErro(error));
         } finally {
@@ -239,7 +253,11 @@ export function GradeListagem() {
                         { key: "versao", label: "Versão", render: (grade) => String(grade.versao).padStart(2, "0") },
                         { key: "dataCriacao", label: "Data de Criação", render: (grade) => dataBR(grade.dataCriacao) },
                         { key: "curso", label: "Curso Vinculado", render: (grade) => grade.curso.nome },
-                        { key: "periodoAtividadeQuadro", label: "Período Atividade Quadro", render: (grade) => nomePeriodo(grade.periodoAtividadeQuadro) },
+                        { key: "periodoTurma", label: <span className="inline-flex items-center gap-2">Período da Turma<HelpTooltip description={EXPLICACAO_PERIODO_TURMA} /></span>, render: (grade) => {
+                            const turma = grade.turma ? turmasPorId.get(grade.turma.id) : undefined;
+                            return turma ? rotuloPeriodoTurma(turma.curso.periodicidade, turma.periodo) : "—";
+                        } },
+                        { key: "periodoAtividadeQuadro", label: <span className="inline-flex items-center gap-1">Período Atividade< HelpTooltip description={EXPLICACAO_PERIODO_QUADRO} /></span>, render: (grade) => nomePeriodo(grade.periodoAtividadeQuadro) },
                         { key: "status", label: "Status", render: (grade) => grade.status === "ATIVO" ? <span className="flex items-center gap-1.5 font-medium text-emerald-600"><CheckCircle2 className="size-4" />Ativo</span> : <span className="flex items-center gap-1.5 font-medium text-[#BA1A1A]"><XCircle className="size-4" />Inativo</span> },
                     ]}
                     actions={[

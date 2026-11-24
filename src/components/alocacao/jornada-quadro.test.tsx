@@ -12,7 +12,7 @@ it("abre a grade vazia do quadro selecionado e permite retornar à seleção", a
   fireEvent.click(screen.getByRole("button", { name: "Selecionar quadro" }));
   expect(await screen.findByText("Grade vazia")).toBeInTheDocument();
   await waitFor(() => expect(carregarDados).toHaveBeenCalledWith(40));
-  fireEvent.click(screen.getByRole("button", { name: "Voltar para a listagem de grades" }));
+  fireEvent.click(screen.getByRole("button", { name: "Voltar para a listagem de quadros horários" }));
   expect(screen.getByRole("button", { name: "Selecionar quadro" })).toBeInTheDocument();
 });
 

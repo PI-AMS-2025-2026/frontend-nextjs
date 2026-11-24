@@ -39,12 +39,12 @@ function dataFormatada(data: string) {
 function descricaoAlocacao(item: HistoricoVersaoAlocacaoResponse) {
   const alocacao = item.alocacao;
   return [
-    alocacao.disciplina?.nome,
-    alocacao.turma?.codigo,
-    alocacao.sala?.codigo ? `Sala ${alocacao.sala.codigo}` : undefined,
+    alocacao?.disciplina?.nome,
+    alocacao?.turma?.codigo,
+    alocacao?.sala?.codigo ? `Sala ${alocacao.sala.codigo}` : undefined,
   ]
     .filter(Boolean)
-    .join(" · ") || `Alocação #${alocacao.id}`;
+    .join(" · ") || `Alocação #${item.alocacaoId}`;
 }
 
 export function HistoricoAlteracoes() {

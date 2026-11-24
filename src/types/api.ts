@@ -302,7 +302,8 @@ export interface HistoricoVersaoAlocacaoResponse {
   campoAlterado: string;
   valorAntigo: string;
   valorNovo: string;
-  alocacao: AlocacaoResponse;
+  alocacao: AlocacaoResponse | null;
+  alocacaoId: Id;
   usuario: UsuarioResponse;
 }
 

@@ -7,12 +7,14 @@ interface ExcluirSalaModalProps {
   open: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  linkedCount?: number | null;
 }
 
 export function ExcluirSalaModal({
   open,
   onClose,
   onConfirm,
+  linkedCount = null,
 }: ExcluirSalaModalProps) {
   return (
     <Modal open={open} onClose={onClose}>
@@ -20,7 +22,11 @@ export function ExcluirSalaModal({
         <h2 className="pr-12 text-xl font-semibold text-[#17264D]">Excluir Sala</h2>
 
         <div className="flex flex-col gap-1">
-          <p className="text-sm text-[#17264D]">Tem certeza que deseja excluir esta sala?</p>
+          <p className="text-sm text-[#17264D]">
+            {linkedCount === null
+              ? "Tem certeza que deseja excluir esta sala?"
+              : `Esta sala possui ${linkedCount} alocação(ões). Se continuar, a sala e essas alocações serão excluídas. O histórico será preservado.`}
+          </p>
           <p className="text-sm font-medium text-[#BA1A1A]">A ação será irreversível.</p>
         </div>
 
@@ -29,7 +35,7 @@ export function ExcluirSalaModal({
             Cancelar
           </Button>
           <Button variant="danger" size="small" onClick={onConfirm}>
-            Confirmar
+            {linkedCount === null ? "Confirmar" : "Excluir sala e alocações"}
           </Button>
         </div>
       </div>

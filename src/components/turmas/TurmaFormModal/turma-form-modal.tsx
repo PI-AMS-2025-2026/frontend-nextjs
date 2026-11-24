@@ -196,11 +196,14 @@ function TurmaFormConteudo({
 
                 <div className="flex flex-col gap-1.5">
                     <label className="text-sm font-medium text-[#17264D]">
-                        {curso ? `${unidadePeriodoCurso(curso.periodicidade)} no curso:` : "Período no curso:"}
+                        {curso ? `${unidadePeriodoCurso(curso.periodicidade).replace(/^./, (letra) => letra.toLocaleUpperCase("pt-BR"))} no curso:` : "Período no curso:"}
                     </label>
                     <Select
                         aria-label="Período da turma"
-                        options={opcoesPeriodo}
+                        options={opcoesPeriodo.map((opcao) => ({
+                            ...opcao,
+                            label: opcao.label.replace(/(º\s+)(\p{L})/u, (_, separador, letra) => `${separador}${letra.toLocaleUpperCase("pt-BR")}`),
+                        }))}
                         value={periodo}
                         disabled={!curso || carregandoCursos || opcoesPeriodo.length === 0}
                         onChange={(valor) => {

@@ -42,6 +42,10 @@ export function HorariosListagem() {
   const [selecionado, setSelecionado] =
     React.useState<BlocoHorarioResponse | null>(null);
   const [sucesso, setSucesso] = React.useState<string | null>(null);
+  const [vinculosExclusao, setVinculosExclusao] = React.useState<{
+    alocacoes: number;
+    disponibilidades: number;
+  } | null>(null);
 
   const carregarHorarios = React.useCallback(async () => {
     setLoading(true);
@@ -123,15 +127,27 @@ export function HorariosListagem() {
   async function confirmarExclusao() {
     if (!selecionado) return;
     try {
-      await blocoHorariosService.deletar(selecionado.id);
+      await blocoHorariosService.deletar(selecionado.id, vinculosExclusao !== null);
       setExcluirAberto(false);
       setSelecionado(null);
+      setVinculosExclusao(null);
       setErro(null);
       setSucesso("Bloco de horário excluído com sucesso!");
       void carregarHorarios();
     } catch (err) {
+      const data = err instanceof ApiError
+        ? err.data as { code?: string; allocationCount?: number; availabilityCount?: number } | undefined
+        : undefined;
+      if (data?.code === "BLOCO_HORARIO_COM_VINCULOS") {
+        setVinculosExclusao({
+          alocacoes: data.allocationCount ?? 0,
+          disponibilidades: data.availabilityCount ?? 0,
+        });
+        return;
+      }
       setExcluirAberto(false);
       setSelecionado(null);
+      setVinculosExclusao(null);
       setErro(
         err instanceof ApiError
           ? err.message
@@ -297,8 +313,11 @@ export function HorariosListagem() {
         onClose={() => {
           setExcluirAberto(false);
           setSelecionado(null);
+          setVinculosExclusao(null);
         }}
         onConfirm={confirmarExclusao}
+        alocacoesVinculadas={vinculosExclusao?.alocacoes ?? null}
+        disponibilidadesVinculadas={vinculosExclusao?.disponibilidades ?? null}
       />
       <Modal
         open={sucesso !== null}
