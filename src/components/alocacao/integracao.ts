@@ -121,7 +121,7 @@ function dados(grade: Grade, disciplina: Discipline, salaId: string, dia: DiaSem
 export async function validar(grade: Grade, disciplina: Discipline, salaId: string, dia: DiaSemana, horario: Horario, alocacaoId?: string) {
   const payload = dados(grade, disciplina, salaId, dia, horario);
   const idExistente = alocacaoId && /^\d+$/.test(alocacaoId) ? Number(alocacaoId) : undefined;
-  const resultado = await api.post<{ valido: boolean; mensagem: string }>("/alocacoes/validar-carga-horaria", { professor: payload.professor, diaSemana: payload.diaSemana, horario: payload.horario, alocacaoId: idExistente });
+  const resultado = await api.post<{ valido: boolean; mensagem: string }>("/alocacoes/validar", { ...payload, alocacaoId: idExistente });
   if (resultado.valido) return { valido: true, mensagem: resultado.mensagem, sugestoes: [] as Sugestao[] };
   try {
     const sugestoes = await api.post<Sugestoes>("/alocacoes/sugestoes", { ...payload, alocacaoId: idExistente });

@@ -89,6 +89,15 @@ describe("etapa curricular e professor escolhido", () => {
     const resultado = await validar(grade, { id: "1", disciplina: "Banco", professor: "Ana", professorId: 11, sala: "" }, "8", "segunda", { inicio: "07:00", fim: "08:00" });
     expect(resultado).toEqual({ valido: false, mensagem: "Professor indisponível", sugestoes: [] });
   });
+  it("pré-valida todos os dados da alocação antes de incluí-la no rascunho", async () => {
+    vi.mocked(api.post).mockResolvedValueOnce({ valido: true, mensagem: "A alocação é válida." } as never);
+    const grade: Grade = { id: "40:10", quadroId: 40, turmaId: 10, versao: 1, dataCriacao: "2026-01-01", curso: "ADS", periodoLetivo: "2026", horarios: [], blocos: [{ id: 3, inicio: "07:00", fim: "08:00" }], intervalos: [], disciplinaIds: [], salaIds: [], aulas: [] };
+    await validar(grade, { id: "2", disciplina: "Banco", professor: "Ana", professorId: 11, sala: "" }, "8", "segunda", { inicio: "07:00", fim: "08:00" });
+    expect(api.post).toHaveBeenCalledWith("/alocacoes/validar", {
+      turma: { id: 10 }, disciplina: { id: 2 }, sala: { id: 8 }, professor: { id: 11 },
+      diaSemana: "SEGUNDA", horario: { id: 3 }, quadroHorario: { id: 40 }, alocacaoId: undefined,
+    });
+  });
   it("envia o professor escolhido no rascunho ao salvar", async () => {
     const grade: Grade = { id: "40:10", quadroId: 40, turmaId: 10, versao: 1, dataCriacao: "2026-01-01", curso: "ADS", periodoLetivo: "2026", horarios: [{ inicio: "07:00", fim: "08:00" }], blocos: [{ id: 3, inicio: "07:00", fim: "08:00" }], intervalos: [], disciplinaIds: ["1"], salaIds: ["8"], aulas: [] };
     vi.mocked(api.put).mockResolvedValueOnce(undefined);
