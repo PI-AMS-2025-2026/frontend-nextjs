@@ -251,18 +251,20 @@ export function SalasListagem() {
                             }}
                         />
                     </div>
-                    <Button
-                        variant="secondary"
-                        size="small"
-                        className="gap-2"
-                        onClick={() => {
-                            setErroForm(null);
-                            setCadastrarAberto(true);
-                        }}
-                    >
-                        <Plus className="size-5" />
-                        Cadastrar
-                    </Button>
+                    {!isCoordinatorRoute && (
+                        <Button
+                            variant="secondary"
+                            size="small"
+                            className="gap-2"
+                            onClick={() => {
+                                setErroForm(null);
+                                setCadastrarAberto(true);
+                            }}
+                        >
+                            <Plus className="size-5" />
+                            Cadastrar
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -330,30 +332,30 @@ export function SalasListagem() {
                             {
                                 label: "Ver Recursos",
                                 icon: <Wrench className="size-[21px]" strokeWidth={2} />,
-                                onClick: (s) => {
+                                onClick: (s: SalaRow) => {
                                     selecionar(s);
                                     setRecursosAberto(true);
                                 },
                             },
-                            {
+                            ...(!isCoordinatorRoute ? [{
                                 label: "Editar",
                                 icon: <Pencil className="size-[21px]" strokeWidth={2} />,
-                                onClick: (s) => {
+                                onClick: (s: SalaRow) => {
                                     selecionar(s);
                                     setErroForm(null);
                                     setEditarAberto(true);
                                 },
-                            },
-                            {
+                            }] : []),
+                            ...(!isCoordinatorRoute ? [{
                                 label: "Excluir",
                                 icon: <Trash2 className="size-[21px]" strokeWidth={2} />,
                                 className: "text-[#FF0000] hover:bg-red-50",
-                                onClick: (s) => {
+                                onClick: (s: SalaRow) => {
                                     selecionar(s);
                                     setAlocacoesVinculadas(null);
                                     setExcluirAberto(true);
                                 },
-                            },
+                            }] : []),
                         ]}
                     />
                 </div>
@@ -370,7 +372,7 @@ export function SalasListagem() {
                 }}
             />
 
-            <SalaFormModal
+            {!isCoordinatorRoute && <SalaFormModal
                 open={cadastrarAberto}
                 onClose={() => setCadastrarAberto(false)}
                 mode="cadastrar"
@@ -378,9 +380,9 @@ export function SalasListagem() {
                 salvando={salvando}
                 erroExterno={erroForm}
                 onConfirm={confirmarCadastro}
-            />
+            />}
 
-            <SalaFormModal
+            {!isCoordinatorRoute && <SalaFormModal
                 open={editarAberto}
                 onClose={() => {
                     setEditarAberto(false);
@@ -392,9 +394,9 @@ export function SalasListagem() {
                 salvando={salvando}
                 erroExterno={erroForm}
                 onConfirm={confirmarEdicao}
-            />
+            />}
 
-            <ExcluirSalaModal
+            {!isCoordinatorRoute && <ExcluirSalaModal
                 open={excluirAberto}
                 onClose={() => {
                     setExcluirAberto(false);
@@ -403,7 +405,7 @@ export function SalasListagem() {
                 }}
                 onConfirm={confirmarExclusao}
                 linkedCount={alocacoesVinculadas}
-            />
+            />}
 
             <RecursosSalaModal
                 open={recursosAberto}

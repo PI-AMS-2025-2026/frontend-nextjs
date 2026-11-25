@@ -6,7 +6,8 @@ import { tiposSalaService } from "@/services/tipos-sala.service";
 import { recursoSalaService } from "@/services/recurso-sala.service";
 
 vi.mock("next/link", () => ({ default: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
-vi.mock("next/navigation", () => ({ usePathname: () => "/administrador/salas" }));
+const navigation = vi.hoisted(() => ({ pathname: "/administrador/salas" }));
+vi.mock("next/navigation", () => ({ usePathname: () => navigation.pathname }));
 vi.mock("@/services/salas.service", () => ({ salasService: { listar: vi.fn(), criar: vi.fn(), atualizar: vi.fn(), deletar: vi.fn() } }));
 vi.mock("@/services/tipos-sala.service", () => ({ tiposSalaService: { listar: vi.fn(), criar: vi.fn() } }));
 vi.mock("@/services/recurso-sala.service", () => ({ recursoSalaService: { listar: vi.fn() } }));
@@ -14,6 +15,7 @@ vi.mock("@/services/recurso-sala.service", () => ({ recursoSalaService: { listar
 describe("filtro por tipo na listagem de salas", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    navigation.pathname = "/administrador/salas";
     vi.mocked(salasService.listar).mockResolvedValue({ content: [], page: 0, size: 6, totalElements: 0, totalPages: 0 });
     vi.mocked(tiposSalaService.listar).mockResolvedValue([
       { id: 5, nome: "Laboratório" },
@@ -33,5 +35,40 @@ describe("filtro por tipo na listagem de salas", () => {
 
     fireEvent.change(filtro, { target: { value: "" } });
     await waitFor(() => expect(salasService.listar).toHaveBeenLastCalledWith(expect.not.objectContaining({ tipo_sala: expect.anything() })));
+  });
+
+  it("mantém as ações de gestão para o administrador", async () => {
+    vi.mocked(salasService.listar).mockResolvedValue({
+      content: [{ id: 23, codigo: "LAB-1", capacidade: 30, tipoSala: { id: 5, nome: "Laboratório" } } as never],
+      page: 0,
+      size: 6,
+      totalElements: 1,
+      totalPages: 1,
+    });
+    render(<SalasListagem />);
+
+    expect(await screen.findByRole("button", { name: "Cadastrar" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Editar" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Excluir" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ver Recursos" })).toBeInTheDocument();
+  });
+
+  it("deixa a listagem do coordenador somente para consulta", async () => {
+    navigation.pathname = "/coordenador/listagens/sala";
+    vi.mocked(salasService.listar).mockResolvedValue({
+      content: [{ id: 23, codigo: "LAB-1", capacidade: 30, tipoSala: { id: 5, nome: "Laboratório" } } as never],
+      page: 0,
+      size: 6,
+      totalElements: 1,
+      totalPages: 1,
+    });
+    render(<SalasListagem />);
+
+    expect(await screen.findByText("Visualize as salas da instituição")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cadastrar" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Editar" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Excluir" })).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Ver Recursos" }));
+    expect(await screen.findByText("Recursos — LAB-1")).toBeInTheDocument();
   });
 });

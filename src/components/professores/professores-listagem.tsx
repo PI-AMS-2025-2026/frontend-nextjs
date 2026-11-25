@@ -42,6 +42,7 @@ function mensagemErro(erro: unknown, padrao: string) {
 
 export function ProfessoresListagem() {
   const pathname = usePathname();
+  const isCoordinatorRoute = pathname.startsWith("/coordenador/");
   const hrefVoltar = pathname.startsWith("/coordenador/")
     ? "/coordenador/home"
     : "/administrador/home";
@@ -165,7 +166,9 @@ export function ProfessoresListagem() {
             </h1>
 
             <p className="text-sm text-[#17264D]/70">
-              Gerencie os professores da instituição
+              {isCoordinatorRoute
+                ? "Visualize os professores da instituição"
+                : "Gerencie os professores da instituição"}
             </p>
           </div>
         </div>
@@ -183,16 +186,18 @@ export function ProfessoresListagem() {
             />
           </div>
 
-          <Button
-            variant="secondary"
-            size="small"
-            className="gap-2"
-            disabled={carregando || Boolean(erro)}
-            onClick={() => abrirFormulario()}
-          >
-            <Plus className="size-5" />
-            Cadastrar
-          </Button>
+          {!isCoordinatorRoute && (
+            <Button
+              variant="secondary"
+              size="small"
+              className="gap-2"
+              disabled={carregando || Boolean(erro)}
+              onClick={() => abrirFormulario()}
+            >
+              <Plus className="size-5" />
+              Cadastrar
+            </Button>
+          )}
         </div>
       </div>
 
@@ -300,7 +305,7 @@ export function ProfessoresListagem() {
                     ),
                 },
               ]}
-              actions={[
+              actions={isCoordinatorRoute ? [] : [
                 {
                   label: "Editar",
                   icon: (
@@ -332,7 +337,7 @@ export function ProfessoresListagem() {
         </>
       ) : null}
 
-      {formulario && (
+      {!isCoordinatorRoute && formulario && (
         <ProfessorFormModal
           key={
             formulario.modo === "editar"
