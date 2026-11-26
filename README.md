@@ -185,6 +185,43 @@ A imagem é multi-stage, roda como usuário **não-root** (uid 1001) e tem
 nunca cacheada. É usada pelo `HEALTHCHECK` do Docker, pelo compose e pelos
 orquestradores do repositório de infraestrutura.
 
+## Faixa de ambiente (`APP_ENVIRONMENT`)
+
+Uma faixa fina no topo da tela indica ambientes não produtivos. O ambiente vem
+da variável **`APP_ENVIRONMENT`**, lida em **runtime** pelo servidor Node (e não
+no build: como a imagem é única, uma `NEXT_PUBLIC_*` ficaria fixa no bundle).
+
+| `APP_ENVIRONMENT` | Faixa |
+| --- | --- |
+| `dev` | "AMBIENTE DE DESENVOLVIMENTO" |
+| `staging` | "AMBIENTE DE HOMOLOGAÇÃO" |
+| `production` | nenhuma |
+| ausente ou qualquer outro valor | nenhuma |
+
+O navegador consulta `GET /api/environment` (mesma origem, pública e nunca
+cacheada), que responde `{"environment":"dev"|"staging"|"production"|null}`.
+Se a consulta falhar, nenhuma faixa é exibida.
+
+Teste com a **mesma imagem**, sem rebuild:
+
+```bash
+docker build -t frontend:test .
+
+docker run -d --name fe -p 3000:3000 -e API_URL=http://localhost:8080 -e APP_ENVIRONMENT=staging frontend:test
+curl http://localhost:3000/api/environment   # {"environment":"staging"} → faixa "HOMOLOGAÇÃO"
+docker rm -f fe
+
+docker run -d --name fe -p 3000:3000 -e API_URL=http://localhost:8080 -e APP_ENVIRONMENT=dev frontend:test
+curl http://localhost:3000/api/environment   # {"environment":"dev"} → faixa "DESENVOLVIMENTO"
+docker rm -f fe
+
+docker run -d --name fe -p 3000:3000 -e API_URL=http://localhost:8080 frontend:test
+curl http://localhost:3000/api/environment   # {"environment":null} → sem faixa
+docker rm -f fe
+```
+
+Em desenvolvimento local, defina `APP_ENVIRONMENT=dev` no `.env.local`.
+
 ## CI/CD
 
 Dois workflows em `.github/workflows/`:
