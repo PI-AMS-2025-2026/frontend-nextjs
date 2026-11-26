@@ -16,7 +16,7 @@ Dockerfile*
 docker-compose*
 
 # Variáveis de ambiente: nunca copiar segredos para a imagem.
-# NEXT_PUBLIC_API_URL é passada como build-arg.
+# A URL da API é informada em runtime (API_URL), nunca no build.
 .env*
 !.env.example
 
