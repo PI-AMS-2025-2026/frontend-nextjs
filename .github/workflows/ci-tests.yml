@@ -70,9 +70,9 @@ jobs:
     name: Build de verificação (Next.js)
     runs-on: ubuntu-latest
     env:
-      # Valor fictício: aqui só validamos que o build compila. A URL real é
-      # injetada como build-arg no workflow de publicação da imagem.
-      NEXT_PUBLIC_API_URL: http://localhost:8080
+      # Mesmo placeholder da imagem: aqui só validamos que o build compila. A
+      # URL real é aplicada em runtime pelo docker-entrypoint.sh (API_URL).
+      NEXT_PUBLIC_API_URL: http://gini-api-placeholder.invalid
       NEXT_TELEMETRY_DISABLED: '1'
     steps:
       - uses: actions/checkout@v7

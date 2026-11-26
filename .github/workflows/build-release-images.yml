@@ -1,4 +1,6 @@
 # Publica a imagem de produção do frontend no ghcr.io após os testes passarem.
+# A imagem é ÚNICA para todos os ambientes: a URL da API é informada em runtime
+# pela variável API_URL (ver docker-entrypoint.sh e README).
 # O DEPLOY não é feito aqui: é responsabilidade do repositório de infraestrutura,
 # que é notificado via `repository_dispatch` quando a branch é `dev`.
 name: build-release-images
@@ -27,60 +29,27 @@ jobs:
   build:
     name: Build e push da imagem
     needs: tests
+    # Só publica a partir das branches dev/staging/main e de tags vX.Y.Z
+    # (evita publicar via workflow_dispatch em outras branches).
+    if: github.ref_type == 'tag' || contains(fromJSON('["dev", "staging", "main"]'), github.ref_name)
     runs-on: ubuntu-latest
     outputs:
-      tag: ${{ steps.meta-vars.outputs.tag }}
-      sha: ${{ steps.meta-vars.outputs.sha }}
+      tag: ${{ steps.vars.outputs.tag }}
+      sha: ${{ steps.vars.outputs.sha }}
     steps:
       - uses: actions/checkout@v7
 
-      - name: Calcular short SHA e resolver NEXT_PUBLIC_API_URL
-        id: meta-vars
+      - name: Calcular a tag imutável (sha-<7>)
+        id: vars
         env:
           # Valores passados via env: nunca interpolar expressões do Actions
           # diretamente dentro do script shell.
           GIT_SHA: ${{ github.sha }}
-          REF_NAME: ${{ github.ref_name }}
-          REF_TYPE: ${{ github.ref_type }}
-          API_URL_DEV: ${{ vars.NEXT_PUBLIC_API_URL_DEV }}
-          API_URL_STAGING: ${{ vars.NEXT_PUBLIC_API_URL_STAGING }}
-          API_URL_PRODUCTION: ${{ vars.NEXT_PUBLIC_API_URL_PRODUCTION }}
         run: |
           set -euo pipefail
-
-          short_sha="${GIT_SHA:0:7}"
-
-          # Tags git (vX.Y.Z) e a branch main apontam para produção.
-          if [ "$REF_TYPE" = "tag" ]; then
-            environment="production"
-            api_url="$API_URL_PRODUCTION"
-          else
-            case "$REF_NAME" in
-              dev)     environment="dev";        api_url="$API_URL_DEV" ;;
-              staging) environment="staging";   api_url="$API_URL_STAGING" ;;
-              main)    environment="production"; api_url="$API_URL_PRODUCTION" ;;
-              *)
-                echo "::error::Branch '$REF_NAME' não possui ambiente mapeado (dev/staging/main)."
-                exit 1
-                ;;
-            esac
-          fi
-
-          if [ -z "$api_url" ]; then
-            echo "::error::A variable NEXT_PUBLIC_API_URL para o ambiente '$environment' está vazia. Configure-a em Settings > Actions > Variables."
-            exit 1
-          fi
-
-          # A imagem do frontend é específica do ambiente (a URL da API é
-          # embutida no build). Um mesmo commit pode ser buildado em mais de uma
-          # branch (fast-forward/rebase), então o ambiente entra na tag imutável
-          # para que um build não sobrescreva o de outro ambiente.
           {
-            echo "short_sha=$short_sha"
-            echo "tag=sha-$short_sha-$environment"
+            echo "tag=sha-${GIT_SHA:0:7}"
             echo "sha=$GIT_SHA"
-            echo "environment=$environment"
-            echo "api_url=$api_url"
           } >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v4
@@ -97,76 +66,17 @@ jobs:
         with:
           # ghcr.io exige o nome em minúsculas.
           images: ghcr.io/${{ github.repository }}
+          # O `latest` é controlado explicitamente (somente main).
+          flavor: |
+            latest=false
           tags: |
-            type=raw,value=${{ steps.meta-vars.outputs.tag }}
+            type=raw,value=${{ steps.vars.outputs.tag }}
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-          labels: |
-            org.opencontainers.image.title=frontend-nextjs
-            org.opencontainers.image.description=Frontend do Projeto Integrador (Next.js)
-            org.opencontainers.image.vendor=PI AMS 2025-2026
-
-      - name: Build e push
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          provenance: false
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            NEXT_PUBLIC_API_URL=${{ steps.meta-vars.outputs.api_url }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # FASE A da imagem única: mesma imagem para todos os ambientes, com a URL da
-  # API definida em runtime (variável API_URL, ver docker-entrypoint.sh).
-  # Builda SEM NEXT_PUBLIC_API_URL (o Dockerfile usa o placeholder) e publica
-  # SOMENTE a tag sha-<7>; as tags dev/staging/main, semver e latest continuam
-  # nas imagens por ambiente do job `build` até a migração (FASE B).
-  build-unified:
-    name: Build e push da imagem única (URL da API em runtime)
-    needs: tests
-    # Mesmas refs mapeadas pelo job `build` (evita publicar a partir de
-    # workflow_dispatch em branches sem ambiente).
-    if: github.ref_type == 'tag' || contains(fromJSON('["dev", "staging", "main"]'), github.ref_name)
-    runs-on: ubuntu-latest
-    outputs:
-      unified_tag: ${{ steps.vars.outputs.unified_tag }}
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Calcular a tag da imagem única
-        id: vars
-        env:
-          GIT_SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          echo "unified_tag=sha-${GIT_SHA:0:7}" >> "$GITHUB_OUTPUT"
-
-      - uses: docker/setup-buildx-action@v4
-
-      - uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Metadados da imagem única (tag e labels OCI)
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ghcr.io/${{ github.repository }}
-          # Desliga o `latest` automático: só a tag imutável sha-<7>.
-          flavor: |
-            latest=false
-          tags: |
-            type=raw,value=${{ steps.vars.outputs.unified_tag }}
           # O rótulo runtime-api-url permite aos scripts de deploy verificarem
-          # que a imagem aceita API_URL. As imagens antigas não o recebem.
+          # que a imagem recebe a URL da API pela variável API_URL.
           labels: |
             org.opencontainers.image.title=frontend-nextjs
             org.opencontainers.image.description=Frontend do Projeto Integrador (Next.js) - URL da API em runtime
@@ -182,28 +92,22 @@ jobs:
           provenance: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # Sem build-args: NEXT_PUBLIC_API_URL fica com o placeholder do Dockerfile.
+          # Sem build-args: o bundle leva o placeholder fixo do Dockerfile,
+          # trocado pela API_URL na inicialização do container.
           cache-from: type=gha,scope=frontend-unified
           cache-to: type=gha,mode=max,scope=frontend-unified
 
   notify-infra:
     name: Notificar repositório de infraestrutura
-    needs: [build, build-unified]
-    # always(): uma falha na imagem única não bloqueia o dispatch da imagem
-    # antiga enquanto FRONTEND_DISPATCH_UNIFIED não for 'true'.
-    if: always() && github.ref == 'refs/heads/dev' && needs.build.result == 'success'
+    needs: build
+    if: github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     steps:
       - name: Disparar repository_dispatch (image-published)
         env:
           INFRA_TOKEN: ${{ secrets.INFRA_DISPATCH_TOKEN }}
           INFRA_REPOSITORY: ${{ vars.INFRA_REPOSITORY }}
-          LEGACY_TAG: ${{ needs.build.outputs.tag }}
-          UNIFIED_TAG: ${{ needs.build-unified.outputs.unified_tag }}
-          UNIFIED_RESULT: ${{ needs.build-unified.result }}
-          # Só envia a imagem única quando a variable for exatamente 'true'.
-          # Ausente/qualquer outro valor = comportamento antigo.
-          DISPATCH_UNIFIED: ${{ vars.FRONTEND_DISPATCH_UNIFIED }}
+          IMAGE_TAG: ${{ needs.build.outputs.tag }}
           COMMIT_SHA: ${{ needs.build.outputs.sha }}
           BRANCH: ${{ github.ref_name }}
         run: |
@@ -217,16 +121,6 @@ jobs:
           if [ -z "$INFRA_REPOSITORY" ]; then
             echo "::error::A variable INFRA_REPOSITORY (formato owner/repo) não está configurada."
             exit 1
-          fi
-
-          if [ "$DISPATCH_UNIFIED" = "true" ]; then
-            if [ "$UNIFIED_RESULT" != "success" ] || [ -z "$UNIFIED_TAG" ]; then
-              echo "::error::FRONTEND_DISPATCH_UNIFIED=true, mas o build da imagem única não foi concluído (resultado: $UNIFIED_RESULT)."
-              exit 1
-            fi
-            IMAGE_TAG="$UNIFIED_TAG"
-          else
-            IMAGE_TAG="$LEGACY_TAG"
           fi
 
           # O JSON é montado com jq a partir de variáveis de ambiente,

@@ -97,41 +97,18 @@ Para derrubar (e apagar o volume do banco):
 docker compose down -v
 ```
 
-### Sobre a `NEXT_PUBLIC_API_URL`
+### URL da API em runtime
 
-Variáveis `NEXT_PUBLIC_*` são **embutidas no bundle em tempo de build**, não
-lidas em tempo de execução. Por isso:
-
-- a imagem do frontend construída com a URL é **específica por ambiente/branch**
-  (para uma imagem só, ver "URL da API em runtime" abaixo);
-- a URL entra como `--build-arg NEXT_PUBLIC_API_URL=...`;
-- ao alterá-la é obrigatório reconstruir a imagem:
-
-```bash
-docker compose build frontend && docker compose up -d frontend
-```
-
-Build da imagem sem o compose:
-
-```bash
-docker build --build-arg NEXT_PUBLIC_API_URL=http://localhost:8080 -t frontend:test .
-docker run --rm -p 3000:3000 frontend:test
-```
-
-A imagem é multi-stage, roda como usuário **não-root** (uid 1001) e tem
-`HEALTHCHECK` apontando para `/api/health`.
-
-### URL da API em runtime (imagem única)
-
-Além das imagens por ambiente, o CI publica uma **imagem única**, válida para
-todos os ambientes (local, dev, staging, produção e AWS). A URL da API é
-informada ao **iniciar** o container, pela variável `API_URL`.
+A imagem do frontend é **única para todos os ambientes** (local, dev, staging,
+produção e AWS). A URL da API é informada ao **iniciar** o container, pela
+variável `API_URL`, que é **obrigatória**.
 
 Como funciona:
 
-1. Sem `--build-arg NEXT_PUBLIC_API_URL`, o `Dockerfile` embute no bundle o
-   placeholder fixo `http://gini-api-placeholder.invalid` (URL válida; o TLD
-   `.invalid` nunca resolve).
+1. Variáveis `NEXT_PUBLIC_*` são embutidas no bundle em tempo de build. O
+   `Dockerfile` fixa `NEXT_PUBLIC_API_URL` no placeholder
+   `http://gini-api-placeholder.invalid` (URL válida; o TLD `.invalid` nunca
+   resolve). A URL não é configurável no build.
 2. O `docker-entrypoint.sh` valida a `API_URL` e troca o placeholder em
    `/app/server.js` e em `/app/.next` (chunks do navegador em `.next/static` e
    do SSR em `.next/server`) antes de executar `node server.js`.
@@ -140,44 +117,51 @@ Regras do `docker-entrypoint.sh`:
 
 | Situação | Resultado |
 | --- | --- |
-| Imagem única + `API_URL` válida | troca o placeholder e sobe |
-| Imagem única sem `API_URL` | `exit 1`: "API_URL não definida: esta imagem exige a URL da API em runtime" |
-| `API_URL` inválida (qualquer imagem) | `exit 1` |
-| Imagem antiga (URL embutida) sem `API_URL` | sobe normalmente, sem alterar nada |
-| Imagem antiga com `API_URL` | sobe com a URL embutida e loga um aviso (`API_URL` é ignorada) |
+| `API_URL` válida | troca o placeholder e sobe |
+| `API_URL` ausente ou vazia | `exit 1`: "API_URL não definida: esta imagem exige a URL da API em runtime" |
+| `API_URL` inválida | `exit 1` |
+| `docker restart` com a mesma `API_URL` | sobe normalmente ("já configurada") |
+| `docker restart` com outra `API_URL` | `exit 1`, pedindo para recriar o container |
+| Imagem sem o placeholder (não gerada pelo `Dockerfile` atual) | `exit 1` |
 
 Formato aceito para a `API_URL`: apenas esquema, host e porta opcional, **sem
 barra final nem caminho**. Exemplos: `https://api.exemplo.com` e
-`http://10.0.0.5:8081`.
+`http://10.0.0.5:8081`. É a URL que o **navegador** usa para chamar a API, não
+um endereço da rede interna do Docker.
 
 > **Trocar a `API_URL` exige RECRIAR o container.** A substituição altera os
-> arquivos do próprio container: um `docker restart` com a mesma URL funciona
-> ("já configurado"), mas com outra URL o entrypoint falha e pede para
-> recriar. O `docker compose up -d` recria o container sozinho quando o
-> ambiente do serviço muda; para forçar, use
+> arquivos do próprio container. O `docker compose up -d` recria o container
+> sozinho quando o ambiente do serviço muda; para forçar, use
 > `docker compose up -d --force-recreate frontend`. Pelo mesmo motivo, a
 > imagem não funciona com sistema de arquivos somente leitura (`read_only`).
 
-**Rótulo OCI.** A imagem única publicada pelo CI tem o rótulo
-`br.fatec.gini.runtime-api-url=true`. As imagens por ambiente não têm esse
-rótulo. Scripts de deploy podem verificar o rótulo antes de passar a
-`API_URL`:
+No compose local, a `API_URL` vem do `.env` (padrão `http://localhost:8080`).
+Para alterá-la:
+
+```bash
+# edite API_URL no .env e depois:
+docker compose up -d frontend
+```
+
+**Rótulo OCI.** A imagem publicada pelo CI tem o rótulo
+`br.fatec.gini.runtime-api-url=true`, que permite aos scripts de deploy
+confirmarem que a imagem recebe a URL por `API_URL`:
 
 ```bash
 docker image inspect ghcr.io/pi-ams-2025-2026/frontend-nextjs:sha-a1b2c3d \
   --format '{{ index .Config.Labels "br.fatec.gini.runtime-api-url" }}'   # true
 ```
 
-Teste manual:
+Build e teste manual da imagem sem o compose:
 
 ```bash
-docker build -t frontend:unica .     # sem build-arg = placeholder
+docker build -t frontend:test .
 
 # Sem API_URL: falha de propósito (exit 1)
-docker run --rm frontend:unica
+docker run --rm frontend:test
 
 # Com API_URL: sobe e fica "healthy"
-docker run -d --name fe -p 3000:3000 -e API_URL=http://10.0.0.5:8081 frontend:unica
+docker run -d --name fe -p 3000:3000 -e API_URL=http://10.0.0.5:8081 frontend:test
 docker logs fe        # [entrypoint] URL da API configurada em runtime (N arquivo(s) alterado(s)).
 
 # O placeholder sumiu do bundle e a nova URL está nos chunks do navegador
@@ -185,13 +169,13 @@ docker exec fe sh -c 'grep -rlF gini-api-placeholder.invalid /app/.next /app/ser
 docker exec fe sh -c 'grep -rlF http://10.0.0.5:8081 /app/.next/static'
 
 # URL inválida: exit 1
-docker run --rm -e 'API_URL=http://a/;rm' frontend:unica
+docker run --rm -e 'API_URL=http://a/;rm' frontend:test
 
 docker rm -f fe
 ```
 
-O `docker-compose.yml` local continua construindo a imagem com a URL real
-(`NEXT_PUBLIC_API_URL`), então o fluxo de desenvolvimento não muda.
+A imagem é multi-stage, roda como usuário **não-root** (uid 1001) e tem
+`HEALTHCHECK` apontando para `/api/health`.
 
 ## Health check
 
@@ -219,36 +203,30 @@ ele é executado através do `build-release-images`, evitando execução duplica
 Roda em push para `dev`, `staging`, `main` e em tags `v*.*.*`. Reutiliza o
 `ci-tests` e só publica a imagem no ghcr.io se tudo passar.
 
-Imagem: `ghcr.io/<owner>/<repo>` (em minúsculas). Tags publicadas:
+Imagem: `ghcr.io/<owner>/<repo>` (em minúsculas). Um único build por push,
+sem build-args: a mesma imagem serve a todos os ambientes (ver "URL da API em
+runtime") e tem o rótulo OCI `br.fatec.gini.runtime-api-url=true`. Tags
+publicadas:
 
 | Tag | Quando | Mutável? |
 | --- | --- | --- |
-| `sha-<7 chars>-<ambiente>` | sempre (usada nos deploys); ambiente = `dev`, `staging` ou `production` | não |
+| `sha-<7 chars>` | sempre (usada nos deploys) | não |
 | `dev` / `staging` / `main` | push na branch correspondente | sim |
 | `X.Y.Z` e `X.Y` | tag git `vX.Y.Z` | sim (`X.Y`) |
 | `latest` | somente a partir de `main` | sim |
-| `sha-<7 chars>` | sempre; **imagem única** (URL da API em runtime, rótulo `br.fatec.gini.runtime-api-url=true`) | não |
 
-As tags da tabela acima, exceto `sha-<7 chars>`, apontam para as imagens por
-ambiente. A imagem única é publicada pelo job `build-unified` e recebe
-**somente** a tag `sha-<7 chars>`; ela é a mesma para todos os ambientes, por
-isso não leva o sufixo. Quando todos os ambientes tiverem migrado para a
-imagem única (FASE B), ela passa a receber também as tags `dev`, `staging`,
-`main`, semver e `latest`, e o build por ambiente é removido.
+Como a imagem não depende do ambiente, buildar o mesmo commit em mais de uma
+branch (fast-forward ou rebase) gera uma imagem equivalente na mesma tag
+`sha-<7>`.
 
 Somente na branch `dev` o job `notify-infra` envia um `repository_dispatch`
 ao repositório de infraestrutura, com `event_type: image-published` e
-`client_payload: { service: "frontend", tag, sha, branch }`. A `tag` enviada
-depende da variable `FRONTEND_DISPATCH_UNIFIED` (ver abaixo): por padrão é a
-imagem por ambiente (`sha-<7>-dev`).
+`client_payload: { service: "frontend", tag, sha, branch }`, em que `tag` é
+`sha-<7 chars>`.
 Os deploys de **staging** e **produção** são manuais, via `workflow_dispatch`
-no repositório de infraestrutura, informando a tag da imagem.
-
-> **Por que o ambiente está na tag imutável?** A URL da API é embutida no
-> build, então cada ambiente tem sua própria imagem. Um mesmo commit pode ser
-> buildado em `dev` e depois em `staging`/`main` (fast-forward ou rebase); com
-> só `sha-<7>`, o segundo build sobrescreveria o primeiro com outra URL. No
-> deploy manual, use a tag do ambiente certo (ex.: `sha-a1b2c3d-staging`).
+no repositório de infraestrutura, informando a tag da imagem. A `API_URL` de
+cada ambiente fica no `.env` do servidor, gerenciado pelo repositório de
+infraestrutura.
 
 > **O deploy não é feito neste repositório.** Ele é responsabilidade exclusiva
 > do repositório de infraestrutura.
@@ -271,25 +249,6 @@ Configurar em *Settings → Secrets and variables → Actions*:
 | Nome | Exemplo |
 | --- | --- |
 | `INFRA_REPOSITORY` | `owner/repo-de-infra` |
-| `NEXT_PUBLIC_API_URL_DEV` | `https://api-dev.exemplo.com` |
-| `NEXT_PUBLIC_API_URL_STAGING` | `https://api-staging.exemplo.com` |
-| `NEXT_PUBLIC_API_URL_PRODUCTION` | `https://api.exemplo.com` |
-
-| `FRONTEND_DISPATCH_UNIFIED` | `true` (opcional; padrão: ausente) |
-
-Se a variable do ambiente correspondente estiver vazia, o workflow falha com
-mensagem explícita, em vez de publicar uma imagem apontando para a URL errada.
-
-**`FRONTEND_DISPATCH_UNIFIED`**: quando o valor é exatamente `true`, o
-`notify-infra` envia ao repositório de infraestrutura a tag da **imagem única**
-(`sha-<7>`). Com qualquer outro valor, ou ausente, envia a tag antiga
-(`sha-<7>-dev`), e o payload fica idêntico ao de antes.
-
-> **Ordem de migração:** só mude para `true` **depois** que o repositório de
-> infraestrutura (`banco-infra`) estiver pronto para a imagem única **e** o
-> `.env` do ambiente `dev` no servidor tiver a `API_URL`. Caso contrário, o
-> deploy automático de `dev` sobe um container que falha ao iniciar
-> ("API_URL não definida").
 
 ## Testes
 

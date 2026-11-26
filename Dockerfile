@@ -22,13 +22,12 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Variáveis NEXT_PUBLIC_* são embutidas no bundle em tempo de build.
-# - Sem build-arg (imagem ÚNICA): embute um placeholder fixo, trocado pela URL
-#   real (variável API_URL) no docker-entrypoint.sh ao iniciar o container.
-#   O TLD .invalid nunca resolve, então o placeholder jamais aponta para um host.
-# - Com --build-arg (imagem antiga, por ambiente): embute a URL real.
-ARG NEXT_PUBLIC_API_URL=http://gini-api-placeholder.invalid
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+# Variáveis NEXT_PUBLIC_* são embutidas no bundle em tempo de build. A imagem
+# é ÚNICA para todos os ambientes: o bundle leva um placeholder FIXO, trocado
+# pela URL real (variável API_URL) no docker-entrypoint.sh ao iniciar o
+# container. O TLD .invalid nunca resolve, então o placeholder jamais aponta
+# para um host. Não é um ARG de propósito: a URL não é configurável no build.
+ENV NEXT_PUBLIC_API_URL=http://gini-api-placeholder.invalid
 ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN npm run build

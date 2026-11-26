@@ -73,7 +73,7 @@ services:
       SMTP_FROM: noreply@gini.local
       PASSWORD_RESET_EXPIRATION_MINUTES: ${PASSWORD_RESET_EXPIRATION_MINUTES:-15}
     ports:
-      # O navegador chama a API diretamente (NEXT_PUBLIC_API_URL), por isso a
+      # O navegador chama a API diretamente (API_URL do frontend), por isso a
       # porta do backend precisa estar publicada no host.
       - "${BACKEND_PORT:-8080}:8080"
     depends_on:
@@ -95,10 +95,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        # NEXT_PUBLIC_* é embutida no bundle em tempo de build. Ao alterar este
-        # valor é obrigatório reconstruir: `docker compose build frontend`.
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+    environment:
+      # URL da API usada pelo NAVEGADOR (não pela rede interna do compose),
+      # aplicada pelo docker-entrypoint.sh ao iniciar o container. Ao alterá-la
+      # basta `docker compose up -d frontend` (o container é recriado).
+      API_URL: ${API_URL:-http://localhost:8080}
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
