@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
+    ArrowLeft,
     CheckCircle,
     CircleSlash,
     Pencil,
@@ -342,10 +344,24 @@ export default function CadastroUsuario() {
         <>
             <main className="min-h-screen bg-white px-8 py-7">
                 <div className="mx-auto w-full max-w-[1118px]">
-                    <div className="mb-8 flex items-center justify-between">
-                        <h1 className="text-[36px] font-semibold leading-none text-[#111111]">
-                            Listagem de Usuários
-                        </h1>
+                    <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <Link
+                                href="/administrador/home"
+                                aria-label="Voltar para a página inicial"
+                                className="flex size-9 items-center justify-center rounded-lg text-[#17264D]/70 transition-colors hover:bg-[#F2F2F2]"
+                            >
+                                <ArrowLeft className="size-6" />
+                            </Link>
+                            <div>
+                                <h1 className="text-[36px] font-semibold leading-none text-[#111111]">
+                                    Listagem de Usuários
+                                </h1>
+                                <p className="mt-1 text-sm text-[#17264D]/70">
+                                    Gerencie os usuários da instituição
+                                </p>
+                            </div>
+                        </div>
 
                         <div className="flex items-center gap-3">
                             <SearchInput

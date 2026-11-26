@@ -1,7 +1,5 @@
 
 import Image from "next/image";
-import Link from "next/link";
-import { footerColumns } from "@/data/footer-links";
 
 export function Footer() {
   return (
@@ -18,28 +16,6 @@ export function Footer() {
           />
         </div>
 
-        <div className="grid flex-1 grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-5">
-          {footerColumns.map((col, index) => (
-            <div
-              key={index}
-              className="flex flex-col gap-2"
-            >
-              <span className="text-sm font-semibold text-white">
-                {col.title}
-              </span>
-
-              {col.links.map((link, i) => (
-                <Link
-                  key={i}
-                  href="#"
-                  className="text-sm text-white/70 transition-colors hover:text-white"
-                >
-                  {link}
-                </Link>
-              ))}
-            </div>
-          ))}
-        </div>
       </div>
     </footer>
   );
