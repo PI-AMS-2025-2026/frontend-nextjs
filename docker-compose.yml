@@ -100,6 +100,9 @@ services:
       # aplicada pelo docker-entrypoint.sh ao iniciar o container. Ao alterá-la
       # basta `docker compose up -d frontend` (o container é recriado).
       API_URL: ${API_URL:-http://localhost:8080}
+      # Ambiente lido em runtime pela rota /api/environment: exibe a faixa
+      # "AMBIENTE DE DESENVOLVIMENTO" no topo da tela.
+      APP_ENVIRONMENT: dev
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
