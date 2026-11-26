@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Mail, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input, PasswordInput } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -132,18 +131,6 @@ export default function LoginPage() {
           </div>
 
           <div className="mt-2 flex items-center justify-between gap-4 text-[#AAC1C9]">
-            <div className="flex items-center gap-1.5">
-              <Checkbox
-                id="remember-me"
-                className="h-3 w-[13px] rounded-none border-[#B1C9D1] bg-white data-checked:border-white data-checked:bg-white data-checked:text-[#17264D]"
-              />
-              <Label
-                htmlFor="remember-me"
-                className="text-[12px] font-extrabold text-[#AAC1C9] sm:text-sm"
-              >
-                Lembrar de mim
-              </Label>
-            </div>
             <Link
               href="/recuperar-senha"
               className="text-[12px] leading-4 font-extrabold text-[#B1C9D1] underline underline-offset-2 transition-colors hover:text-white focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:text-sm"
