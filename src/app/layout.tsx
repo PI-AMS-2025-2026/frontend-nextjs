@@ -3,6 +3,7 @@ import { Poppins, Geist } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { AuthSessionRedirect } from "@/components/auth-session-redirect";
+import { EnvironmentBanner } from "@/components/environment-banner";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -29,6 +30,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <AuthSessionRedirect />
+        <EnvironmentBanner />
         {children}
       </body>
     </html>

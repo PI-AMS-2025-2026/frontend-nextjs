@@ -15,7 +15,9 @@ export default function AdministratorLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className={`${roboto.className} flex min-h-svh flex-col`}>
+    // flex-1 (e não min-h-svh): ocupa o restante do <body>, que já tem a altura
+    // da tela, sem somar a altura da faixa de ambiente e gerar rolagem.
+    <div className={`${roboto.className} flex flex-1 flex-col`}>
       <Navbar
         tipo="administrador"
         homeHref={administratorHeaderConfig.homeHref}
