@@ -12,7 +12,7 @@ export function AuthPageShell({ title, description, children }: AuthPageShellPro
   return (
     <main
       className={cn(
-        "relative isolate flex min-h-svh items-center justify-center overflow-hidden",
+        "relative isolate flex flex-1 items-center justify-center overflow-hidden",
         "bg-[linear-gradient(239.09deg,#0099AA_0%,#17264D_55%)] px-4 py-28 sm:px-8 lg:py-0",
       )}
     >
