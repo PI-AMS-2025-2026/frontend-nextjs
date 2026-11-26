@@ -19,10 +19,10 @@ export class ApiError extends Error {
 }
 
 function buildUrl(endpoint: string, params?: object) {
-  const url = new URL(
-    endpoint,
-    API_URL.endsWith("/") ? API_URL : `${API_URL}/`,
-  );
+  const apiPath = endpoint.startsWith("/api/")
+    ? endpoint
+    : `/api${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+  const url = new URL(apiPath, API_URL.endsWith("/") ? API_URL : `${API_URL}/`);
 
   if (params) {
     Object.entries(params).forEach(([key, value]) => {

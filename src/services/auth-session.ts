@@ -24,7 +24,10 @@ let expirationHandled = false;
 let expirationInFlight: Promise<void> | null = null;
 
 function apiUrl(path: string) {
-  return new URL(path, API_URL.endsWith("/") ? API_URL : `${API_URL}/`).toString();
+  const apiPath = path.startsWith("/api/")
+    ? path
+    : `/api${path.startsWith("/") ? path : `/${path}`}`;
+  return new URL(apiPath, API_URL.endsWith("/") ? API_URL : `${API_URL}/`).toString();
 }
 
 function fromApiKeys(value: unknown): unknown {
